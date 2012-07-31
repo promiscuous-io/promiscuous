@@ -5,10 +5,12 @@ RSpec::Core::Example.class_eval do
   alias run_without_em run
 
   def run(example_group_instance, reporter)
+    ret = nil
     EM.synchrony do
-      run_without_em example_group_instance, reporter
+      ret = run_without_em example_group_instance, reporter
       EM.stop
     end
+    ret
   end
 
   #alias initialize_without_eventually initialize
