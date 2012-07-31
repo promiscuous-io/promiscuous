@@ -1,5 +1,6 @@
 require 'active_support/core_ext'
-require 'replicable/primary'
+require 'replicable/publisher'
+require 'replicable/subscriber'
 
 module Replicable
   mattr_reader :mongoid3

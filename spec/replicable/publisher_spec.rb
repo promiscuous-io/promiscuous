@@ -4,17 +4,17 @@ require 'support/models'
 # TODO Parent is not affected by child fields
 # TODO no tail on the key
 
-describe Replicable::Primary do
-  before { load 'support/fake_amqp.rb' }
+describe Replicable::Publisher do
+  before { Replicable::AMQP.configure(:fake) }
   context "when creating" do
-    let!(:instance) { Test::Primary::Child.create(:child_field_1  => "child_1",
+    let!(:instance) { Test::Publisher::Child.create(:child_field_1  => "child_1",
                                                   :child_field_2  => "child_2",
                                                   :parent_field_1 => "parent_1",
                                                   :parent_field_3 => "dont care") }
 
     it "broadcasts the model hierarchy in the key" do
       root, model_name, operation, fields = Replicable::AMQP.messages.last[:key].split('.')
-      model_name.split(',').should =~ ['test/primary/child', 'test/primary/parent']
+      model_name.split(',').should =~ ['test/publisher/child', 'test/publisher/parent']
     end
 
     it "broadcasts the create operation in the key" do
@@ -36,7 +36,7 @@ describe Replicable::Primary do
   end
 
   context "when updating" do
-    let!(:instance) { Test::Primary::Child.create }
+    let!(:instance) { Test::Publisher::Child.create }
 
     before do
       Replicable::AMQP.clear
@@ -48,7 +48,7 @@ describe Replicable::Primary do
 
     it "broadcasts the model hierarchy in the key" do
       root, model_name, operation, fields = Replicable::AMQP.messages.last[:key].split('.')
-      model_name.split(',').should =~ ['test/primary/child', 'test/primary/parent']
+      model_name.split(',').should =~ ['test/publisher/child', 'test/publisher/parent']
     end
 
     it "broadcasts the update operation in the key" do
@@ -70,7 +70,7 @@ describe Replicable::Primary do
   end
 
   context "when destroying" do
-    let!(:instance) { Test::Primary::Child.create }
+    let!(:instance) { Test::Publisher::Child.create }
 
     before do
       Replicable::AMQP.clear
@@ -79,7 +79,7 @@ describe Replicable::Primary do
 
     it "broadcasts the model hierarchy in the key" do
       root, model_name, operation, fields = Replicable::AMQP.messages.last[:key].split('.')
-      model_name.split(',').should =~ ['test/primary/child', 'test/primary/parent']
+      model_name.split(',').should =~ ['test/publisher/child', 'test/publisher/parent']
     end
 
     it "broadcasts the update operation in the key" do

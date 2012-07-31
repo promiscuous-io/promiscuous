@@ -5,7 +5,7 @@ require 'replicable/version'
 
 Gem::Specification.new do |s|
   s.name        = "replicable"
-  s.version     =  Replicable::VERSION
+  s.version     = Replicable::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Nicolas Viennot", "Kareem Kouddous"]
   s.email       = ["nicolas@viennot.biz", "kareem@doubleonemedia.com"]

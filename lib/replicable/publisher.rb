@@ -2,7 +2,7 @@ require 'active_support/concern'
 require 'replicable/helpers'
 require 'replicable/amqp'
 
-module Replicable::Primary
+module Replicable::Publisher
   extend ActiveSupport::Concern
 
   module ClassMethods

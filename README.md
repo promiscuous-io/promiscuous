@@ -8,7 +8,7 @@ It uses [RabbitMQ](http://www.rabbitmq.com/).
 Usage
 ------
 
-Simply include `include Replicable::Primary` and use the `replicate` method in
+Simply include `include Replicable::Publisher` and use the `replicate` method in
 your model as shown below.
 
 Note that you need to explicitly list the fields that you care to replicate.
@@ -19,7 +19,7 @@ Example
 ```ruby
 class Model
   include Mongoid::Document
-  include Replicable::Primary
+  include Replicable::Publisher
 
   field :parent_field_1
   field :parent_field_2
