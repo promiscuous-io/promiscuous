@@ -20,7 +20,8 @@ Example
 # In your publisher app
 
 Replicable::AMQP.configure(:backend => :bunny, :app => 'crowdtap',
-                           :logger_level => Logger::DEBUG)
+                           :logger_level => Logger::DEBUG,
+                           :error_handler => some_proc)
 
 class PublisherModel
   include Mongoid::Document
@@ -36,7 +37,8 @@ end
 # In your subscriber app
 
 Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper',
-                           :logger_level => Logger::DEBUG)
+                           :logger_level => Logger::DEBUG,
+                           :error_handler => some_proc)
 
 class SubscriberModel
   include Mongoid::Document
