@@ -1,7 +1,6 @@
 require 'spec_helper'
 require 'replicable/subscriber/worker'
 
-# TODO autodestroy queues, etc.
 # API block
 
 describe Replicable do
