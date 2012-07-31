@@ -45,12 +45,12 @@ describe Replicable do
 
     it 'persists the model with the same id' do
       id = PublisherModel.create.id
-      eventually { SubscriberModel.where(:id => id).count.should == 1}
+      eventually { SubscriberModel.where(:_id => id).count.should == 1}
     end
 
     it 'persists fields that its subscribed to' do
       id = PublisherModel.create!(:field_1 => '1').id
-      eventually { SubscriberModel.where(:id => id).first.field_1.should == '1' }
+      eventually { SubscriberModel.where(:_id => id).first.field_1.should == '1' }
     end
   end
 
@@ -86,8 +86,8 @@ describe Replicable do
     it 'replicates the models' do
       id = PublisherModel.create.id
       id2 = PublisherModel2.create.id
-      eventually { SubscriberModel.where(:id => id).count.should == 1}
-      eventually { SubscriberModel2.where(:id => id2).count.should == 1}
+      eventually { SubscriberModel.where(:_id => id).count.should == 1}
+      eventually { SubscriberModel2.where(:_id => id2).count.should == 1}
     end
   end
 

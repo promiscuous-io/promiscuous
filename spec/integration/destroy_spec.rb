@@ -38,9 +38,9 @@ describe Replicable do
     let!(:instance) { PublisherModel.create }
 
     it 'destroys the model' do
-      eventually { SubscriberModel.where(:id => instance.id).count.should == 1 }
+      eventually { SubscriberModel.where(:_id => instance.id).count.should == 1 }
       instance.destroy
-      eventually { SubscriberModel.where(:id => instance.id).count.should == 0 }
+      eventually { SubscriberModel.where(:_id => instance.id).count.should == 0 }
     end
   end
 
