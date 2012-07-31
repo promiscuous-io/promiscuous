@@ -19,8 +19,6 @@ module Replicable::Publisher
       self.replicate_options = Marshal.load(Marshal.dump(self.replicate_options))
 
       self.replicate_options ||= {}
-      self.replicate_options[:fields] ||= []
-      #self.replicate_options[:fields] += options[:fields]
       self.replicate_options[:app_name] = options[:app_name] if options[:app_name]
     end
   end

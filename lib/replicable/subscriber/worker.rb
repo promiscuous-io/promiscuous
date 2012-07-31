@@ -12,8 +12,8 @@ module Replicable
         fields     = options[:fields]
         class_name = options[:class_name]
 
-        queue_name = "#{Replicable::AMQP.app}.#{klass.to_s.underscore}"
-        bindings   = fields.map { |field| "#{from}.#.#{class_name}.#.*.$fields$.#.#{field}.#" }
+        queue_name = "#{Replicable::AMQP.app}.replicable"
+        bindings   = fields.map { |field| "#{from}.#.#{class_name}.#.update.$fields$.#.#{field}.#" }
         bindings   += [:create, :destroy].map { |op| "#{from}.#.#{class_name}.#.#{op}.$fields$.#" }
 
         Replicable::AMQP.subscribe(:queue_name => queue_name, :bindings => bindings) do |metadata, payload|
