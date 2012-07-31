@@ -47,7 +47,7 @@ module Replicable
         when :update
           klass.find(id).update_attributes!(fields)
         when :destroy
-          klass.find(id).destroy!
+          klass.find(id).destroy
         end
       end
     end
