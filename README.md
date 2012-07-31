@@ -17,16 +17,34 @@ Example
 --------
 
 ```ruby
-class Model
+# In your publisher app
+
+class PublisherModel
   include Mongoid::Document
   include Replicable::Publisher
 
-  field :parent_field_1
-  field :parent_field_2
-  field :parent_field_3
+  field :field_1
+  field :field_2
+  field :field_3
 
-  replicate :parent_field_1, :parent_field_2
+  replicate
 end
+
+# In your subscriber app
+
+class SubscriberModel
+  include Mongoid::Document
+  include Replicable::Subscriber
+
+  field :field_1
+  field :field_2
+  field :field_3
+
+  replicate :from => 'crowdtap',
+            :class_name => 'publisher_model',
+            :fields => [:field_1, :field_2, :field_3]
+end
+
 ```
 
 Protocol

@@ -4,7 +4,7 @@ module Replicable
       mattr_accessor :messages
       self.messages = []
 
-      def self.configure
+      def self.configure(options)
       end
 
       def self.publish(msg)
@@ -13,6 +13,9 @@ module Replicable
 
       def self.clear
         self.messages.clear
+      end
+
+      def self.close
       end
     end
   end

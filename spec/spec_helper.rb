@@ -3,6 +3,7 @@ require 'bundler'
 Bundler.require(:default, :test)
 
 require 'replicable/amqp'
+Dir["./spec/support/**/*.rb"].each {|f| require f}
 
 HOST = ENV['MONGOID_SPEC_HOST'] || 'localhost'
 PORT = ENV['MONGOID_SPEC_PORT'] || '27017'
@@ -22,6 +23,8 @@ end
 RSpec.configure do |config|
   config.mock_with :mocha
   config.color_enabled = true
+
+  config.include AsyncHelper
 
   config.before(:each) do
   if Replicable.mongoid3

@@ -6,10 +6,15 @@ require 'replicable/amqp/ruby-amqp'
 module Replicable
   module AMQP
     mattr_accessor :backend
+    mattr_accessor :app
 
-    def self.configure(backend, *args, &block)
-      self.backend = "Replicable::AMQP::#{backend.to_s.camelize}".constantize
-      self.backend.configure(*args, &block)
+    def self.configure(options={}, &block)
+      backend = options[:backend]
+      app = options[:app]
+
+      self.backend = "Replicable::AMQP::#{backend.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize
+      self.backend.configure(options, &block)
+      self.app = app
     end
 
     # TODO Evaluate the performance hit of method_missing
