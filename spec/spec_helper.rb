@@ -2,6 +2,9 @@ require 'rubygems'
 require 'bundler'
 Bundler.require(:default, :test)
 
+require 'replicable/amqp'
+Replicable::AMQP.configure
+
 HOST = ENV['MONGOID_SPEC_HOST'] || 'localhost'
 PORT = ENV['MONGOID_SPEC_PORT'] || '27017'
 DATABASE = 'replicable_test'
