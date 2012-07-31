@@ -2,7 +2,7 @@ Replicable
 ===========
 
 Replicable offers an automatic way of propagating your model data across one or
-more distributed applications.
+more applications.
 It uses [RabbitMQ](http://www.rabbitmq.com/).
 
 Usage
@@ -19,6 +19,9 @@ Example
 ```ruby
 # In your publisher app
 
+Replicable::AMQP.configure(:backend => :bunny, :app => 'crowdtap',
+                           :logger_level => Logger::DEBUG)
+
 class PublisherModel
   include Mongoid::Document
   include Replicable::Publisher
@@ -32,18 +35,23 @@ end
 
 # In your subscriber app
 
+Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper',
+                           :logger_level => Logger::DEBUG)
+
 class SubscriberModel
   include Mongoid::Document
   include Replicable::Subscriber
 
-  field :field_1
-  field :field_2
-  field :field_3
-
-  replicate :from => 'crowdtap',
-            :class_name => 'publisher_model',
-            :fields => [:field_1, :field_2, :field_3]
+  replicate :from => 'crowdtap', :class_name => 'publisher_model' do
+    field :field_1
+    field :field_2
+    field :field_3
+  end
 end
+
+# Starting the worker
+
+rake replicable:run[./path/to/replicable_initializer.rb]
 
 ```
 

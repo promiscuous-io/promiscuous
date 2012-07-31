@@ -1,8 +1,6 @@
 require 'spec_helper'
 require 'replicable/subscriber/worker'
 
-# API block
-
 describe Replicable do
   before do
     define_constant(:publisher_model) do

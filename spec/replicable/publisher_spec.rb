@@ -1,7 +1,5 @@
 require 'spec_helper'
 
-# TODO Parent is not affected by child fields
-
 describe Replicable::Publisher do
   before { Replicable::AMQP.configure(:backend => :fake, :app => 'crowdtap') }
 

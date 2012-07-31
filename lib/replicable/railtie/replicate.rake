@@ -1,12 +1,11 @@
 namespace :replicable do
   desc 'Run the subscribers worker'
-  task :run do |t|
-    require './spec/spec_helper'
+  task :run, [:initializer] => :environment do |t, args|
     require 'replicable/subscriber/worker'
-    require './spec/support/models'
     require 'eventmachine'
-    EventMachine.run do
-      Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper')
+    require 'em-synchrony'
+    EM.synchrony do
+      load args.initializer
       Replicable::Subscriber::Worker.run
     end
   end
