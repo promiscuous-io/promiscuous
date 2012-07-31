@@ -5,18 +5,17 @@ require 'replicable/amqp/ruby-amqp'
 
 module Replicable
   module AMQP
-    mattr_accessor :backend
-    mattr_accessor :app
-    mattr_accessor :logger
+    mattr_accessor :backend, :app, :logger, :error_handler
 
     def self.configure(options={}, &block)
       backend = options[:backend]
 
       self.backend = "Replicable::AMQP::#{backend.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize
       self.backend.configure(options, &block)
-      self.app = options[:app]
-      self.logger = options[:logger] || Logger.new(STDOUT)
-      self.logger.level = options[:logger_level] || Logger::WARN
+      self.app           = options[:app]
+      self.logger        = options[:logger] || Logger.new(STDOUT)
+      self.logger.level  = options[:logger_level] || Logger::WARN
+      self.error_handler = options[:error_handler]
       configure_logger
     end
 
