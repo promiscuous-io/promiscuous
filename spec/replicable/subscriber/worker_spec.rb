@@ -13,9 +13,11 @@ describe Replicable::Subscriber::Worker, '.subscribe' do
       field :field_2
       field :field_3
 
-      replicate :from => 'crowdtap',
-                :class_name => 'publisher_model',
-                :fields => [:field_1, :field_2, :field_3]
+      replicate :from => 'crowdtap', :class_name => 'publisher_model' do
+        field :field_1
+        field :field_2
+        field :field_3
+      end
     end
     Replicable::Subscriber::Worker.run
   end
