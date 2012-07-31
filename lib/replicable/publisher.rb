@@ -21,6 +21,10 @@ module Replicable::Publisher
       self.replicate_options ||= {}
       self.replicate_options[:app_name] = options[:app_name] if options[:app_name]
     end
+
+    def replicate_ancestors
+      Replicable::Helpers.model_ancestors(self).map { |c| c.to_s.underscore }
+    end
   end
 
   private
@@ -33,7 +37,7 @@ module Replicable::Publisher
 
   def replicate_key(operation)
     path = [self.class.replicate_options[:app_name] || Replicable::AMQP.app]
-    path << Replicable::Helpers.model_ancestors(self.class).map {|c| c.to_s.underscore}.join('.')
+    path << self.class.replicate_ancestors.join('.')
     path << operation
     path << '$fields$'
     path << replicated_field_names.join('.')
@@ -42,9 +46,10 @@ module Replicable::Publisher
 
   def replicate_payload(operation)
     {
-      :id => id,
+      :id        => id,
       :operation => operation,
-      :fields => Hash[(replicated_field_names).map {|f| [f, self.__send__(f)] }]
+      :classes   => self.class.replicate_ancestors,
+      :fields    => Hash[(replicated_field_names).map {|f| [f, self.__send__(f)] }]
     }.to_json
   end
 

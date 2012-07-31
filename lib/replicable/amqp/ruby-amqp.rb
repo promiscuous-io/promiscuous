@@ -16,13 +16,17 @@ module Replicable
 
         queue = self.channel.queue(queue_name, self.queue_options)
         exchange = channel.topic('replicable')
-        bindings.each { |binding| queue.bind(exchange, :routing_key => binding) }
+        bindings.each do |binding|
+          queue.bind(exchange, :routing_key => binding)
+          AMQP.logger.info "[bind] #{queue_name} -> #{binding}"
+        end
         queue.subscribe(:ack => true, &block)
       end
 
       def self.publish(msg)
         exchange = channel.topic('replicable')
         exchange.publish(msg[:payload], :routing_key => msg[:key])
+        AMQP.logger.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
       end
 
       def self.close
