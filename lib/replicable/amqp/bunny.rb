@@ -10,7 +10,8 @@ module Replicable
       end
 
       def self.publish(msg)
-        connection.exchange('replicable', :type => :topic).publish(msg[:payload], :key => msg[:key])
+        exchange = connection.exchange('replicable', :type => :topic, :durable => true)
+        exchange.publish(msg[:payload], :key => msg[:key], :persistent => true)
         AMQP.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
       end
 

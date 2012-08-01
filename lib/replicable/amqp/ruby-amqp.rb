@@ -31,7 +31,7 @@ module Replicable
         bindings   = options[:bindings]
 
         queue = self.channel.queue(queue_name, self.queue_options)
-        exchange = channel.topic('replicable')
+        exchange = channel.topic('replicable', :durable => true)
         bindings.each do |binding|
           queue.bind(exchange, :routing_key => binding)
           AMQP.info "[bind] #{queue_name} -> #{binding}"
@@ -40,8 +40,8 @@ module Replicable
       end
 
       def self.publish(msg)
-        exchange = channel.topic('replicable')
-        exchange.publish(msg[:payload], :routing_key => msg[:key])
+        exchange = channel.topic('replicable', :durable => true)
+        exchange.publish(msg[:payload], :routing_key => msg[:key], :persistent => true)
         AMQP.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
       end
 

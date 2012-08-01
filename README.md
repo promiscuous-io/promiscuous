@@ -25,8 +25,7 @@ Example
 
 ```ruby
 # initializer
-Replicable::AMQP.configure(:backend => :bunny, :app => 'crowdtap',
-                           :logger => Rails.logger,
+Replicable::AMQP.configure(:backend => :bunny, :app => 'crowdtap', :logger => Rails.logger,
                            :server_uri => 'amqp://user:password@host:port/vhost')
 
 # model
@@ -46,10 +45,10 @@ end
 
 ```ruby
 # initializer
-Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper',
-                           :logger => Rails.logger,
-                           :error_handler => some_proc,
-                           :server_uri => 'amqp://user:password@host:port/vhost')
+Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper', :logger => Rails.logger,
+                           :server_uri => 'amqp://user:password@host:port/vhost',
+                           :queue_options => {:durable => true},
+                           :error_handler => some_proc)
 
 # model
 class SubscriberModel
