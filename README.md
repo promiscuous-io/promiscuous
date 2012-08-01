@@ -27,7 +27,6 @@ Example
 # initializer
 Replicable::AMQP.configure(:backend => :bunny, :app => 'crowdtap',
                            :logger => Rails.logger,
-                           :error_handler => some_proc,
                            :server_uri => 'amqp://user:password@host:port/vhost')
 
 # model
