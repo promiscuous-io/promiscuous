@@ -95,7 +95,7 @@ describe Replicable::Publisher do
       @model_name.split('.').should =~ ['child', 'parent']
     end
 
-    it "broadcasts the update operation in the key" do
+    it "broadcasts the destroy operation in the key" do
       @operation.should == 'destroy'
     end
   end
