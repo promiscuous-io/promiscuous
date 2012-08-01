@@ -17,6 +17,7 @@ module Replicable
       self.logger.level  = options[:logger_level] || Logger::WARN
       self.error_handler = options[:error_handler]
       configure_logger
+      self
     end
 
     def self.configure_logger

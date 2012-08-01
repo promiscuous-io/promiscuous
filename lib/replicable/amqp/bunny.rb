@@ -5,7 +5,7 @@ module Replicable
 
       def self.configure(options)
         require 'bunny'
-        self.connection = Bunny.new
+        self.connection = ::Bunny.new(options[:server_uri])
         self.connection.start
       end
 

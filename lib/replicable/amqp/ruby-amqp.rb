@@ -5,9 +5,25 @@ module Replicable
 
       def self.configure(options)
         require 'amqp'
-        connection = ::AMQP.connect
+        connection = ::AMQP.connect(build_connection_options(options))
         self.channel = ::AMQP::Channel.new(connection)
         self.queue_options = options[:queue_options] || {}
+      end
+
+      def self.build_connection_options(options)
+        if options[:server_uri]
+          uri = URI.parse(options[:server_uri])
+          raise "Please use amqp://user:password@host:port/vhost" if uri.scheme != 'amqp'
+
+          {
+            :host => uri.host,
+            :port => uri.port,
+            :scheme => uri.scheme,
+            :user => uri.user,
+            :pass => uri.password,
+            :vhost => uri.path.empty? ? "/" : uri.path,
+         }
+        end
       end
 
       def self.subscribe(options={}, &block)
