@@ -8,9 +8,9 @@ module Replicable
     mattr_accessor :backend, :app, :logger, :error_handler
 
     def self.configure(options={}, &block)
-      backend = options[:backend]
+      options.symbolize_keys!
 
-      self.backend = "Replicable::AMQP::#{backend.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize
+      self.backend = "Replicable::AMQP::#{options[:backend].to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize
       self.backend.configure(options, &block)
       self.app           = options[:app]
       self.logger        = options[:logger] || Logger.new(STDOUT).tap { |l| l.level = Logger::WARN }
