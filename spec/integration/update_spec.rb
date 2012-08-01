@@ -47,10 +47,9 @@ describe Replicable do
     before do
       Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper',
                                  :queue_options => {:auto_delete => true},
-                                 :logger_level => 4,
                                  :error_handler => error_handler)
-
-    Replicable::Subscriber::Worker.run
+      Replicable::AMQP.logger.level = Logger::FATAL
+      Replicable::Subscriber::Worker.run
     end
 
     before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /updated/ } }

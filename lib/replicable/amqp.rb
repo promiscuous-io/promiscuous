@@ -13,8 +13,7 @@ module Replicable
       self.backend = "Replicable::AMQP::#{backend.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize
       self.backend.configure(options, &block)
       self.app           = options[:app]
-      self.logger        = options[:logger] || Logger.new(STDOUT)
-      self.logger.level  = options[:logger_level] || Logger::WARN
+      self.logger        = options[:logger] || Logger.new(STDOUT).tap { |l| l.level = Logger::WARN }
       self.error_handler = options[:error_handler]
       configure_logger
       self
