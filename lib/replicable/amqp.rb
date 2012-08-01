@@ -15,14 +15,15 @@ module Replicable
       self.app           = options[:app]
       self.logger        = options[:logger] || Logger.new(STDOUT).tap { |l| l.level = Logger::WARN }
       self.error_handler = options[:error_handler]
-      configure_logger
       self
     end
 
-    def self.configure_logger
-      self.logger.formatter = proc do |severity, datetime, progname, msg|
-        "[AMQP] #{msg}\n"
-      end
+    def self.info(msg)
+      self.logger.info "[AMQP] #{msg}\n"
+    end
+
+    def self.error(msg)
+      self.logger.info "[AMQP] #{msg}\n"
     end
 
     # TODO Evaluate the performance hit of method_missing

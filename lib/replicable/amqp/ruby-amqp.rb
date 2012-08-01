@@ -34,7 +34,7 @@ module Replicable
         exchange = channel.topic('replicable')
         bindings.each do |binding|
           queue.bind(exchange, :routing_key => binding)
-          AMQP.logger.info "[bind] #{queue_name} -> #{binding}"
+          AMQP.info "[bind] #{queue_name} -> #{binding}"
         end
         queue.subscribe(:ack => true, &block)
       end
@@ -42,7 +42,7 @@ module Replicable
       def self.publish(msg)
         exchange = channel.topic('replicable')
         exchange.publish(msg[:payload], :routing_key => msg[:key])
-        AMQP.logger.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
+        AMQP.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
       end
 
       def self.close

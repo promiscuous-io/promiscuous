@@ -14,14 +14,14 @@ module Replicable
         Replicable::AMQP.subscribe(:queue_name => queue_name, :bindings => bindings.flatten) do |metadata, payload|
           begin
             unless stop
-              Replicable::AMQP.logger.info "[receive] #{payload}"
+              Replicable::AMQP.info "[receive] #{payload}"
               self.process(JSON.parse(payload).symbolize_keys)
               metadata.ack
             end
           rescue Exception => e
             stop = true
             Replicable::AMQP.close
-            Replicable::AMQP.logger.error "[receive] cannot process #{payload} because #{e}"
+            Replicable::AMQP.error "[receive] cannot process #{payload} because #{e}"
             Replicable::AMQP.error_handler.call(e) if Replicable::AMQP.error_handler
           end
         end
