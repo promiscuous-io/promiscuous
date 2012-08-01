@@ -9,8 +9,10 @@ HOST = ENV['MONGOID_SPEC_HOST'] || 'localhost'
 PORT = ENV['MONGOID_SPEC_PORT'] || '27017'
 DATABASE = 'replicable_test'
 
+mongoid3 = Gem.loaded_specs['mongoid'].version >= Gem::Version.new('3.0.0')
+
 Mongoid.configure do |config|
-  if Replicable.mongoid3
+  if mongoid3
     config.connect_to(DATABASE)
     ::BSON = ::Moped::BSON
   else
@@ -27,7 +29,7 @@ RSpec.configure do |config|
   config.include AsyncHelper
 
   config.before(:each) do
-  if Replicable.mongoid3
+  if mongoid3
       Mongoid.purge!
     else
       Mongoid.database.collections.each do |collection|

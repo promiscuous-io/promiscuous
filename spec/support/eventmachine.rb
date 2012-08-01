@@ -12,12 +12,6 @@ RSpec::Core::Example.class_eval do
     end
     ret
   end
-
-  #alias initialize_without_eventually initialize
-  #def initialize(example_group_class, description, metadata, example_block=nil)
-    #example_block_async = proc { Async.eventually { example_block.call } }
-    #initialize_without_eventually(example_group_class, description, metadata, example_block_async)
-  #end
 end
 
 module AsyncHelper
