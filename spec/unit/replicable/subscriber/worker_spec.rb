@@ -28,13 +28,7 @@ describe Replicable::Subscriber::Worker, '.subscribe' do
   end
 
   it 'creates all the correct bindings' do
-    bindings = [
-      "crowdtap.#.publisher_model.#.create.$fields$.#",
-      "crowdtap.#.publisher_model.#.destroy.$fields$.#",
-      "crowdtap.#.publisher_model.#.update.$fields$.#.field_1.#",
-      "crowdtap.#.publisher_model.#.update.$fields$.#.field_2.#",
-      "crowdtap.#.publisher_model.#.update.$fields$.#.field_3.#"
-    ]
+    bindings = [ "crowdtap.#.publisher_model.#.*" ]
     Replicable::AMQP.subscribe_options[:bindings].should =~ bindings
   end
 

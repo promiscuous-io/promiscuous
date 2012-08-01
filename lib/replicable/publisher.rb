@@ -39,8 +39,6 @@ module Replicable::Publisher
     path = [self.class.replicate_options[:app_name] || Replicable::AMQP.app]
     path << self.class.replicate_ancestors.join('.')
     path << operation
-    path << '$fields$'
-    path << replicated_field_names.join('.')
     path.join('.')
   end
 

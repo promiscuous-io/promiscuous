@@ -85,6 +85,39 @@ describe Replicable do
     end
   end
 
+  context "with many many fields" do
+    before do
+      define_constant(:publisher_model_sick) do
+        include Mongoid::Document
+        include Replicable::Publisher
+
+        100.times.each do |i|
+          field :"very_very_very_very_long_field_#{i}", :default => 123
+        end
+
+        replicate :app_name => 'crowdtap'
+      end
+
+      define_constant(:subscriber_model_sick) do
+        include Mongoid::Document
+        include Replicable::Subscriber
+
+        replicate :from => 'crowdtap', :class_name => 'publisher_model_sick' do
+          100.times.each do |i|
+            field :"very_very_very_very_long_field_#{i}"
+          end
+        end
+      end
+    end
+
+    before { Replicable::Subscriber::Worker.run }
+
+    it 'replicates the models' do
+      id = PublisherModelSick.create.id
+      eventually { SubscriberModelSick.where(:_id => id).count.should == 1}
+    end
+  end
+
   after do
     Replicable::AMQP.close
     Replicable::Subscriber.subscriptions.clear

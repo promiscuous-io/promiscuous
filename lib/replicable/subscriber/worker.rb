@@ -32,8 +32,7 @@ module Replicable
         fields     = options[:fields]
         class_name = options[:class_name]
 
-        self.bindings += fields.map { |field| "#{from}.#.#{class_name}.#.update.$fields$.#.#{field}.#" }
-        self.bindings += [:create, :destroy].map { |op| "#{from}.#.#{class_name}.#.#{op}.$fields$.#" }
+        self.bindings += ["#{from}.#.#{class_name}.#.*"]
 
         # TODO raise exception if already there
         self.klass_map[class_name] = klass

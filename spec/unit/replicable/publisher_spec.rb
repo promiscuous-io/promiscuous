@@ -33,8 +33,8 @@ describe Replicable::Publisher do
                                    :parent_field_1 => "parent_1") }
 
     before do
-      re = /crowdtap\.(.+)\.(.+)\.\$fields\$\.(.*)$/
-      _, @model_name, @operation, @fields = Replicable::AMQP.messages.last[:key].match(re).to_a
+      re = /crowdtap\.(.+)\.(.+)/
+      _, @model_name, @operation = Replicable::AMQP.messages.last[:key].match(re).to_a
     end
 
     it "broadcasts the model hierarchy in the key" do
@@ -43,10 +43,6 @@ describe Replicable::Publisher do
 
     it "broadcasts the create operation in the key" do
       @operation.should == 'create'
-    end
-
-    it "broadcasts the changed field names in the key" do
-      @fields.split('.').should =~ ['child_field_1', 'child_field_2', 'parent_field_1']
     end
   end
 
@@ -61,8 +57,8 @@ describe Replicable::Publisher do
     end
 
     before do
-      re = /crowdtap\.(.+)\.(.+)\.\$fields\$\.(.*)$/
-      _, @model_name, @operation, @fields = Replicable::AMQP.messages.last[:key].match(re).to_a
+      re = /crowdtap\.(.+)\.(.+)/
+      _, @model_name, @operation = Replicable::AMQP.messages.last[:key].match(re).to_a
     end
 
     it "broadcasts the model hierarchy in the key" do
@@ -71,10 +67,6 @@ describe Replicable::Publisher do
 
     it "broadcasts the update operation in the key" do
       @operation.should == 'update'
-    end
-
-    it "broadcasts the changed field names in the key" do
-      @fields.split('.').should =~ ['child_field_1', 'child_field_2', 'parent_field_1']
     end
   end
 
@@ -87,8 +79,8 @@ describe Replicable::Publisher do
     end
 
     before do
-      re = /crowdtap\.(.+)\.(.+)\.\$fields\$\.(.*)$/
-      _, @model_name, @operation, @fields = Replicable::AMQP.messages.last[:key].match(re).to_a
+      re = /crowdtap\.(.+)\.(.+)/
+      _, @model_name, @operation = Replicable::AMQP.messages.last[:key].match(re).to_a
     end
 
     it "broadcasts the model hierarchy in the key" do
