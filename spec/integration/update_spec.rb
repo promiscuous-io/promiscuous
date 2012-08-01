@@ -10,6 +10,7 @@ describe Replicable do
       field :field_1
       field :field_2
       field :field_3
+      field :field_4
 
       replicate :app_name => 'crowdtap'
     end
@@ -23,6 +24,8 @@ describe Replicable do
         field :field_2
         field :field_3
       end
+
+      field :field_4, :default => 'not_updated'
     end
   end
 
@@ -38,6 +41,15 @@ describe Replicable do
     it 'updates the model' do
       instance.update_attributes(:field_1 => 'updated')
       eventually { SubscriberModel.find(instance.id).field_1.should == 'updated' }
+    end
+
+    it 'does not update fields that are not subscribed to' do
+      instance.update_attributes(:field_1 => 'updated', :field_4 => 'updated')
+      eventually do
+        sub = SubscriberModel.find(instance.id)
+        sub.field_1.should == 'updated'
+        sub.field_4.should == 'not_updated'
+      end
     end
   end
 
