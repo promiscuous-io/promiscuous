@@ -35,6 +35,12 @@ module Replicable::Publisher
     end
   end
 
+  def with_replicated_field_names_cached
+    @replicated_field_names = replicated_field_names
+    yield
+    @replicated_field_names = nil
+  end
+
   def replicate_key(operation)
     path = [self.class.replicate_options[:app_name] || Replicable::AMQP.app]
     path << self.class.replicate_ancestors.join('.')
@@ -47,16 +53,19 @@ module Replicable::Publisher
       :id        => id,
       :operation => operation,
       :classes   => self.class.replicate_ancestors,
-      :fields    => Hash[(replicated_field_names).map {|f| [f, self.__send__(f)] }]
+      :fields    => Hash[(@replicated_field_names).map {|f| [f, self.__send__(f)] }]
     }.to_json
   end
 
   [:create, :update, :destroy].each do |operation|
     define_method "replicate_changes_#{operation}" do |&block|
-      key = replicate_key(operation)
-      payload = replicate_payload(operation)
-      block.call
-      Replicable::AMQP.publish(:key => key, :payload => payload)
+      with_replicated_field_names_cached do
+        block.call
+        if replicated_field_names.present? || operation != :update
+          Replicable::AMQP.publish(:key => replicate_key(operation),
+                                   :payload => replicate_payload(operation))
+        end
+      end
     end
   end
 end

@@ -68,6 +68,13 @@ describe Replicable::Publisher do
     it "broadcasts the update operation in the key" do
       @operation.should == 'update'
     end
+
+    it "doesn't do anything when save is called without field updates" do
+      Replicable::AMQP.clear
+      instance.save
+      Replicable::AMQP.messages.should be_empty
+    end
+
   end
 
   context "when destroying" do
