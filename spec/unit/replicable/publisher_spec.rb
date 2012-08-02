@@ -17,13 +17,10 @@ describe Replicable::Publisher do
 
     define_constant(:child, Parent) do
       include Mongoid::Document
-      include Replicable::Publisher
 
       field :child_field_1
       field :child_field_2
       field :child_field_3
-
-      replicate :app_name => 'test_publisher'
     end
   end
 
