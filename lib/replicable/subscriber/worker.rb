@@ -39,11 +39,10 @@ module Replicable
       end
 
       def self.process(payload)
-        payload[:classes].each do |class_name|
-          klass = self.klass_map[class_name]
-          raise "Unknown class: '#{payload[:class]}'" if klass.nil?
-          self.process_for(klass, payload)
-        end
+        class_name = payload[:classes].last
+        klass = self.klass_map[payload[:classes].last]
+        raise "Unknown class: '#{payload[:class]}'" if klass.nil?
+        self.process_for(klass, payload)
       end
 
       def self.process_for(klass, payload)

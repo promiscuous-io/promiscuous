@@ -13,7 +13,7 @@ module Replicable::Subscriber
       class_attribute :replicate_options
       Replicable::Subscriber.subscriptions << self
       proxy = Proxy.new(self)
-      proxy.instance_eval(&block)
+      proxy.instance_eval(&block) if block_given?
       options[:fields] = proxy.fields
       self.replicate_options = options
     end

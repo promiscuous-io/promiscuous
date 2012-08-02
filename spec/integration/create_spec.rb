@@ -82,6 +82,25 @@ describe Replicable do
     end
   end
 
+  context "with polymorphic models" do
+    before do
+      define_constant(:publisher_model_child, PublisherModel) do
+        include Mongoid::Document
+      end
+      define_constant(:subscriber_model_child, SubscriberModel) do
+        include Mongoid::Document
+        replicate :from => 'test_publisher', :class_name => 'publisher_model_child'
+      end
+    end
+
+    before { Replicable::Subscriber::Worker.run }
+
+    it 'replicates the models' do
+      id = PublisherModelChild.create.id
+      eventually { SubscriberModelChild.where(:_id => id).count.should == 1}
+    end
+  end
+
   context "with many many fields" do
     before do
       define_constant(:publisher_model_sick) do
