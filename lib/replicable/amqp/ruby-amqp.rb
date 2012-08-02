@@ -40,9 +40,9 @@ module Replicable
       end
 
       def self.publish(msg)
+        AMQP.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
         exchange = channel.topic('replicable', :durable => true)
         exchange.publish(msg[:payload], :routing_key => msg[:key], :persistent => true)
-        AMQP.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
       end
 
       def self.close
