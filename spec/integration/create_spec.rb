@@ -26,10 +26,7 @@ describe Replicable do
     end
   end
 
-  before do
-    Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper',
-                               :queue_options => {:auto_delete => true})
-  end
+  before { use_real_amqp }
 
   context 'when replicating the creation of a model' do
     before { Replicable::Subscriber::Worker.run }

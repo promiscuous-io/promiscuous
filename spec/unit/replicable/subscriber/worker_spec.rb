@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'replicable/subscriber/worker'
 
 describe Replicable::Subscriber::Worker, '.subscribe' do
-  before { Replicable::AMQP.configure(:backend => :fake, :app => 'sniper') }
+  before { use_fake_amqp(:app => 'sniper') }
 
   before do
     define_constant(:associated_model) do

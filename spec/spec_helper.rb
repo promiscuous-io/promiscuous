@@ -27,6 +27,7 @@ RSpec.configure do |config|
   config.color_enabled = true
 
   config.include AsyncHelper
+  config.include AMQPHelper
 
   config.before(:each) do
   if mongoid3

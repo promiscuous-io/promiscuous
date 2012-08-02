@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe Replicable::Publisher do
-  before { Replicable::AMQP.configure(:backend => :fake, :app => 'crowdtap') }
+  before { use_fake_amqp(:app => 'crowdtap') }
 
   before do
     define_constant(:parent) do

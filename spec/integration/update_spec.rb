@@ -29,11 +29,8 @@ describe Replicable do
     end
   end
 
-  before do
-    Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper',
-                               :queue_options => {:auto_delete => true})
-    Replicable::Subscriber::Worker.run
-  end
+  before { use_real_amqp }
+  before { Replicable::Subscriber::Worker.run }
 
   context 'when replicating the update of a model' do
     let!(:instance) { PublisherModel.create }
@@ -56,14 +53,8 @@ describe Replicable do
   context 'when replicating the update of a model that fails' do
     let!(:error_handler) { proc { |exception| @error_handler_called_with = exception } }
 
-    before do
-      Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper',
-                                 :queue_options => {:auto_delete => true},
-                                 :error_handler => error_handler)
-      Replicable::AMQP.logger.level = Logger::FATAL
-      Replicable::Subscriber::Worker.run
-    end
-
+    before { use_real_amqp(:error_handler => error_handler, :logger_level => Logger::FATAL) }
+    before { Replicable::Subscriber::Worker.run }
     before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /updated/ } }
 
     let!(:instance) { PublisherModel.create }
