@@ -2,6 +2,8 @@ require 'spec_helper'
 require 'replicable/subscriber/worker'
 
 describe Replicable do
+  before { use_real_amqp }
+
   before do
     define_constant(:publisher_model) do
       include Mongoid::Document
@@ -25,8 +27,6 @@ describe Replicable do
       end
     end
   end
-
-  before { use_real_amqp }
 
   context 'when replicating the creation of a model' do
     before { Replicable::Subscriber::Worker.run }
