@@ -78,6 +78,10 @@ How does it work ?
 4. Subscribers apps are running the replicable worker, listening on their own queues,
    executing the create/update/destroy on their databases.
 
+Note that we use a single exchange to preserve the ordering of data updates
+across application so that subscribers always see a consistant state of the
+system.
+
 What's up with bunny vs ruby-amqp ?
 -----------------------------------
 
