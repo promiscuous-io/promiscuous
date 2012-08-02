@@ -5,6 +5,12 @@ describe Replicable::Subscriber::Worker, '.subscribe' do
   before { Replicable::AMQP.configure(:backend => :fake, :app => 'sniper') }
 
   before do
+    define_constant(:associated_model) do
+      include Mongoid::Document
+
+      has_many :subscriber_models
+    end
+
     define_constant(:subscriber_model) do
       include Mongoid::Document
       include Replicable::Subscriber
@@ -17,6 +23,7 @@ describe Replicable::Subscriber::Worker, '.subscribe' do
         field :field_1
         field :field_2
         field :field_3
+        belongs_to :associated_model
       end
     end
     Replicable::Subscriber::Worker.run
@@ -30,6 +37,10 @@ describe Replicable::Subscriber::Worker, '.subscribe' do
   it 'creates all the correct bindings' do
     bindings = [ "crowdtap.#.publisher_model.#.*" ]
     Replicable::AMQP.subscribe_options[:bindings].should =~ bindings
+  end
+
+  it 'binds to all the fields, including associations' do
+    SubscriberModel.replicate_options[:fields].should =~ [:field_1, :field_2, :field_3, :associated_model_id]
   end
 
   after do

@@ -30,5 +30,10 @@ module Replicable::Subscriber
       @base.field(field_name, *args)
       @fields << field_name
     end
+
+    def belongs_to(associated_model, *args)
+      @base.belongs_to(associated_model, *args)
+      @fields << :"#{associated_model}_id"
+    end
   end
 end
