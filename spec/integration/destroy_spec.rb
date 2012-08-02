@@ -11,14 +11,14 @@ describe Replicable do
       field :field_2
       field :field_3
 
-      replicate :app_name => 'crowdtap'
+      replicate :app_name => 'test_publisher'
     end
 
     define_constant(:subscriber_model) do
       include Mongoid::Document
       include Replicable::Subscriber
 
-      replicate :from => 'crowdtap', :class_name => 'publisher_model' do
+      replicate :from => 'test_publisher', :class_name => 'publisher_model' do
         field :field_1
         field :field_2
         field :field_3

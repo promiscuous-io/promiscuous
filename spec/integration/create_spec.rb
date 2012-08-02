@@ -11,14 +11,14 @@ describe Replicable do
       field :field_2
       field :field_3
 
-      replicate :app_name => 'crowdtap'
+      replicate :app_name => 'test_publisher'
     end
 
     define_constant(:subscriber_model) do
       include Mongoid::Document
       include Replicable::Subscriber
 
-      replicate :from => 'crowdtap', :class_name => 'publisher_model' do
+      replicate :from => 'test_publisher', :class_name => 'publisher_model' do
         field :field_1
         field :field_2
         field :field_3
@@ -57,14 +57,14 @@ describe Replicable do
         field :field_2
         field :field_3
 
-        replicate :app_name => 'crowdtap'
+        replicate :app_name => 'test_publisher'
       end
 
       define_constant(:subscriber_model2) do
         include Mongoid::Document
         include Replicable::Subscriber
 
-        replicate :from => 'crowdtap', :class_name => 'publisher_model2' do
+        replicate :from => 'test_publisher', :class_name => 'publisher_model2' do
           field :field_1
           field :field_2
           field :field_3
@@ -92,14 +92,14 @@ describe Replicable do
           field :"very_very_very_very_long_field_#{i}", :default => 123
         end
 
-        replicate :app_name => 'crowdtap'
+        replicate :app_name => 'test_publisher'
       end
 
       define_constant(:subscriber_model_sick) do
         include Mongoid::Document
         include Replicable::Subscriber
 
-        replicate :from => 'crowdtap', :class_name => 'publisher_model_sick' do
+        replicate :from => 'test_publisher', :class_name => 'publisher_model_sick' do
           100.times.each do |i|
             field :"very_very_very_very_long_field_#{i}"
           end

@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe Replicable::Publisher do
-  before { use_fake_amqp(:app => 'crowdtap') }
+  before { use_fake_amqp(:app => 'test_publisher') }
 
   before do
     define_constant(:parent) do
@@ -12,7 +12,7 @@ describe Replicable::Publisher do
       field :parent_field_2
       field :parent_field_3
 
-      replicate :app_name => 'crowdtap'
+      replicate :app_name => 'test_publisher'
     end
 
     define_constant(:child, Parent) do
@@ -23,7 +23,7 @@ describe Replicable::Publisher do
       field :child_field_2
       field :child_field_3
 
-      replicate :app_name => 'crowdtap'
+      replicate :app_name => 'test_publisher'
     end
   end
 
@@ -33,7 +33,7 @@ describe Replicable::Publisher do
                                    :parent_field_1 => "parent_1") }
 
     before do
-      re = /crowdtap\.(.+)\.(.+)/
+      re = /test_publisher\.(.+)\.(.+)/
       _, @model_name, @operation = Replicable::AMQP.messages.last[:key].match(re).to_a
     end
 
@@ -57,7 +57,7 @@ describe Replicable::Publisher do
     end
 
     before do
-      re = /crowdtap\.(.+)\.(.+)/
+      re = /test_publisher\.(.+)\.(.+)/
       _, @model_name, @operation = Replicable::AMQP.messages.last[:key].match(re).to_a
     end
 
@@ -86,7 +86,7 @@ describe Replicable::Publisher do
     end
 
     before do
-      re = /crowdtap\.(.+)\.(.+)/
+      re = /test_publisher\.(.+)\.(.+)/
       _, @model_name, @operation = Replicable::AMQP.messages.last[:key].match(re).to_a
     end
 

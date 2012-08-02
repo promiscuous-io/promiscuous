@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'replicable/subscriber/worker'
 
 describe Replicable::Subscriber::Worker, '.subscribe' do
-  before { use_fake_amqp(:app => 'sniper') }
+  before { use_fake_amqp(:app => 'test_subscriber') }
 
   before do
     define_constant(:associated_model) do
@@ -19,7 +19,7 @@ describe Replicable::Subscriber::Worker, '.subscribe' do
       field :field_2
       field :field_3
 
-      replicate :from => 'crowdtap', :class_name => 'publisher_model' do
+      replicate :from => 'test_publisher', :class_name => 'publisher_model' do
         field :field_1
         field :field_2
         field :field_3
@@ -30,12 +30,12 @@ describe Replicable::Subscriber::Worker, '.subscribe' do
   end
 
   it 'subscribes to the correct queue' do
-    queue_name = 'sniper.replicable'
+    queue_name = 'test_subscriber.replicable'
     Replicable::AMQP.subscribe_options[:queue_name].should == queue_name
   end
 
   it 'creates all the correct bindings' do
-    bindings = [ "crowdtap.#.publisher_model.#.*" ]
+    bindings = [ "test_publisher.#.publisher_model.#.*" ]
     Replicable::AMQP.subscribe_options[:bindings].should =~ bindings
   end
 
