@@ -30,7 +30,7 @@ module Replicable
       def self.prepare_bindings(klass, options)
         from       = options[:from]
         fields     = options[:fields]
-        class_name = options[:class_name]
+        class_name = options[:class_name] || klass.to_s
 
         self.bindings += ["#{from}.#.#{class_name}.#.*"]
 

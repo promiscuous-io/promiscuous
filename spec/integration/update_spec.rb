@@ -31,9 +31,9 @@ describe Replicable do
     end
   end
 
-  before { Replicable::Subscriber::Worker.run }
-
   context 'when replicating the update of a model' do
+    before { Replicable::Subscriber::Worker.run }
+
     let!(:instance) { PublisherModel.create }
 
     it 'updates the model' do
@@ -48,6 +48,27 @@ describe Replicable do
         sub.field_1.should == 'updated'
         sub.field_4.should == 'not_updated'
       end
+    end
+  end
+
+  context "with polymorphic models" do
+    before do
+      define_constant(:publisher_model_child, PublisherModel) do
+        include Mongoid::Document
+      end
+      define_constant(:subscriber_model_child, SubscriberModel) do
+        include Mongoid::Document
+        replicate :from => 'test_publisher', :class_name => 'publisher_model_child'
+      end
+    end
+
+    before { Replicable::Subscriber::Worker.run }
+
+    let!(:instance) { PublisherModelChild.create }
+
+    it 'updates the model' do
+      instance.update_attributes(:field_1 => 'updated')
+      eventually { SubscriberModelChild.find(instance.id).field_1.should == 'updated' }
     end
   end
 

@@ -28,15 +28,38 @@ describe Replicable do
     end
   end
 
-  before { Replicable::Subscriber::Worker.run }
 
   context 'when replicating the destruction of a model' do
+    before { Replicable::Subscriber::Worker.run }
+
     let!(:instance) { PublisherModel.create }
 
     it 'destroys the model' do
       eventually { SubscriberModel.where(:_id => instance.id).count.should == 1 }
       instance.destroy
       eventually { SubscriberModel.where(:_id => instance.id).count.should == 0 }
+    end
+  end
+
+  context "with polymorphic models" do
+    before do
+      define_constant(:publisher_model_child, PublisherModel) do
+        include Mongoid::Document
+      end
+      define_constant(:subscriber_model_child, SubscriberModel) do
+        include Mongoid::Document
+        replicate :from => 'test_publisher', :class_name => 'publisher_model_child'
+      end
+    end
+
+    before { Replicable::Subscriber::Worker.run }
+
+    let!(:instance) { PublisherModelChild.create }
+
+    it 'destroys the model' do
+      eventually { SubscriberModelChild.where(:_id => instance.id).count.should == 1 }
+      instance.destroy
+      eventually { SubscriberModelChild.where(:_id => instance.id).count.should == 0 }
     end
   end
 

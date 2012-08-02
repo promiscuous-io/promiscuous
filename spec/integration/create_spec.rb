@@ -82,7 +82,7 @@ describe Replicable do
     end
   end
 
-  context "with polymorphic models" do
+  context "with polymorphic model" do
     before do
       define_constant(:publisher_model_child, PublisherModel) do
         include Mongoid::Document

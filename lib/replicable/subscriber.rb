@@ -9,13 +9,20 @@ module Replicable::Subscriber
 
   module ClassMethods
     def replicate(options={}, &block)
-      raise "Can't replicate on nested models" if defined?(replicate_fields)
-      class_attribute :replicate_options
+      class_attribute :replicate_options unless defined?(replicate_options)
       Replicable::Subscriber.subscriptions << self
+
+      # The subclass needs to use the class attribute setter to get its own
+      # copy.
+      self.replicate_options = Marshal.load(Marshal.dump(self.replicate_options))
+
       proxy = Proxy.new(self)
       proxy.instance_eval(&block) if block_given?
-      options[:fields] = proxy.fields
-      self.replicate_options = options
+
+      self.replicate_options ||= {}
+      self.replicate_options.merge!(options)
+      self.replicate_options[:fields] ||= []
+      self.replicate_options[:fields] += proxy.fields
     end
   end
 
