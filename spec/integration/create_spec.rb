@@ -101,6 +101,21 @@ describe Replicable do
     end
   end
 
+  context "with implicit polymorphic model" do
+    it 'replicates the models' do
+      define_constant(:model_child, SubscriberModel)
+      Replicable::Subscriber::Worker.run
+      Object.send(:remove_const, 'ModelChild')
+
+      define_constant(:model_child, PublisherModel)
+      id = ModelChild.create.id
+      Object.send(:remove_const, 'ModelChild')
+
+      define_constant(:model_child, SubscriberModel)
+      eventually { ModelChild.where(:_id => id).count.should == 1 }
+    end
+  end
+
   context "with many many fields" do
     before do
       define_constant(:publisher_model_sick) do

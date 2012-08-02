@@ -7,6 +7,7 @@ module Replicable
         self.klass_map = {}
         self.bindings = []
 
+        Replicable::Subscriber.subscriptions.dup.each { |klass| prepare_descendants(klass) }
         Replicable::Subscriber.subscriptions.each { |klass| prepare_bindings(klass, klass.replicate_options) }
         queue_name = "#{Replicable::AMQP.app}.replicable"
 
@@ -23,6 +24,16 @@ module Replicable
             Replicable::AMQP.close
             Replicable::AMQP.error "[receive] cannot process #{payload} because #{e}"
             Replicable::AMQP.error_handler.call(e) if Replicable::AMQP.error_handler
+          end
+        end
+      end
+
+      def self.prepare_descendants(klass)
+        klass.descendants.each do |child|
+          child.class_eval do
+            if replicate_options[:class_name] == klass.replicate_options[:class_name]
+              replicate :class_name => child.to_s.underscore
+            end
           end
         end
       end

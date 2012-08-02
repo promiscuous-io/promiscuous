@@ -1,3 +1,5 @@
+require 'set'
+
 module DefineConstantMacros
   def define_constant(class_name, base = Object, &block)
     class_name = class_name.to_s.camelize
@@ -15,7 +17,7 @@ end
 
 RSpec.configure do |config|
   config.before do
-    @defined_constants = []
+    @defined_constants = Set.new
   end
 
   config.after do
