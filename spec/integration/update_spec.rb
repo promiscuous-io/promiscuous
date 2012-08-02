@@ -72,6 +72,77 @@ describe Replicable do
     end
   end
 
+  context "with polymorphic model with explicit replicating fields on a child" do
+    before do
+      define_constant(:publisher_model_child, PublisherModel) do
+        include Mongoid::Document
+        field :child_field, :default => 'publisher'
+      end
+      define_constant(:subscriber_model_child, SubscriberModel) do
+        include Mongoid::Document
+        replicate :from => 'test_publisher', :class_name => 'publisher_model_child' do
+          field :child_field, :default => 'subscriber'
+        end
+      end
+    end
+
+    before { Replicable::Subscriber::Worker.run }
+
+    it 'updates the subscriber field' do
+      instance = PublisherModelChild.create
+      instance.update_attributes(:child_field => 'update')
+      eventually { SubscriberModel.find(instance.id).child_field.should == 'update' }
+    end
+  end
+
+  context "with polymorphic model with explicit replication excluding a field that is replicated" do
+    before do
+      define_constant(:publisher_model_child, PublisherModel) do
+        include Mongoid::Document
+        field :child_field_1, :default => 'publisher_1'
+        field :child_field_2, :default => 'publisher_2'
+      end
+      define_constant(:subscriber_model_child, SubscriberModel) do
+        include Mongoid::Document
+        replicate :from => 'test_publisher', :class_name => 'publisher_model_child' do
+          field :child_field_1, :default => 'subscriber_1'
+        end
+        field :child_field_2, :default => 'subscriber_2'
+      end
+    end
+
+    before { Replicable::Subscriber::Worker.run }
+
+    it 'does not replicate the subscriber field' do
+      instance = PublisherModelChild.create
+      instance.update_attributes(:child_field_1 => 'update_1',
+                                 :child_field_2 => 'update_2')
+
+      eventually do
+        m = SubscriberModel.find(instance.id)
+        m.child_field_1.should == 'update_1'
+        m.child_field_2.should == 'subscriber_2'
+      end
+    end
+  end
+
+  context "with implicit polymorphic model" do
+    it 'replicates the models' do
+      define_constant(:model_child, SubscriberModel)
+      Replicable::Subscriber::Worker.run
+      Object.send(:remove_const, 'ModelChild')
+
+      define_constant(:model_child, PublisherModel)
+      instance = ModelChild.create
+      ModelChild.first.update_attributes(:field_1 => 'update')
+      Object.send(:remove_const, 'ModelChild')
+
+      define_constant(:model_child, SubscriberModel)
+      eventually { ModelChild.find(instance.id).field_1.should == 'update' }
+    end
+  end
+
+
   context 'when replicating the update of a model that fails' do
     let!(:error_handler) { proc { |exception| @error_handler_called_with = exception } }
 

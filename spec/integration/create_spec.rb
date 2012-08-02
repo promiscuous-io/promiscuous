@@ -101,6 +101,49 @@ describe Replicable do
     end
   end
 
+  context "with polymorphic model with explicit replicating fields on a child" do
+    before do
+      define_constant(:publisher_model_child, PublisherModel) do
+        include Mongoid::Document
+        field :child_field, :default => 'publisher'
+      end
+      define_constant(:subscriber_model_child, SubscriberModel) do
+        include Mongoid::Document
+        replicate :from => 'test_publisher', :class_name => 'publisher_model_child' do
+          field :child_field, :default => 'subscriber'
+        end
+      end
+    end
+
+    before { Replicable::Subscriber::Worker.run }
+
+    it 'replicates the subscriber field' do
+      id = PublisherModelChild.create.id
+      eventually { SubscriberModel.where(:_id => id).first.child_field.should == 'publisher' }
+    end
+  end
+
+  context "with polymorphic model with explicit replication excluding a field that is replicated" do
+    before do
+      define_constant(:publisher_model_child, PublisherModel) do
+        include Mongoid::Document
+        field :child_field, :default => 'publisher'
+      end
+      define_constant(:subscriber_model_child, SubscriberModel) do
+        include Mongoid::Document
+        replicate :from => 'test_publisher', :class_name => 'publisher_model_child'
+        field :child_field, :default => 'subscriber'
+      end
+    end
+
+    before { Replicable::Subscriber::Worker.run }
+
+    it 'does not replicate the subscriber field' do
+      id = PublisherModelChild.create.id
+      eventually { SubscriberModel.where(:_id => id).first.child_field.should == 'subscriber'  }
+    end
+  end
+
   context "with implicit polymorphic model" do
     it 'replicates the models' do
       define_constant(:model_child, SubscriberModel)

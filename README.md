@@ -82,6 +82,26 @@ Note that we use a single exchange to preserve the ordering of data updates
 across application so that subscribers always see a consistant state of the
 system.
 
+WARNING/TODO
+------------
+
+Replicable does **not** handle:
+- Any of the atomic operatiors, such as inc, or add_to_set.
+- Association magic. Example:
+  ```ruby
+  # This will NOT replicate particiation_ids:
+  m = Member.first
+  m.particiations = [Participation.first]
+  m.save
+  
+  # On the other hand, this will:
+  m = Member.first
+  m.particiation_ids = [Participation.first.ids]
+  m.save
+  ```
+
+- Embedded documents.
+
 What's up with bunny vs ruby-amqp ?
 -----------------------------------
 
@@ -94,11 +114,6 @@ How to run the tests
 
     rake appraisal:install
     rake
-
-Protocol
---------
-
-TODO
 
 Compatibility
 -------------
