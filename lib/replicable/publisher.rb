@@ -4,27 +4,19 @@ require 'replicable/amqp'
 
 module Replicable::Publisher
   extend ActiveSupport::Concern
+  include Replicable::Helpers
 
   module ClassMethods
     def replicate(options={})
-      unless defined?(replicate_options)
+      unless replicated_called?
         class_attribute :replicate_options
         [:create, :update, :destroy].each do |operation|
           __send__("around_#{operation}", "replicate_changes_#{operation}".to_sym)
         end
       end
-
-      # The subclass needs to use the class attribute setter to get its own
-      # copy.
-      self.replicate_options = Marshal.load(Marshal.dump(self.replicate_options))
-
-      self.replicate_options ||= {}
-      self.replicate_options[:app_name] = options[:app_name] if options[:app_name]
+      super
     end
 
-    def replicate_ancestors
-      Replicable::Helpers.model_ancestors(self).map { |c| c.to_s.underscore }
-    end
   end
 
   private
