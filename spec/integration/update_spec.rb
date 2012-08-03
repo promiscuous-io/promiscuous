@@ -9,12 +9,12 @@ describe Replicable do
       include Mongoid::Document
       include Replicable::Publisher
 
-      field :field_1
-      field :field_2
-      field :field_3
-      field :field_4
-
-      replicate :app_name => 'test_publisher'
+      replicate :app_name => 'test_publisher' do
+        field :field_1
+        field :field_2
+        field :field_3
+        field :field_4
+      end
     end
 
     define_constant(:subscriber_model) do
@@ -76,7 +76,9 @@ describe Replicable do
     before do
       define_constant(:publisher_model_child, PublisherModel) do
         include Mongoid::Document
-        field :child_field, :default => 'publisher'
+        replicate do
+          field :child_field, :default => 'publisher'
+        end
       end
       define_constant(:subscriber_model_child, SubscriberModel) do
         include Mongoid::Document
@@ -99,8 +101,10 @@ describe Replicable do
     before do
       define_constant(:publisher_model_child, PublisherModel) do
         include Mongoid::Document
-        field :child_field_1, :default => 'publisher_1'
-        field :child_field_2, :default => 'publisher_2'
+        replicate do
+          field :child_field_1, :default => 'publisher_1'
+          field :child_field_2, :default => 'publisher_2'
+        end
       end
       define_constant(:subscriber_model_child, SubscriberModel) do
         include Mongoid::Document

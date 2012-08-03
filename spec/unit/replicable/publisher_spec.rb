@@ -8,19 +8,21 @@ describe Replicable::Publisher do
       include Mongoid::Document
       include Replicable::Publisher
 
-      field :parent_field_1
-      field :parent_field_2
-      field :parent_field_3
-
-      replicate :app_name => 'test_publisher'
+      replicate :app_name => 'test_publisher' do
+        field :parent_field_1
+        field :parent_field_2
+        field :parent_field_3
+      end
     end
 
     define_constant(:child, Parent) do
       include Mongoid::Document
 
-      field :child_field_1
-      field :child_field_2
-      field :child_field_3
+      replicate do
+        field :child_field_1
+        field :child_field_2
+        field :child_field_3
+      end
     end
   end
 

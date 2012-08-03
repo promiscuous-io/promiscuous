@@ -22,7 +22,7 @@ module Replicable::Publisher
   private
 
   def replicated_field_names
-    (self.class.fields.keys - ["_id", "_type"]).select do |field|
+    self.class.replicate_options[:fields].select do |field|
       self.__send__("#{field}_changed?")
     end
   end
