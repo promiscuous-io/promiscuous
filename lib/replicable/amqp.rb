@@ -1,4 +1,3 @@
-require 'active_support/core_ext'
 require 'replicable/amqp/bunny'
 require 'replicable/amqp/fake'
 require 'replicable/amqp/ruby-amqp'
