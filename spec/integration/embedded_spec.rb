@@ -137,17 +137,49 @@ describe Replicable do
   end
 
   context 'when destroying' do
-    it 'replicates' do
-      pub = PublisherModelEmbed.create(:field_1 => '1',
-                                        :model_embedded => { :embedded_field_1 => 'e1',
-                                                             :embedded_field_2 => 'e2' })
+    context 'the parent' do
+      it 'replicates' do
+        pub = PublisherModelEmbed.create(:field_1 => '1',
+                                         :model_embedded => { :embedded_field_1 => 'e1',
+                                                              :embedded_field_2 => 'e2' })
 
-      eventually do
-        eventually { SubscriberModelEmbed.count.should == 1 }
-        pub.destroy
-        eventually { SubscriberModelEmbed.count.should == 0 }
+        eventually do
+          eventually { SubscriberModelEmbed.count.should == 1 }
+          pub.destroy
+          eventually { SubscriberModelEmbed.count.should == 0 }
+        end
       end
     end
+
+    context 'the embedded document with destroy' do
+      it 'replicates' do
+        pub = PublisherModelEmbed.create(:field_1 => '1',
+                                         :model_embedded => { :embedded_field_1 => 'e1',
+                                                              :embedded_field_2 => 'e2' })
+
+        eventually do
+          eventually { SubscriberModelEmbed.first.model_embedded.should_not == nil }
+          pub.model_embedded.destroy
+          eventually { SubscriberModelEmbed.first.model_embedded.should == nil }
+        end
+      end
+    end
+
+    context 'the embedded document with setting to nil' do
+      it 'replicates' do
+        pub = PublisherModelEmbed.create(:field_1 => '1',
+                                         :model_embedded => { :embedded_field_1 => 'e1',
+                                                              :embedded_field_2 => 'e2' })
+
+        eventually do
+          eventually { SubscriberModelEmbed.first.model_embedded.should_not == nil }
+          pub.model_embedded = nil
+          pub.save
+          eventually { SubscriberModelEmbed.first.model_embedded.should == nil }
+        end
+      end
+    end
+
   end
 
   after do
