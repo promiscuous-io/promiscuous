@@ -7,7 +7,7 @@ describe Replicable do
 
   before do
     define_constant(:publisher, Replicable::Publisher) do
-      publish :publisher_model, :app_name => 'crowdtap'
+      publish :model => PublisherModel, :to => 'crowdtap/publisher_model'
 
       def payload
         {
@@ -19,7 +19,7 @@ describe Replicable do
     end
 
     define_constant(:subscriber, Replicable::Subscriber) do
-      subscribe :subscriber_model, :from => 'crowdtap/publisher_model'
+      subscribe :model => SubscriberModel, :from => 'crowdtap/publisher_model'
 
       def replicate(payload)
         instance.field_1 = payload[:field_1]

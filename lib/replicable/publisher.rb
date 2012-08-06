@@ -1,5 +1,5 @@
 class Replicable::Publisher
-  class_attribute :app_name, :model
+  class_attribute :binding, :model
   attr_accessor :instance, :operation
 
   def initialize(instance, operation)
@@ -7,17 +7,11 @@ class Replicable::Publisher
     @operation = operation
   end
 
-  def amqp_key
-    path = [self.class.app_name]
-    path << self.class.model.to_s.underscore
-    path.join('.')
-  end
-
   def amqp_payload
     {
+      :binding   => self.class.binding,
       :id        => instance.id,
       :operation => operation,
-      :classes   => [model.to_s.underscore],
       :payload   => payload
     }.to_json
   end
@@ -26,9 +20,9 @@ class Replicable::Publisher
     raise "You need to implement payload"
   end
 
-  def self.publish(model_name, options={})
-    self.model = model_name.to_s.camelize.constantize
-    self.app_name = options[:app_name]
+  def self.publish(options={})
+    self.model = options[:model]
+    self.binding = options[:to]
     serialize_klass = self
 
     self.model.class_eval do
@@ -38,7 +32,7 @@ class Replicable::Publisher
         define_method "publish_changes_#{operation}" do |&block|
           serializer = serialize_klass.new(self, operation)
 
-          Replicable::AMQP.publish(:key => serializer.amqp_key,
+          Replicable::AMQP.publish(:key => serializer.binding,
                                    :payload => serializer.amqp_payload)
         end
       end

@@ -1,25 +1,21 @@
 module Replicable
   module Worker
-    mattr_accessor :deserializer_map
+    mattr_accessor :bindings_map
 
-    def self.prepare_deserializer_map
-      self.deserializer_map = {}
+    def self.prepare_bindings
+      self.bindings_map = {}
       Replicable::Subscriber.subscriptions.each do |subscriber|
-        self.deserializer_map[subscriber.from_class] = subscriber
-        self.deserializer_map[subscriber.from_class] = subscriber
+        self.bindings_map[subscriber.binding] = subscriber
       end
     end
 
-    def self.bindings
-      Replicable::Subscriber.subscriptions.map { |sub| sub.amqp_binding }
-    end
-
     def self.run
-      prepare_deserializer_map
+      prepare_bindings
       queue_name = "#{Replicable::AMQP.app}.replicable"
 
       stop = false
-      Replicable::AMQP.subscribe(:queue_name => queue_name, :bindings => bindings) do |metadata, payload|
+      Replicable::AMQP.subscribe(:queue_name => queue_name,
+                                 :bindings => bindings_map.keys) do |metadata, payload|
         begin
           unless stop
             Replicable::AMQP.info "[receive] #{payload}"
@@ -36,29 +32,28 @@ module Replicable
     end
 
     def self.process(amqp_payload)
-      from_class = amqp_payload[:classes].last
-      deserializer_class = deserializer_map[from_class]
+      binding = amqp_payload[:binding]
+      deserializer = bindings_map[binding]
 
-      raise "Unknown incoming class: '#{from_class}'" if deserializer_class.nil?
-      self.process_for(deserializer_class, amqp_payload)
+      raise "FATAL: Unknown binding: '#{binding}'" if deserializer.nil?
+      self.process_for(deserializer, amqp_payload)
     end
 
-    def self.process_for(deserializer_class, amqp_payload)
+    def self.process_for(deserializer, amqp_payload)
       id = amqp_payload[:id]
       operation = amqp_payload[:operation].to_sym
-      klass = deserializer_class.model.to_s.camelize.constantize
 
       instance = case operation
       when :create
-        klass.new
+        deserializer.model.new
       when :update
-        klass.find(id)
+        deserializer.model.find(id)
       when :destroy
-        klass.find(id)
+        deserializer.model.find(id)
       end
- 
+
       instance.id = id
-      deserializer_class.new(instance, operation).replicate(amqp_payload[:payload].symbolize_keys)
+      deserializer.new(instance, operation).replicate(amqp_payload[:payload].symbolize_keys)
 
       case operation
       when :create
