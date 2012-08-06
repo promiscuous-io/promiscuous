@@ -9,17 +9,25 @@ describe Replicable do
     define_constant(:publisher, Replicable::Publisher) do
       publish :model => PublisherModel, :to => 'crowdtap/publisher_model'
 
+
       def payload
-        {
+        fields = {
           :field_1 => instance.field_1,
           :field_2 => instance.field_2,
           :field_3 => instance.field_3
         }
+        if instance.respond_to?(:child_field_1)
+          fields.merge!(:child_field_1 => instance.child_field_1)
+        end
+        fields
       end
     end
 
     define_constant(:subscriber, Replicable::Subscriber) do
-      subscribe :from => 'crowdtap/publisher_model'
+      subscribe :from => 'crowdtap/publisher_model',
+        :fields => [:field_1, :field_2, :field_3, :child_field_1?]
+        #:model => {'PublisherModel' =>SubscriberModel,
+                   #'PublisherModelChild' => SubscriberModelChild }
 
       def model
         case type
@@ -30,30 +38,36 @@ describe Replicable do
         end
       end
 
-      def replicate(payload)
-        instance.field_1 = payload[:field_1]
-        instance.field_2 = payload[:field_2]
-        instance.field_3 = payload[:field_3]
-      end
     end
   end
 
   before { Replicable::Worker.run }
 
   context 'when creating' do
-    it 'replicates' do
-      pub = PublisherModelChild.create(:field_1 => '1', :field_2 => '2', :field_3 => '3',
-                                       :child_field_1 => 'child_1')
+    it 'replicates the parent' do
+      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
 
       eventually do
-        sub = SubscriberModel.first
+        sub = SubscriberModel.find(pub.id)
         sub.id.should == pub.id
         sub.field_1.should == pub.field_1
         sub.field_2.should == pub.field_2
         sub.field_3.should == pub.field_3
-        sub.child_field_1 == pub.child_field_1
       end
+    end
 
+    it 'replicates the child' do
+      pub = PublisherModelChild.create(:field_1 => '1', :field_2 => '2', :field_3 => '3',
+                                       :child_field_1 => 'child_1')
+
+      eventually do
+        sub = SubscriberModelChild.find(pub.id)
+        sub.id.should == pub.id
+        sub.field_1.should == pub.field_1
+        sub.field_2.should == pub.field_2
+        sub.field_3.should == pub.field_3
+        sub.child_field_1.should == pub.child_field_1
+      end
     end
   end
 

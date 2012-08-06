@@ -19,13 +19,9 @@ describe Replicable do
     end
 
     define_constant(:subscriber, Replicable::Subscriber) do
-      subscribe :model => SubscriberModel, :from => 'crowdtap/publisher_model'
-
-      def replicate(payload)
-        instance.field_1 = payload[:field_1]
-        instance.field_2 = payload[:field_2]
-        instance.field_3 = payload[:field_3]
-      end
+      subscribe :from => 'crowdtap/publisher_model',
+                :model => SubscriberModel,
+                :fields => [:field_1, :field_2, :field_3]
     end
   end
 
