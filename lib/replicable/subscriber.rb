@@ -2,13 +2,13 @@ class Replicable::Subscriber
   mattr_accessor :subscriptions
   self.subscriptions = Set.new
 
-  class_attribute :binding, :model, :models, :attributes
+  class_attribute :amqp_binding, :model, :models, :attributes
   attr_accessor :instance, :operation, :type
 
   def self.subscribe(options={})
     self.model   = options[:model]
     self.models  = options[:models]
-    self.binding = options[:from]
+    self.amqp_binding = options[:from]
     self.attributes  = options[:attributes]
 
     generate_replicate_from_attributes if attributes

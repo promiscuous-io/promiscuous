@@ -1,5 +1,5 @@
 class Replicable::Publisher
-  class_attribute :binding, :model, :attributes
+  class_attribute :amqp_binding, :model, :attributes
   attr_accessor :instance, :operation
 
   def initialize(instance, operation)
@@ -9,7 +9,7 @@ class Replicable::Publisher
 
   def amqp_payload
     {
-      :binding   => self.class.binding,
+      :__amqp_binding__  => self.class.amqp_binding,
       :id        => instance.id,
       :operation => operation,
       :type      => instance.class.to_s,
@@ -37,7 +37,7 @@ class Replicable::Publisher
   def self.publish(options={})
     self.model   = options[:model]
     self.attributes  = options[:attributes]
-    self.binding = options[:to]
+    self.amqp_binding = options[:to]
     publisher_class = self
 
     self.model.class_eval do
@@ -47,7 +47,7 @@ class Replicable::Publisher
         define_method "publish_changes_#{operation}" do |&block|
           publisher = publisher_class.new(self, operation)
 
-          Replicable::AMQP.publish(:key => publisher.binding,
+          Replicable::AMQP.publish(:key => publisher.amqp_binding,
                                    :payload => publisher.amqp_payload)
         end
       end

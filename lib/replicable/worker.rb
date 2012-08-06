@@ -1,11 +1,11 @@
 module Replicable
   module Worker
-    mattr_accessor :bindings_map
+    mattr_accessor :binding_map
 
     def self.prepare_bindings
-      self.bindings_map = {}
+      self.binding_map = {}
       Replicable::Subscriber.subscriptions.each do |subscriber|
-        self.bindings_map[subscriber.binding] = subscriber
+        self.binding_map[subscriber.amqp_binding] = subscriber
       end
     end
 
@@ -15,7 +15,7 @@ module Replicable
 
       stop = false
       Replicable::AMQP.subscribe(:queue_name => queue_name,
-                                 :bindings => bindings_map.keys) do |metadata, payload|
+                                 :bindings   => binding_map.keys) do |metadata, payload|
         begin
           unless stop
             Replicable::AMQP.info "[receive] #{payload}"
@@ -32,8 +32,8 @@ module Replicable
     end
 
     def self.process(amqp_payload)
-      binding = amqp_payload[:binding]
-      subscriber_class = bindings_map[binding]
+      binding = amqp_payload[:__amqp_binding__]
+      subscriber_class = binding_map[binding]
 
       raise "FATAL: Unknown binding: '#{binding}'" if subscriber_class.nil?
       self.process_for(subscriber_class, amqp_payload)
