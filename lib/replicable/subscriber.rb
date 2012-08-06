@@ -3,7 +3,7 @@ class Replicable::Subscriber
   self.subscriptions = Set.new
 
   class_attribute :amqp_binding, :model, :models, :attributes
-  attr_accessor :id, :instance, :operation, :type, :parent, :getter, :payload
+  attr_accessor :id, :instance, :operation, :type, :parent, :payload
 
   def self.subscribe(options={})
     self.model        = options[:model]
@@ -31,7 +31,6 @@ class Replicable::Subscriber
     @operation = options[:operation].to_sym
     @payload   = options[:payload].symbolize_keys
     @parent    = options[:parent]
-    @getter    = options[:getter]
   end
 
   def fetch_instance
@@ -40,7 +39,7 @@ class Replicable::Subscriber
                   when :create
                     model.new.tap {|m| m.id = id}
                   when :update
-                    parent.send(getter)
+                    parent[:instance].send(parent[:getter])
                   when :destroy
                     nil
                   end
@@ -70,20 +69,32 @@ class Replicable::Subscriber
   def set_attribute(setter, field, optional, value)
     if value and !optional || instance.respond_to?(setter)
       if value.is_a?(Hash) and value['__amqp_binding__']
-        value = self.class.process(value, :parent => instance, :getter => field).instance
+        value = self.class.process(value, :parent => {:instance => instance,
+                                                      :getter   => field,
+                                                      :setter   => setter}).instance
+      else
+        instance.__send__(setter, value)
       end
-      instance.__send__(setter, value)
     end
   end
 
   def commit_instance
-    case operation
-    when :create
-      instance.save
-    when :update
-      instance.save
-    when :destroy
-      instance.destroy
+    if parent
+      case operation
+      when :create
+        parent[:instance].send(parent[:setter], instance)
+      when :update
+      when :destroy
+      end
+    else
+      case operation
+      when :create
+        instance.save
+      when :update
+        instance.save
+      when :destroy
+        instance.destroy
+      end
     end
   end
 
@@ -95,8 +106,8 @@ class Replicable::Subscriber
 
     subscriber = subscriber_class.new(amqp_payload.merge(options))
     subscriber.fetch_instance
-    subscriber.replicate
-    subscriber.commit_instance unless subscriber.parent
+    subscriber.replicate unless subscriber.operation == :destroy
+    subscriber.commit_instance
     subscriber
   end
 

@@ -42,3 +42,6 @@ RSpec.configure do |config|
     Mongoid::IdentityMap.clear
   end
 end
+
+#Moped.logger = Logger.new(STDOUT)
+#Moped.logger.level = 0
