@@ -7,15 +7,9 @@ describe Replicable do
 
   before do
     define_constant(:publisher, Replicable::Publisher) do
-      publish :model => PublisherModel, :to => 'crowdtap/publisher_model'
-
-      def payload
-        {
-          :field_1 => instance.field_1,
-          :field_2 => instance.field_2,
-          :field_3 => instance.field_3
-        }
-      end
+      publish :to => 'crowdtap/publisher_model',
+              :model => PublisherModel,
+              :fields => [:field_1, :field_2, :field_3]
     end
 
     define_constant(:subscriber, Replicable::Subscriber) do

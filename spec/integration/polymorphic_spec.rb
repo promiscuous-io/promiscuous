@@ -7,19 +7,9 @@ describe Replicable do
 
   before do
     define_constant(:publisher, Replicable::Publisher) do
-      publish :model => PublisherModel, :to => 'crowdtap/publisher_model'
-
-      def payload
-        fields = {
-          :field_1 => instance.field_1,
-          :field_2 => instance.field_2,
-          :field_3 => instance.field_3
-        }
-        if instance.respond_to?(:child_field_1)
-          fields.merge!(:child_field_1 => instance.child_field_1)
-        end
-        fields
-      end
+      publish :to => 'crowdtap/publisher_model',
+              :model => PublisherModel,
+              :fields => [:field_1, :field_2, :field_3, :child_field_1?]
     end
 
     define_constant(:subscriber, Replicable::Subscriber) do
@@ -65,6 +55,3 @@ describe Replicable do
     Replicable::Subscriber.subscriptions.clear
   end
 end
-
-# 1. Nothing
-# 2. Same behavior as the parent

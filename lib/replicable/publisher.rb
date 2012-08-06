@@ -1,5 +1,5 @@
 class Replicable::Publisher
-  class_attribute :binding, :model
+  class_attribute :binding, :model, :fields
   attr_accessor :instance, :operation
 
   def initialize(instance, operation)
@@ -18,11 +18,25 @@ class Replicable::Publisher
   end
 
   def payload
-    raise "You need to implement payload"
+    payload = {}
+    if self.class.fields
+      self.class.fields.each do |field|
+        optional = field.to_s[-1] == '?'
+        field = field.to_s[0...-1].to_sym if optional
+
+        if !optional or instance.respond_to?(field)
+          payload[field] = instance.__send__(field)
+        end
+      end
+    else
+      raise "I don't know how to build your payload"
+    end
+    payload
   end
 
   def self.publish(options={})
-    self.model = options[:model]
+    self.model   = options[:model]
+    self.fields  = options[:fields]
     self.binding = options[:to]
     publisher_class = self
 
