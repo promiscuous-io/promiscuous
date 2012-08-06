@@ -5,3 +5,4 @@ gem 'rake'
 gem 'appraisal'
 gem 'rspec'
 gem 'mocha', :require => false
+gem 'guard-rspec'
