@@ -1,5 +1,5 @@
 class Replicable::Publisher
-  class_attribute :binding, :model, :fields
+  class_attribute :binding, :model, :attributes
   attr_accessor :instance, :operation
 
   def initialize(instance, operation)
@@ -19,8 +19,8 @@ class Replicable::Publisher
 
   def payload
     payload = {}
-    if self.class.fields
-      self.class.fields.each do |field|
+    if self.class.attributes
+      self.class.attributes.each do |field|
         optional = field.to_s[-1] == '?'
         field = field.to_s[0...-1].to_sym if optional
 
@@ -36,7 +36,7 @@ class Replicable::Publisher
 
   def self.publish(options={})
     self.model   = options[:model]
-    self.fields  = options[:fields]
+    self.attributes  = options[:attributes]
     self.binding = options[:to]
     publisher_class = self
 

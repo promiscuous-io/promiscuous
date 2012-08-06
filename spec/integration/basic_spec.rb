@@ -9,13 +9,13 @@ describe Replicable do
     define_constant(:publisher, Replicable::Publisher) do
       publish :to => 'crowdtap/publisher_model',
               :model => PublisherModel,
-              :fields => [:field_1, :field_2, :field_3]
+              :attributes => [:field_1, :field_2, :field_3]
     end
 
     define_constant(:subscriber, Replicable::Subscriber) do
       subscribe :from => 'crowdtap/publisher_model',
                 :model => SubscriberModel,
-                :fields => [:field_1, :field_2, :field_3]
+                :attributes => [:field_1, :field_2, :field_3]
     end
   end
 

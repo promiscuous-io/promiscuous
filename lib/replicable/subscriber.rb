@@ -2,22 +2,22 @@ class Replicable::Subscriber
   mattr_accessor :subscriptions
   self.subscriptions = Set.new
 
-  class_attribute :binding, :model, :models, :fields
+  class_attribute :binding, :model, :models, :attributes
   attr_accessor :instance, :operation, :type
 
   def self.subscribe(options={})
     self.model   = options[:model]
     self.models  = options[:models]
     self.binding = options[:from]
-    self.fields  = options[:fields]
+    self.attributes  = options[:attributes]
 
-    generate_replicate_from_fields if fields
+    generate_replicate_from_attributes if attributes
     Replicable::Subscriber.subscriptions << self
   end
 
-  def self.generate_replicate_from_fields
+  def self.generate_replicate_from_attributes
     define_method "replicate" do |payload|
-      self.class.fields.each do |field|
+      self.class.attributes.each do |field|
         optional = field.to_s[-1] == '?'
         field = field.to_s[0...-1].to_sym if optional
         setter = :"#{field}="
