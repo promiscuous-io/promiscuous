@@ -14,7 +14,6 @@ end
 
 class PublisherModelEmbedded
   include Mongoid::Document
-
   embedded_in :publisher_model_embeds
 
   field :embedded_field_1
@@ -22,7 +21,15 @@ class PublisherModelEmbedded
   field :embedded_field_3
 end
 
-class PublisherModelEmbeds
+class PublisherModelEmbeddedChild < PublisherModelEmbedded
+  embedded_in :publisher_model_embeds
+
+  field :child_embedded_field_1
+  field :child_embedded_field_2
+  field :child_embedded_field_3
+end
+
+class PublisherModelEmbed
   include Mongoid::Document
 
   embeds_one :model_embedded, :class_name => 'PublisherModelEmbedded'
@@ -30,6 +37,12 @@ class PublisherModelEmbeds
   field :field_1
   field :field_2
   field :field_3
+end
+
+class PublisherModelEmbedChild < PublisherModelEmbed
+  field :child_field_1
+  field :child_field_2
+  field :child_field_3
 end
 
 ##############################################
@@ -50,7 +63,6 @@ end
 
 class SubscriberModelEmbedded
   include Mongoid::Document
-
   embedded_in :subscriber_model_embeds
 
   field :embedded_field_1
@@ -58,7 +70,14 @@ class SubscriberModelEmbedded
   field :embedded_field_3
 end
 
-class SubscriberModelEmbeds
+class SubscriberModelEmbeddedChild < SubscriberModelEmbedded
+  embedded_in :subscriber_model_embeds
+  field :child_embedded_field_1
+  field :child_embedded_field_2
+  field :child_embedded_field_3
+end
+
+class SubscriberModelEmbed
   include Mongoid::Document
 
   embeds_one :model_embedded, :class_name => 'SubscriberModelEmbedded'
@@ -66,4 +85,10 @@ class SubscriberModelEmbeds
   field :field_1
   field :field_2
   field :field_3
+end
+
+class SubscriberModelEmbedChild < SubscriberModelEmbed
+  field :child_field_1
+  field :child_field_2
+  field :child_field_3
 end

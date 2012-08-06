@@ -51,11 +51,17 @@ class Replicable::Publisher
       [:create, :update, :destroy].each do |operation|
         __send__("after_#{operation}", "publish_changes_#{operation}".to_sym)
 
-        define_method "publish_changes_#{operation}" do |&block|
-          publisher = self.class.replicable_publisher.new(self, operation)
+        define_method "publish_changes_#{operation}" do
+          if embedded?
+            _parent.save
+            _parent.reload # mongoid is a bit retarded, so we need to reload here.
+            _parent.publish_changes_update
+          else
+            publisher = self.class.replicable_publisher.new(self, operation)
 
-          Replicable::AMQP.publish(:key => publisher.amqp_binding,
-                                   :payload => publisher.amqp_payload.to_json)
+            Replicable::AMQP.publish(:key => publisher.amqp_binding,
+                                     :payload => publisher.amqp_payload.to_json)
+          end
         end
       end
     end

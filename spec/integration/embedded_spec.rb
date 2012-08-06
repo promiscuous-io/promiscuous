@@ -8,7 +8,7 @@ describe Replicable do
   before do
     define_constant(:publisher_embeds, Replicable::Publisher) do
       publish :to => 'crowdtap/publisher_model_embeds',
-              :model => PublisherModelEmbeds,
+              :model => PublisherModelEmbed,
               :attributes => [:field_1, :field_2, :field_3, :model_embedded]
     end
 
@@ -20,7 +20,7 @@ describe Replicable do
 
     define_constant(:subscriber_embeds, Replicable::Subscriber) do
       subscribe :from => 'crowdtap/publisher_model_embeds',
-                :model => SubscriberModelEmbeds,
+                :model => SubscriberModelEmbed,
                 :attributes => [:field_1, :field_2, :field_3, :model_embedded]
     end
 
@@ -35,13 +35,13 @@ describe Replicable do
 
   context 'when creating' do
     it 'replicates' do
-      pub = PublisherModelEmbeds.create(:field_1 => '1',
+      pub = PublisherModelEmbed.create(:field_1 => '1',
                                         :model_embedded => { :embedded_field_1 => 'e1',
                                                              :embedded_field_2 => 'e2' })
       pub_e = pub.model_embedded
 
       eventually do
-        sub = SubscriberModelEmbeds.first
+        sub = SubscriberModelEmbed.first
         sub_e = sub.model_embedded
         sub.id.should == pub.id
         sub.field_1.should == pub.field_1
@@ -57,41 +57,95 @@ describe Replicable do
   end
 
   context 'when updating' do
-    it 'replicates' do
-      pub = PublisherModelEmbeds.create(:field_1 => '1',
-                                        :model_embedded => { :embedded_field_1 => 'e1',
-                                                             :embedded_field_2 => 'e2' })
-      pub.update_attributes(:field_1 => '1_updated',
-                            :model_embedded => { :embedded_field_1 => 'e1_updated',
-                                                 :embedded_field_2 => 'e2_updated' })
-      pub_e = pub.model_embedded
+    context 'when embedded document is saved' do
+      it 'replicates' do
+        pub = PublisherModelEmbed.create(:field_1 => '1',
+                                          :model_embedded => { :embedded_field_1 => 'e1',
+                                                               :embedded_field_2 => 'e2' })
+        pub_e = pub.model_embedded
+        pub_e.embedded_field_1 = 'e1_updated'
+        pub_e.save
 
-      eventually do
-        sub = SubscriberModelEmbeds.first
-        sub.id.should == pub.id
-        sub.field_1.should == pub.field_1
-        sub.field_2.should == pub.field_2
-        sub.field_3.should == pub.field_3
+        eventually do
+          sub = SubscriberModelEmbed.first
+          sub.id.should == pub.id
+          sub.field_1.should == pub.field_1
+          sub.field_2.should == pub.field_2
+          sub.field_3.should == pub.field_3
 
-        sub_e = sub.model_embedded
-        sub_e.id.should == pub_e.id
-        sub_e.embedded_field_1.should == pub_e.embedded_field_1
-        sub_e.embedded_field_2.should == pub_e.embedded_field_2
-        sub_e.embedded_field_3.should == pub_e.embedded_field_3
+          sub_e = sub.model_embedded
+          sub_e.id.should == pub_e.id
+          sub_e.embedded_field_1.should == pub_e.embedded_field_1
+          sub_e.embedded_field_2.should == pub_e.embedded_field_2
+          sub_e.embedded_field_3.should == pub_e.embedded_field_3
+        end
+      end
+    end
+
+    context 'when embedded document setter is used' do
+      it 'replicates' do
+        pub = PublisherModelEmbed.create(:field_1 => '1',
+                                          :model_embedded => { :embedded_field_1 => 'e1',
+                                                               :embedded_field_2 => 'e2' })
+        pub.model_embedded = PublisherModelEmbeddedChild.new(:embedded_field_1 => 'e1_updated')
+        pub.save
+
+        pub_e = pub.model_embedded
+
+        eventually do
+          sub = SubscriberModelEmbed.first
+          sub.id.should == pub.id
+          sub.field_1.should == pub.field_1
+          sub.field_2.should == pub.field_2
+          sub.field_3.should == pub.field_3
+
+          sub_e = sub.model_embedded
+          sub_e.id.should == pub_e.id
+          sub_e.embedded_field_1.should == pub_e.embedded_field_1
+          sub_e.embedded_field_2.should == pub_e.embedded_field_2
+          sub_e.embedded_field_3.should == pub_e.embedded_field_3
+        end
+      end
+    end
+
+
+    context 'when parent document is saved' do
+      it 'replicates' do
+        pub = PublisherModelEmbed.create(:field_1 => '1',
+                                          :model_embedded => { :embedded_field_1 => 'e1',
+                                                               :embedded_field_2 => 'e2' })
+        pub.update_attributes(:field_1 => '1_updated',
+                              :model_embedded => { :embedded_field_1 => 'e1_updated',
+                                                   :embedded_field_2 => 'e2_updated' })
+        pub_e = pub.model_embedded
+
+        eventually do
+          sub = SubscriberModelEmbed.first
+          sub.id.should == pub.id
+          sub.field_1.should == pub.field_1
+          sub.field_2.should == pub.field_2
+          sub.field_3.should == pub.field_3
+
+          sub_e = sub.model_embedded
+          sub_e.id.should == pub_e.id
+          sub_e.embedded_field_1.should == pub_e.embedded_field_1
+          sub_e.embedded_field_2.should == pub_e.embedded_field_2
+          sub_e.embedded_field_3.should == pub_e.embedded_field_3
+        end
       end
     end
   end
 
   context 'when destroying' do
     it 'replicates' do
-      pub = PublisherModelEmbeds.create(:field_1 => '1',
+      pub = PublisherModelEmbed.create(:field_1 => '1',
                                         :model_embedded => { :embedded_field_1 => 'e1',
                                                              :embedded_field_2 => 'e2' })
 
       eventually do
-        eventually { SubscriberModelEmbeds.count.should == 1 }
+        eventually { SubscriberModelEmbed.count.should == 1 }
         pub.destroy
-        eventually { SubscriberModelEmbeds.count.should == 0 }
+        eventually { SubscriberModelEmbed.count.should == 0 }
       end
     end
   end

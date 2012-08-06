@@ -39,7 +39,9 @@ class Replicable::Subscriber
                   when :create
                     model.new.tap {|m| m.id = id}
                   when :update
-                    parent[:instance].send(parent[:getter])
+                    instance = parent[:instance].send(parent[:getter])
+                    instance = model.new.tap {|m| m.id = id} if instance.nil?
+                    instance
                   when :destroy
                     nil
                   end
@@ -67,7 +69,7 @@ class Replicable::Subscriber
   end
 
   def set_attribute(setter, field, optional, value)
-    if value and !optional || instance.respond_to?(setter)
+    if !optional || instance.respond_to?(setter)
       if value.is_a?(Hash) and value['__amqp_binding__']
         value = self.class.process(value, :parent => {:instance => instance,
                                                       :getter   => field,
@@ -84,6 +86,9 @@ class Replicable::Subscriber
       when :create
         parent[:instance].send(parent[:setter], instance)
       when :update
+        unless parent[:instance].send(parent[:getter]) == instance
+          parent[:instance].send(parent[:setter], instance)
+        end
       when :destroy
       end
     else
