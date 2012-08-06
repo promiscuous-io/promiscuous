@@ -3,12 +3,7 @@ class Replicable::Subscriber
   self.subscriptions = Set.new
 
   class_attribute :binding, :model
-  attr_accessor :instance, :operation
-
-  def initialize(instance, operation)
-    @instance = instance
-    @operation = operation
-  end
+  attr_accessor :instance, :operation, :type
 
   def self.subscribe(options={})
     self.model = options[:model]

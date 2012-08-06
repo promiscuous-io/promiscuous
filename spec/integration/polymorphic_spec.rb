@@ -19,7 +19,16 @@ describe Replicable do
     end
 
     define_constant(:subscriber, Replicable::Subscriber) do
-      subscribe :model => SubscriberModel, :from => 'crowdtap/publisher_model'
+      subscribe :from => 'crowdtap/publisher_model'
+
+      def model
+        case type
+        when 'PublisherModel'
+          SubscriberModel
+        when 'PublisherModelChild'
+          SubscriberModelChild
+        end
+      end
 
       def replicate(payload)
         instance.field_1 = payload[:field_1]
@@ -33,7 +42,8 @@ describe Replicable do
 
   context 'when creating' do
     it 'replicates' do
-      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub = PublisherModelChild.create(:field_1 => '1', :field_2 => '2', :field_3 => '3',
+                                       :child_field_1 => 'child_1')
 
       eventually do
         sub = SubscriberModel.first
@@ -41,32 +51,9 @@ describe Replicable do
         sub.field_1.should == pub.field_1
         sub.field_2.should == pub.field_2
         sub.field_3.should == pub.field_3
+        sub.child_field_1 == pub.child_field_1
       end
-    end
-  end
 
-  context 'when updating' do
-    it 'replicates' do
-      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
-
-      eventually do
-        sub = SubscriberModel.first
-        sub.id.should == pub.id
-        sub.field_1.should == pub.field_1
-        sub.field_2.should == pub.field_2
-        sub.field_3.should == pub.field_3
-      end
-    end
-  end
-
-  context 'when destroying' do
-    it 'replicates' do
-      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-
-      eventually { SubscriberModel.count.should == 1 }
-      pub.destroy
-      eventually { SubscriberModel.count.should == 0 }
     end
   end
 
@@ -75,3 +62,6 @@ describe Replicable do
     Replicable::Subscriber.subscriptions.clear
   end
 end
+
+# 1. Nothing
+# 2. Same behavior as the parent

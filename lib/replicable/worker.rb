@@ -33,29 +33,36 @@ module Replicable
 
     def self.process(amqp_payload)
       binding = amqp_payload[:binding]
-      deserializer = bindings_map[binding]
+      subscriber_class = bindings_map[binding]
 
-      raise "FATAL: Unknown binding: '#{binding}'" if deserializer.nil?
-      self.process_for(deserializer, amqp_payload)
+      raise "FATAL: Unknown binding: '#{binding}'" if subscriber_class.nil?
+      self.process_for(subscriber_class, amqp_payload)
     end
 
-    def self.process_for(deserializer, amqp_payload)
-      id = amqp_payload[:id]
-      operation = amqp_payload[:operation].to_sym
+    def self.process_for(subscriber_class, amqp_payload)
+      model = subscriber_class.model
 
-      instance = case operation
+      subscriber = subscriber_class.new
+      subscriber.type = amqp_payload[:type]
+      subscriber.operation = amqp_payload[:operation].to_sym
+      model = subscriber.model if subscriber.respond_to?(:model)
+
+      id = amqp_payload[:id]
+
+      instance = case subscriber.operation
       when :create
-        deserializer.model.new
+        model.new
       when :update
-        deserializer.model.find(id)
+        model.find(id)
       when :destroy
-        deserializer.model.find(id)
+        model.find(id)
       end
 
       instance.id = id
-      deserializer.new(instance, operation).replicate(amqp_payload[:payload].symbolize_keys)
+      subscriber.instance = instance
+      subscriber.replicate(amqp_payload[:payload].symbolize_keys)
 
-      case operation
+      case subscriber.operation
       when :create
         instance.save
       when :update
