@@ -40,15 +40,13 @@ module Replicable
     end
 
     def self.process_for(subscriber_class, amqp_payload)
-      model = subscriber_class.model
+      id = amqp_payload[:id]
 
       subscriber = subscriber_class.new
       subscriber.type = amqp_payload[:type]
       subscriber.operation = amqp_payload[:operation].to_sym
-      model = subscriber.model if subscriber.respond_to?(:model)
 
-      id = amqp_payload[:id]
-
+      model = subscriber.model
       instance = case subscriber.operation
       when :create
         model.new
@@ -70,7 +68,6 @@ module Replicable
       when :destroy
         instance.destroy
       end
-
     end
   end
 end

@@ -9,7 +9,6 @@ describe Replicable do
     define_constant(:publisher, Replicable::Publisher) do
       publish :model => PublisherModel, :to => 'crowdtap/publisher_model'
 
-
       def payload
         fields = {
           :field_1 => instance.field_1,
@@ -25,19 +24,9 @@ describe Replicable do
 
     define_constant(:subscriber, Replicable::Subscriber) do
       subscribe :from => 'crowdtap/publisher_model',
-        :fields => [:field_1, :field_2, :field_3, :child_field_1?]
-        #:model => {'PublisherModel' =>SubscriberModel,
-                   #'PublisherModelChild' => SubscriberModelChild }
-
-      def model
-        case type
-        when 'PublisherModel'
-          SubscriberModel
-        when 'PublisherModelChild'
-          SubscriberModelChild
-        end
-      end
-
+                :models => {'PublisherModel'      => SubscriberModel,
+                            'PublisherModelChild' => SubscriberModelChild },
+                :fields => [:field_1, :field_2, :field_3, :child_field_1?]
     end
   end
 
