@@ -1,5 +1,5 @@
 require 'spec_helper'
-require 'support/models'
+require 'integration/models'
 require 'replicable/worker'
 
 describe Replicable do
