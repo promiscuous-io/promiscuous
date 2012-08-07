@@ -6,7 +6,7 @@ namespace :replicable do
     require 'em-synchrony'
     EM.synchrony do
       load args.initializer
-      Replicable::Subscriber::Worker.run
+      Replicable::Worker.run
     end
   end
 end
