@@ -12,7 +12,7 @@ describe Replicable do
               :attributes => [:field_1, :field_2, :field_3, :model_embedded]
     end
 
-    define_constant('PublisherEmbedded', Replicable::Publisher::MongoidEmbedded) do
+    define_constant('PublisherEmbedded', Replicable::Publisher::Mongoid) do
       publish :to => 'crowdtap/model_embedded',
               :class => PublisherModelEmbedded,
               :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
