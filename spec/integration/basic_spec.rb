@@ -22,15 +22,32 @@ describe Replicable do
   before { Replicable::Worker.run }
 
   context 'when creating' do
-    it 'replicates' do
-      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+    context 'with new' do
+      it 'replicates' do
+        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub.save
 
-      eventually do
-        sub = SubscriberModel.first
-        sub.id.should == pub.id
-        sub.field_1.should == pub.field_1
-        sub.field_2.should == pub.field_2
-        sub.field_3.should == pub.field_3
+        eventually do
+          sub = SubscriberModel.first
+          sub.id.should == pub.id
+          sub.field_1.should == pub.field_1
+          sub.field_2.should == pub.field_2
+          sub.field_3.should == pub.field_3
+        end
+      end
+    end
+
+    context 'with create' do
+      it 'replicates' do
+        pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+
+        eventually do
+          sub = SubscriberModel.first
+          sub.id.should == pub.id
+          sub.field_1.should == pub.field_1
+          sub.field_2.should == pub.field_2
+          sub.field_3.should == pub.field_3
+        end
       end
     end
   end
