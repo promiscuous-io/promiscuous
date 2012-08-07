@@ -2,10 +2,11 @@ class Replicable::Subscriber
   mattr_accessor :subscriptions, :binding_map
   self.subscriptions = Set.new
 
-  class_attribute :amqp_binding, :klass, :klasses, :attributes
+  class_attribute :amqp_binding, :klass, :klasses, :attributes, :options
   attr_accessor :id, :instance, :operation, :type, :parent, :payload
 
   def self.subscribe(options={})
+    self.options      = options
     self.klass        = options[:class]
     self.klasses      = options[:classes]
     self.amqp_binding = options[:from]
