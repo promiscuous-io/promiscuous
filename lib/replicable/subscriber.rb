@@ -2,12 +2,12 @@ class Replicable::Subscriber
   mattr_accessor :subscriptions, :binding_map
   self.subscriptions = Set.new
 
-  class_attribute :amqp_binding, :model, :models, :attributes
+  class_attribute :amqp_binding, :klass, :klasses, :attributes
   attr_accessor :id, :instance, :operation, :type, :parent, :payload
 
   def self.subscribe(options={})
-    self.model        = options[:model]
-    self.models       = options[:models]
+    self.klass        = options[:class]
+    self.klasses      = options[:classes]
     self.amqp_binding = options[:from]
     self.attributes   = options[:attributes]
 
@@ -15,10 +15,10 @@ class Replicable::Subscriber
   end
 
   def model
-    if self.class.models
-      self.class.models[type]
-    elsif self.class.model
-      self.class.model
+    if self.class.klasses
+      self.class.klasses[type]
+    elsif self.class.klass
+      self.class.klass
     else
       raise "Cannot find matching model.\n" +
             "I don't want to be rude or anything, but have you defined your target model?"
@@ -110,5 +110,6 @@ class Replicable::Subscriber
       self.binding_map[subscriber.amqp_binding] = subscriber
     end
   end
-
 end
+
+Replicable::Subscriber::Mongoid = Replicable::Subscriber

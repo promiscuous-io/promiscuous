@@ -10,13 +10,11 @@ It uses [RabbitMQ](http://www.rabbitmq.com/).
 Usage
 ------
 
-From a publisher side (app that owns the data), simply `include
-Replicable::Publisher` and use the `replicate` method in your model as shown
-below. All fields changes are broadcasted.
+From a publisher side (app that owns the data), create a Publisher per model.
+as shown below.
 
 From your subscribers side (apps that receive updates from the publisher),
-`include Replicable::Subscriber` and use a block to explicitly express the
-list of fields to be replicated, as shown below.
+create a Subscriber per model, as shown below.
 
 Example
 --------
@@ -28,16 +26,11 @@ Example
 Replicable::AMQP.configure(:backend => :bunny, :app => 'crowdtap', :logger => Rails.logger,
                            :server_uri => 'amqp://user:password@host:port/vhost')
 
-# model
-class PublisherModel
-  include Mongoid::Document
-  include Replicable::Publisher
-
-  field :field_1
-  field :field_2
-  field :field_3
-
-  replicate
+# publisher
+class ModelPublisher < Replicable::Publisher::Mongoid
+  publish :to => 'crowdtap/model',
+          :class => Model,
+          :attributes => [:field_1, :field_2, :field_3]
 end
 ```
 
@@ -47,19 +40,14 @@ end
 # initializer
 Replicable::AMQP.configure(:backend => :rubyamqp, :app => 'sniper', :logger => Rails.logger,
                            :server_uri => 'amqp://user:password@host:port/vhost',
-                           :queue_options => {:durable => true},
+                           :queue_options => {:durable => true, :arguments => {'x-ha-policy' => 'all'}},
                            :error_handler => some_proc)
 
-# model
-class SubscriberModel
-  include Mongoid::Document
-  include Replicable::Subscriber
-
-  replicate :from => 'crowdtap', :class_name => 'publisher_model' do
-    field :field_1
-    field :field_2
-    field :field_3
-  end
+# subscriber
+class ModelSubscriber < Replicable::Subscriber::Mongoid
+  publish :from => 'crowdtap/model',
+          :class => Model,
+          :attributes => [:field_1, :field_2, :field_3]
 end
 ```
 
@@ -99,8 +87,6 @@ Replicable does **not** handle:
   m.particiation_ids = [Participation.first.ids]
   m.save
   ```
-
-- Embedded documents.
 
 What's up with bunny vs ruby-amqp ?
 -----------------------------------

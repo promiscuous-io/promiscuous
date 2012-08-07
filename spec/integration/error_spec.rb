@@ -15,9 +15,9 @@ describe Replicable do
           :attributes => [:field_1, :field_2, :field_3]
       end
 
-      define_constant('Subscriber', Replicable::Subscriber) do
+      define_constant('Subscriber', Replicable::Subscriber::Mongoid) do
         subscribe :from => 'crowdtap/publisher_model',
-          :model => SubscriberModel,
+          :class => SubscriberModel,
           :attributes => [:field_1, :field_2, :field_3]
       end
     end
@@ -25,20 +25,20 @@ describe Replicable do
     before { Replicable::Worker.run }
     before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /updated/ } }
 
-    let!(:instance) { PublisherModel.create }
-
     it 'calls the error_handler with an exception' do
-      instance.update_attributes(:field_1 => 'updated')
+      pub = PublisherModel.create
+      pub.update_attributes(:field_1 => 'updated')
       eventually { @error_handler_called_with.should be_a(Exception) }
     end
 
     it 'stops processing anything' do
-      instance.update_attributes(:field_1 => 'updated')
-      instance.update_attributes(:field_1 => 'another_update')
+      pub = PublisherModel.create
+      pub.update_attributes!(:field_1 => 'updated')
+      pub.update_attributes!(:field_1 => 'another_update')
 
       eventually { @error_handler_called_with.should be_a(Exception) }
       EM::Synchrony.sleep 0.5
-      eventually { SubscriberModel.find(instance.id).field_1.should_not == 'another_update' }
+      eventually { SubscriberModel.find(pub.id).field_1.should_not == 'another_update' }
     end
   end
 
@@ -50,7 +50,7 @@ describe Replicable do
           :attributes => [:field_1, :field_2]
       end
 
-      define_constant('Subscriber', Replicable::Subscriber) do
+      define_constant('Subscriber', Replicable::Subscriber::Mongoid) do
         subscribe :from => 'crowdtap/publisher_model',
           :model => SubscriberModel,
           :attributes => [:field_1, :field_2, :field_3]

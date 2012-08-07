@@ -18,17 +18,17 @@ describe Replicable do
               :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
     end
 
-    define_constant('SubscriberEmbed', Replicable::Subscriber) do
+    define_constant('SubscriberEmbed', Replicable::Subscriber::Mongoid) do
       subscribe :from => 'crowdtap/publisher_model_embeds',
-                :models => {'PublisherModelEmbed'      => SubscriberModelEmbed,
-                            'PublisherModelEmbedChild' => SubscriberModelEmbedChild },
+                :classes => {'PublisherModelEmbed'      => SubscriberModelEmbed,
+                             'PublisherModelEmbedChild' => SubscriberModelEmbedChild },
                 :attributes => [:field_1, :field_2, :field_3, :model_embedded]
     end
 
-    define_constant('SubscriberEmbedded', Replicable::Subscriber) do
+    define_constant('SubscriberEmbedded', Replicable::Subscriber::Mongoid) do
       subscribe :from => 'crowdtap/model_embedded',
-                :models => {'PublisherModelEmbedded'      => SubscriberModelEmbedded,
-                            'PublisherModelEmbeddedChild' => SubscriberModelEmbeddedChild },
+                :classes => {'PublisherModelEmbedded'      => SubscriberModelEmbedded,
+                             'PublisherModelEmbeddedChild' => SubscriberModelEmbeddedChild },
                 :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
     end
   end

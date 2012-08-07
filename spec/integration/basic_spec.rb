@@ -12,9 +12,9 @@ describe Replicable do
               :attributes => [:field_1, :field_2, :field_3]
     end
 
-    define_constant('Subscriber', Replicable::Subscriber) do
+    define_constant('Subscriber', Replicable::Subscriber::Mongoid) do
       subscribe :from => 'crowdtap/publisher_model',
-                :model => SubscriberModel,
+                :class => SubscriberModel,
                 :attributes => [:field_1, :field_2, :field_3]
     end
   end
