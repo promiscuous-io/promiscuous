@@ -1,30 +1,30 @@
 require 'spec_helper'
-require 'integration/models'
 require 'replicable/worker'
 
 describe Replicable do
+  before { load_models }
   before { use_real_amqp }
 
   before do
-    define_constant(:publisher_embed, Replicable::Publisher::Mongoid) do
+    define_constant('PublisherEmbed', Replicable::Publisher::Mongoid) do
       publish :to => 'crowdtap/publisher_model_embed',
               :class => PublisherModelEmbed,
               :attributes => [:field_1, :field_2, :field_3, :model_embedded]
     end
 
-    define_constant(:publisher_embedded, Replicable::Publisher::MongoidEmbedded) do
+    define_constant('PublisherEmbedded', Replicable::Publisher::MongoidEmbedded) do
       publish :to => 'crowdtap/model_embedded',
               :class => PublisherModelEmbedded,
               :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
     end
 
-    define_constant(:subscriber_embed, Replicable::Subscriber) do
+    define_constant('SubscriberEmbed', Replicable::Subscriber) do
       subscribe :from => 'crowdtap/publisher_model_embed',
                 :model => SubscriberModelEmbed,
                 :attributes => [:field_1, :field_2, :field_3, :model_embedded]
     end
 
-    define_constant(:subscriber_embedded, Replicable::Subscriber) do
+    define_constant('SubscriberEmbedded', Replicable::Subscriber) do
       subscribe :from => 'crowdtap/model_embedded',
                 :model => SubscriberModelEmbedded,
                 :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]

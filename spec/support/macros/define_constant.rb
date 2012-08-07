@@ -2,8 +2,6 @@ require 'set'
 
 module DefineConstantMacros
   def define_constant(class_name, base = Object, &block)
-    class_name = class_name.to_s.camelize
-
     klass = Class.new(base)
     Object.const_set(class_name, klass)
 

@@ -28,6 +28,7 @@ RSpec.configure do |config|
 
   config.include AsyncHelper
   config.include AMQPHelper
+  config.include ModelsHelper
 
   config.before(:each) do
   if mongoid3

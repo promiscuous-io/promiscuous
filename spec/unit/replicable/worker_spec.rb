@@ -1,12 +1,12 @@
 require 'spec_helper'
-require 'integration/models'
 require 'replicable/worker'
 
 describe Replicable::Worker, '.subscribe' do
+  before { load_models }
   before { use_fake_amqp(:app => 'test_subscriber') }
 
   before do
-    define_constant(:subscriber, Replicable::Subscriber) do
+    define_constant('Subscriber', Replicable::Subscriber) do
       subscribe :model => SubscriberModel, :from => 'crowdtap/publisher_model'
 
       def replicate(payload)
