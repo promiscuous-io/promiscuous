@@ -55,6 +55,7 @@ class Replicable::Subscriber
       optional = field.to_s[-1] == '?'
       field = field.to_s[0...-1].to_sym if optional
       setter = :"#{field}="
+      raise "Unknown field '#{field}'" unless optional || payload.has_key?(field)
       value = payload[field]
 
       set_attribute(setter, field, optional, value)
@@ -81,9 +82,9 @@ class Replicable::Subscriber
     else
       case operation
       when :create
-        instance.save
+        instance.save!
       when :update
-        instance.save
+        instance.save!
       when :destroy
         instance.destroy
       end

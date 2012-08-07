@@ -15,6 +15,9 @@ Mongoid.configure do |config|
   if mongoid3
     config.connect_to(DATABASE)
     ::BSON = ::Moped::BSON
+    if ENV['LOGGER_LEVEL']
+      Moped.logger = Logger.new(STDOUT).tap { |l| l.level = ENV['LOGGER_LEVEL'].to_i }
+    end
   else
     database = Mongo::Connection.new(HOST, PORT.to_i).db(DATABASE)
     config.master = database

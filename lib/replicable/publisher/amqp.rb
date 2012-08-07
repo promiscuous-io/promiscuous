@@ -5,8 +5,7 @@ module Replicable::Publisher::AMQP
   include Replicable::Publisher::Envelope
 
   def amqp_publish
-    Replicable::AMQP.publish(:key => to,
-                             :payload => payload.to_json)
+    Replicable::AMQP.publish(:key => to, :payload => payload.to_json)
   end
 
   def payload
