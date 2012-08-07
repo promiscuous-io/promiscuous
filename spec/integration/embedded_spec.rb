@@ -6,20 +6,20 @@ describe Replicable do
   before { use_real_amqp }
 
   before do
-    define_constant(:publisher_embeds, Replicable::Publisher) do
-      publish :to => 'crowdtap/publisher_model_embeds',
-              :model => PublisherModelEmbed,
+    define_constant(:publisher_embed, Replicable::Publisher::Mongoid) do
+      publish :to => 'crowdtap/publisher_model_embed',
+              :class => PublisherModelEmbed,
               :attributes => [:field_1, :field_2, :field_3, :model_embedded]
     end
 
-    define_constant(:publisher_embedded, Replicable::Publisher) do
+    define_constant(:publisher_embedded, Replicable::Publisher::MongoidEmbedded) do
       publish :to => 'crowdtap/model_embedded',
-              :model => PublisherModelEmbedded,
+              :class => PublisherModelEmbedded,
               :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
     end
 
-    define_constant(:subscriber_embeds, Replicable::Subscriber) do
-      subscribe :from => 'crowdtap/publisher_model_embeds',
+    define_constant(:subscriber_embed, Replicable::Subscriber) do
+      subscribe :from => 'crowdtap/publisher_model_embed',
                 :model => SubscriberModelEmbed,
                 :attributes => [:field_1, :field_2, :field_3, :model_embedded]
     end
@@ -36,8 +36,8 @@ describe Replicable do
   context 'when creating' do
     it 'replicates' do
       pub = PublisherModelEmbed.create(:field_1 => '1',
-                                        :model_embedded => { :embedded_field_1 => 'e1',
-                                                             :embedded_field_2 => 'e2' })
+                                       :model_embedded => { :embedded_field_1 => 'e1',
+                                                            :embedded_field_2 => 'e2' })
       pub_e = pub.model_embedded
 
       eventually do
@@ -60,8 +60,8 @@ describe Replicable do
     context 'when embedded document is saved' do
       it 'replicates' do
         pub = PublisherModelEmbed.create(:field_1 => '1',
-                                          :model_embedded => { :embedded_field_1 => 'e1',
-                                                               :embedded_field_2 => 'e2' })
+                                         :model_embedded => { :embedded_field_1 => 'e1',
+                                                              :embedded_field_2 => 'e2' })
         pub_e = pub.model_embedded
         pub_e.embedded_field_1 = 'e1_updated'
         pub_e.save
@@ -85,8 +85,8 @@ describe Replicable do
     context 'when embedded document setter is used' do
       it 'replicates' do
         pub = PublisherModelEmbed.create(:field_1 => '1',
-                                          :model_embedded => { :embedded_field_1 => 'e1',
-                                                               :embedded_field_2 => 'e2' })
+                                         :model_embedded => { :embedded_field_1 => 'e1',
+                                                              :embedded_field_2 => 'e2' })
         pub.model_embedded = PublisherModelEmbeddedChild.new(:embedded_field_1 => 'e1_updated')
         pub.save
 
@@ -112,8 +112,8 @@ describe Replicable do
     context 'when parent document is saved' do
       it 'replicates' do
         pub = PublisherModelEmbed.create(:field_1 => '1',
-                                          :model_embedded => { :embedded_field_1 => 'e1',
-                                                               :embedded_field_2 => 'e2' })
+                                         :model_embedded => { :embedded_field_1 => 'e1',
+                                                              :embedded_field_2 => 'e2' })
         pub.update_attributes(:field_1 => '1_updated',
                               :model_embedded => { :embedded_field_1 => 'e1_updated',
                                                    :embedded_field_2 => 'e2_updated' })
@@ -179,7 +179,6 @@ describe Replicable do
         end
       end
     end
-
   end
 
   after do

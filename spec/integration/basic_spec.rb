@@ -6,9 +6,9 @@ describe Replicable do
   before { use_real_amqp }
 
   before do
-    define_constant(:publisher, Replicable::Publisher) do
+    define_constant(:publisher, Replicable::Publisher::Mongoid) do
       publish :to => 'crowdtap/publisher_model',
-              :model => PublisherModel,
+              :class => PublisherModel,
               :attributes => [:field_1, :field_2, :field_3]
     end
 

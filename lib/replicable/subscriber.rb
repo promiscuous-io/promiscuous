@@ -28,23 +28,16 @@ class Replicable::Subscriber
   def initialize(options={})
     @id        = options[:id]
     @type      = options[:type]
-    @operation = options[:operation].to_sym
-    @payload   = options[:payload].symbolize_keys
+    @operation = options[:operation].try(:to_sym)
+    @payload   = options[:payload].try(:symbolize_keys)
     @parent    = options[:parent]
   end
 
   def fetch_instance
     @instance = if parent
-                  case operation
-                  when :create
-                    model.new.tap {|m| m.id = id}
-                  when :update
-                    instance = parent[:instance].send(parent[:getter])
-                    instance = model.new.tap {|m| m.id = id} if instance.nil?
-                    instance
-                  when :destroy
-                    nil
-                  end
+                  instance = parent[:instance].send(parent[:getter])
+                  instance = model.new.tap {|m| m.id = id} if instance.nil?
+                  instance
                 else
                   case operation
                   when :create
@@ -70,7 +63,7 @@ class Replicable::Subscriber
 
   def set_attribute(setter, field, optional, value)
     if !optional || instance.respond_to?(setter)
-      if value.is_a?(Hash) and value['__amqp_binding__']
+      if value.is_a?(Hash) and value['__amqp__']
         value = self.class.process(value, :parent => {:instance => instance,
                                                       :getter   => field,
                                                       :setter   => setter}).instance
@@ -82,14 +75,8 @@ class Replicable::Subscriber
 
   def commit_instance
     if parent
-      case operation
-      when :create
+      unless parent[:instance].send(parent[:getter]) == instance
         parent[:instance].send(parent[:setter], instance)
-      when :update
-        unless parent[:instance].send(parent[:getter]) == instance
-          parent[:instance].send(parent[:setter], instance)
-        end
-      when :destroy
       end
     else
       case operation
@@ -105,7 +92,7 @@ class Replicable::Subscriber
 
   def self.process(amqp_payload, options={})
     amqp_payload.symbolize_keys!
-    binding = amqp_payload[:__amqp_binding__]
+    binding = amqp_payload[:__amqp__]
     subscriber_class = binding_map[binding]
     raise "FATAL: Unknown binding: '#{binding}'" if subscriber_class.nil?
 

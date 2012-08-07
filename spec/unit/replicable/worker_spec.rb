@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'integration/models'
 require 'replicable/worker'
 
 describe Replicable::Worker, '.subscribe' do
