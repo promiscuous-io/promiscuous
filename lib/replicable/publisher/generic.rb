@@ -9,5 +9,5 @@ class Replicable::Publisher::Generic < Replicable::Publisher::Base
   include Replicable::Publisher::Attributes
   include Replicable::Publisher::Polymorphic
   include Replicable::Publisher::AMQP
-  include Replicable::Publisher::Descriptor
+  include Replicable::Publisher::Envelope
 end

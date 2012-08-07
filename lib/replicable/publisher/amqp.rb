@@ -1,8 +1,8 @@
-require 'replicable/publisher/descriptor'
+require 'replicable/publisher/envelope'
 
 module Replicable::Publisher::AMQP
   extend ActiveSupport::Concern
-  include Replicable::Publisher::Descriptor
+  include Replicable::Publisher::Envelope
 
   def amqp_publish
     Replicable::AMQP.publish(:key => to,

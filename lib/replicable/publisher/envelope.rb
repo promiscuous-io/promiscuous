@@ -1,4 +1,4 @@
-module Replicable::Publisher::Descriptor
+module Replicable::Publisher::Envelope
   extend ActiveSupport::Concern
 
   def payload
