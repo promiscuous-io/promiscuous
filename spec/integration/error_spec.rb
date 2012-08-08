@@ -52,7 +52,7 @@ describe Replicable do
 
       define_constant('Subscriber', Replicable::Subscriber::Mongoid) do
         subscribe :from => 'crowdtap/publisher_model',
-          :model => SubscriberModel,
+          :class => SubscriberModel,
           :attributes => [:field_1, :field_2, :field_3]
       end
     end
@@ -67,6 +67,6 @@ describe Replicable do
 
   after do
     Replicable::AMQP.close
-    Replicable::Subscriber.subscriptions.clear
+    Replicable::Subscriber::AMQP.subscribers.clear
   end
 end

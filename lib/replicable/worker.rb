@@ -1,12 +1,11 @@
 module Replicable
   module Worker
     def self.run
-      Replicable::Subscriber.prepare_bindings
       queue_name = "#{Replicable::AMQP.app}.replicable"
 
       stop = false
       Replicable::AMQP.subscribe(:queue_name => queue_name,
-                                 :bindings   => Replicable::Subscriber.binding_map.keys) do |metadata, payload|
+                                 :bindings   => Replicable::Subscriber::AMQP.subscribers.keys) do |metadata, payload|
         begin
           unless stop
             Replicable::AMQP.info "[receive] #{payload}"

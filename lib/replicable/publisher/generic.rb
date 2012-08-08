@@ -3,6 +3,7 @@ require 'replicable/publisher/base'
 require 'replicable/publisher/attributes'
 require 'replicable/publisher/polymorphic'
 require 'replicable/publisher/amqp'
+require 'replicable/publisher/envelope'
 
 class Replicable::Publisher::Generic < Replicable::Publisher::Base
   include Replicable::Publisher::ClassBind

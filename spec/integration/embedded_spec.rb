@@ -183,6 +183,6 @@ describe Replicable do
 
   after do
     Replicable::AMQP.close
-    Replicable::Subscriber.subscriptions.clear
+    Replicable::Subscriber::AMQP.subscribers.clear
   end
 end

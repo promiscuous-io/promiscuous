@@ -1,119 +1,13 @@
-class Replicable::Subscriber
-  mattr_accessor :subscriptions, :binding_map
-  self.subscriptions = Set.new
+module Replicable::Subscriber
+  require 'replicable/subscriber/mongoid'
+  require 'replicable/subscriber/amqp'
 
-  class_attribute :amqp_binding, :klass, :klasses, :attributes, :options
-  attr_accessor :id, :instance, :operation, :type, :parent, :payload
+  def self.process(payload, options={})
+    subscriber = Replicable::Subscriber::AMQP.subscriber(payload)
+    return payload if subscriber.nil?
 
-  def self.subscribe(options={})
-    self.options      = options
-    self.klass        = options[:class]
-    self.klasses      = options[:classes]
-    self.amqp_binding = options[:from]
-    self.attributes   = options[:attributes]
-
-    Replicable::Subscriber.subscriptions << self
-  end
-
-  def model
-    if self.class.klasses
-      self.class.klasses[type]
-    elsif self.class.klass
-      self.class.klass
-    else
-      raise "Cannot find matching model.\n" +
-            "I don't want to be rude or anything, but have you defined your target model?"
-    end
-  end
-
-  def initialize(options={})
-    @id        = options[:id]
-    @type      = options[:type]
-    @operation = options[:operation].try(:to_sym)
-    @payload   = options[:payload].try(:symbolize_keys)
-    @parent    = options[:parent]
-  end
-
-  def fetch_instance
-    @instance = if parent
-                  instance = parent[:instance].send(parent[:getter])
-                  instance = model.new.tap {|m| m.id = id} if instance.nil?
-                  instance
-                else
-                  case operation
-                  when :create
-                    model.new.tap {|m| m.id = id}
-                  when :update
-                    model.find(id)
-                  when :destroy
-                    model.find(id)
-                  end
-                end
-  end
-
-  def replicate
-    self.class.attributes.each do |field|
-      optional = field.to_s[-1] == '?'
-      field = field.to_s[0...-1].to_sym if optional
-      setter = :"#{field}="
-
-      if payload.has_key?(field)
-        value = payload[field]
-        set_attribute(setter, field, optional, value)
-      else
-        raise "Unknown field '#{field}'" unless optional
-      end
-    end
-  end
-
-  def set_attribute(setter, field, optional, value)
-    if !optional || instance.respond_to?(setter)
-      if value.is_a?(Hash) and value['__amqp__']
-        value = self.class.process(value, :parent => {:instance => instance,
-                                                      :getter   => field,
-                                                      :setter   => setter}).instance
-      else
-        instance.__send__(setter, value)
-      end
-    end
-  end
-
-  def commit_instance
-    if parent
-      unless parent[:instance].send(parent[:getter]) == instance
-        parent[:instance].send(parent[:setter], instance)
-      end
-    else
-      case operation
-      when :create
-        instance.save!
-      when :update
-        instance.save!
-      when :destroy
-        instance.destroy
-      end
-    end
-  end
-
-  def self.process(amqp_payload, options={})
-    amqp_payload.symbolize_keys!
-    binding = amqp_payload[:__amqp__]
-    subscriber_class = binding_map[binding]
-    raise "FATAL: Unknown binding: '#{binding}'" if subscriber_class.nil?
-
-    subscriber = subscriber_class.new(amqp_payload.merge(options))
-    subscriber.fetch_instance
-    subscriber.replicate unless subscriber.operation == :destroy
-    subscriber.commit_instance
-    subscriber
-  end
-
-  def self.prepare_bindings
-    self.binding_map = {}
-    Replicable::Subscriber.subscriptions.each do |subscriber|
-      self.binding_map[subscriber.amqp_binding] = subscriber
-    end
+    sub = subscriber.new(options.merge(:payload => payload))
+    sub.process if sub.respond_to?(:process)
+    sub.instance
   end
 end
-
-Replicable::Subscriber::Mongoid = Replicable::Subscriber
