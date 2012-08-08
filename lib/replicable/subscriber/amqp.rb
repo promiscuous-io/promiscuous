@@ -7,7 +7,7 @@ module Replicable::Subscriber::AMQP
   self.subscribers = {}
 
   def self.subscriber_for(payload)
-    origin = payload.respond_to?(:[]) ? payload['__amqp__'] : nil
+    origin = payload.is_a?(Hash) ? payload['__amqp__'] : nil
     if origin
       unless subscribers.has_key?(origin)
         raise "FATAL: Unknown binding: '#{origin}'"
