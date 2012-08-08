@@ -18,12 +18,12 @@ module Replicable
       self
     end
 
-    def self.info(msg)
-      self.logger.info "[AMQP] #{msg}\n"
-    end
-
-    def self.error(msg)
-      self.logger.info "[AMQP] #{msg}\n"
+    class << self
+      [:info, :error, :warn, :fatal].each do |level|
+        define_method(level) do |msg|
+          self.logger.__send__(level, msg)
+        end
+      end
     end
 
     # TODO Evaluate the performance hit of method_missing

@@ -23,7 +23,7 @@ describe Replicable do
     it 'replicates' do
       use_fake_amqp
       pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      use_real_amqp
+      use_real_amqp(:logger_level => Logger::FATAL)
 
       Replicable::Worker.run
 
@@ -41,9 +41,9 @@ describe Replicable do
 
   context 'when destroying' do
     it 'replicates' do
-      use_fake_amqp
+      use_fake_amqp(:logger_level => Logger::FATAL)
       pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      use_real_amqp
+      use_real_amqp(:logger_level => Logger::FATAL)
 
       Replicable::Worker.run
 
