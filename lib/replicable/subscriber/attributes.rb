@@ -26,10 +26,5 @@ module Replicable::Subscriber::Attributes
     true
   end
 
-  module ClassMethods
-    def subscribe(options)
-      super
-      use_option :attributes
-    end
-  end
+  included { use_option :attributes }
 end

@@ -12,10 +12,5 @@ module Replicable::Publisher::AMQP
     super.merge(:__amqp__ => to)
   end
 
-  module ClassMethods
-    def publish(options)
-      super
-      use_option :to
-    end
-  end
+  included { use_option :to }
 end

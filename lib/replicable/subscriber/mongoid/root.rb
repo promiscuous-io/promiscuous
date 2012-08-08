@@ -4,7 +4,7 @@ module Replicable::Subscriber::Mongoid::Root
   def fetch
     case operation
     when :create
-      klass.new.tap {|o| o.id = id}
+      klass.new.tap { |o| o.id = id }
     when :update
       klass.find(id)
     when :destroy
@@ -28,11 +28,8 @@ module Replicable::Subscriber::Mongoid::Root
     end
   end
 
-  module ClassMethods
-    def subscribe(options)
-      super
-      use_payload_attribute :id
-      use_payload_attribute :operation, :symbolize => true
-    end
+  included do
+    use_payload_attribute :id
+    use_payload_attribute :operation, :symbolize => true
   end
 end

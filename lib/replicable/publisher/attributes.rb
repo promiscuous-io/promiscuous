@@ -24,10 +24,5 @@ module Replicable::Publisher::Attributes
     true
   end
 
-  module ClassMethods
-    def publish(options)
-      super
-      use_option :attributes
-    end
-  end
+  included { use_option :attributes }
 end

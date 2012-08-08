@@ -9,11 +9,10 @@ module Replicable::Subscriber::Envelope
         value
       end
     end
+  end
 
-    def subscribe(options)
-      super
-      alias_method :payload_with_envelope, :payload
-      use_payload_attribute :payload
-    end
+  included do
+    alias_method :payload_with_envelope, :payload
+    use_payload_attribute :payload
   end
 end
