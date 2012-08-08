@@ -88,6 +88,18 @@ Replicable does **not** handle:
   m.save
   ```
 
+Furthermore, it can be racy. Consider this scenario with two interleaving requests A and B:
+
+1. (A) Update mongo doc X.value = 1
+2. (B) Update mongo doc X.value = 2
+3. (B) Publish 'X.value = 2' to Rabbit
+4. (A) Publish 'X.value = 1' to Rabbit
+
+At the end of the scenario, on the publisher side, the document X has value
+equal to 2, while on the subscriber side, the document has a value of 1.  This
+will likely not occur in most scenarios BUT BEWARE.  We have plans to fix this
+issue by using version numbers and mongo's amazing findandmodify.
+
 What's up with bunny vs ruby-amqp ?
 -----------------------------------
 
