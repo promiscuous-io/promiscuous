@@ -13,6 +13,11 @@ class Replicable::Subscriber::Mongoid < Replicable::Subscriber::Generic
     else
       require 'replicable/subscriber/mongoid/root'
       include Replicable::Subscriber::Mongoid::Root
+
+      if options[:upsert]
+        require 'replicable/subscriber/mongoid/upsert'
+        include Replicable::Subscriber::Mongoid::Upsert
+      end
     end
 
     self.subscribe(options.merge(:mongoid_loaded => true))

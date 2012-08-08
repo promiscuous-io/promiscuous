@@ -88,7 +88,8 @@ Replicable does **not** handle:
   m.save
   ```
 
-Furthermore, it can be racy. Consider this scenario with two interleaving requests A and B:
+Furthermore, it can be racy. Consider this scenario with two interleaving
+requests A and B:
 
 1. (A) Update mongo doc X.value = 1
 2. (B) Update mongo doc X.value = 2
