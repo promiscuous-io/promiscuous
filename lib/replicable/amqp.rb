@@ -21,7 +21,7 @@ module Replicable
     class << self
       [:info, :error, :warn, :fatal].each do |level|
         define_method(level) do |msg|
-          self.logger.__send__(level, msg)
+          self.logger.__send__(level, "[AMQP] #{msg}")
         end
       end
     end
