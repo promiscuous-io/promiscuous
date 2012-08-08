@@ -1,4 +1,5 @@
 module Replicable::Subscriber
+  require 'replicable/subscriber/error'
   require 'replicable/subscriber/mongoid'
   require 'replicable/subscriber/amqp'
 

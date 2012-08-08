@@ -13,9 +13,10 @@ module Replicable
             metadata.ack
           end
         rescue Exception => e
+          e = Replicable::Subscriber::Error.new(e, payload)
           stop = true
           Replicable::AMQP.close
-          Replicable::AMQP.error "[receive] cannot process #{payload} because #{e}"
+          Replicable::AMQP.error "[receive] FATAL #{e}"
           Replicable::AMQP.error_handler.call(e) if Replicable::AMQP.error_handler
         end
       end
