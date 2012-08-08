@@ -17,7 +17,14 @@ module Replicable::Subscriber::AMQP
   module ClassMethods
     def subscribe(options)
       super
-      Replicable::Subscriber::AMQP.subscribers[options[:from]] = self
+
+      subscribers = Replicable::Subscriber::AMQP.subscribers
+      from = options[:from]
+
+      if subscribers.has_key?(from)
+        raise "The subscriber '#{subscribers[from]}' already listen on '#{from}'"
+      end
+      subscribers[from] = self
     end
   end
 end
