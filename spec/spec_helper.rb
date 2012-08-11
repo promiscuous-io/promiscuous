@@ -2,12 +2,12 @@ require 'rubygems'
 require 'bundler'
 Bundler.require(:default, :test)
 
-require 'replicable/amqp'
+require 'promiscuous/amqp'
 Dir["./spec/support/**/*.rb"].each {|f| require f}
 
 HOST = ENV['MONGOID_SPEC_HOST'] || 'localhost'
 PORT = ENV['MONGOID_SPEC_PORT'] || '27017'
-DATABASE = 'replicable_test'
+DATABASE = 'promiscuous_test'
 
 mongoid3 = Gem.loaded_specs['mongoid'].version >= Gem::Version.new('3.0.0')
 

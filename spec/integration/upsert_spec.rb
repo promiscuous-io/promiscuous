@@ -1,17 +1,17 @@
 require 'spec_helper'
-require 'replicable/worker'
+require 'promiscuous/worker'
 
-describe Replicable do
+describe Promiscuous do
   before { load_models }
 
   before do
-    define_constant('Publisher', Replicable::Publisher::Mongoid) do
+    define_constant('Publisher', Promiscuous::Publisher::Mongoid) do
       publish :to => 'crowdtap/publisher_model',
               :class => PublisherModel,
               :attributes => [:field_1, :field_2, :field_3]
     end
 
-    define_constant('Subscriber', Replicable::Subscriber::Mongoid) do
+    define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
       subscribe :from => 'crowdtap/publisher_model',
                 :class => SubscriberModel,
                 :upsert => true,
@@ -25,7 +25,7 @@ describe Replicable do
       pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       use_real_amqp(:logger_level => Logger::FATAL)
 
-      Replicable::Worker.run
+      Promiscuous::Worker.run
 
       pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
@@ -45,7 +45,7 @@ describe Replicable do
       pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       use_real_amqp(:logger_level => Logger::FATAL)
 
-      Replicable::Worker.run
+      Promiscuous::Worker.run
 
       pub2 = PublisherModel.create(:field_1 => 'a', :field_2 => 'b', :field_3 => 'c')
       pub1.destroy
@@ -58,7 +58,7 @@ describe Replicable do
   end
 
   after do
-    Replicable::AMQP.close
-    Replicable::Subscriber::AMQP.subscribers.clear
+    Promiscuous::AMQP.close
+    Promiscuous::Subscriber::AMQP.subscribers.clear
   end
 end

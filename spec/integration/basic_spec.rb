@@ -1,25 +1,25 @@
 require 'spec_helper'
-require 'replicable/worker'
+require 'promiscuous/worker'
 
-describe Replicable do
+describe Promiscuous do
   before { load_models }
   before { use_real_amqp }
 
   before do
-    define_constant('Publisher', Replicable::Publisher::Mongoid) do
+    define_constant('Publisher', Promiscuous::Publisher::Mongoid) do
       publish :to => 'crowdtap/publisher_model',
               :class => PublisherModel,
               :attributes => [:field_1, :field_2, :field_3]
     end
 
-    define_constant('Subscriber', Replicable::Subscriber::Mongoid) do
+    define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
       subscribe :from => 'crowdtap/publisher_model',
                 :class => SubscriberModel,
                 :attributes => [:field_1, :field_2, :field_3]
     end
   end
 
-  before { Replicable::Worker.run }
+  before { Promiscuous::Worker.run }
 
   context 'when creating' do
     context 'with new' do
@@ -78,7 +78,7 @@ describe Replicable do
   end
 
   after do
-    Replicable::AMQP.close
-    Replicable::Subscriber::AMQP.subscribers.clear
+    Promiscuous::AMQP.close
+    Promiscuous::Subscriber::AMQP.subscribers.clear
   end
 end

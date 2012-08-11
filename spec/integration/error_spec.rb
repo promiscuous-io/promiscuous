@@ -1,7 +1,7 @@
 require 'spec_helper'
-require 'replicable/worker'
+require 'promiscuous/worker'
 
-describe Replicable do
+describe Promiscuous do
   before { load_models }
 
   let!(:error_handler) { proc { |exception| @error_handler_called_with = exception } }
@@ -9,20 +9,20 @@ describe Replicable do
 
   context 'when replicating the update of a model that fails' do
     before do
-      define_constant('Publisher', Replicable::Publisher::Mongoid) do
+      define_constant('Publisher', Promiscuous::Publisher::Mongoid) do
         publish :to => 'crowdtap/publisher_model',
                 :class => PublisherModel,
                 :attributes => [:field_1, :field_2, :field_3]
       end
 
-      define_constant('Subscriber', Replicable::Subscriber::Mongoid) do
+      define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
         subscribe :from => 'crowdtap/publisher_model',
                   :class => SubscriberModel,
                   :attributes => [:field_1, :field_2, :field_3]
       end
     end
 
-    before { Replicable::Worker.run }
+    before { Promiscuous::Worker.run }
     before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /updated/ } }
 
     it 'calls the error_handler with an exception' do
@@ -44,20 +44,20 @@ describe Replicable do
 
   context 'when subscribing to non published fields' do
     before do
-      define_constant('Publisher', Replicable::Publisher::Mongoid) do
+      define_constant('Publisher', Promiscuous::Publisher::Mongoid) do
         publish :to => 'crowdtap/publisher_model',
                 :class => PublisherModel,
                 :attributes => [:field_1, :field_2]
       end
 
-      define_constant('Subscriber', Replicable::Subscriber::Mongoid) do
+      define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
         subscribe :from => 'crowdtap/publisher_model',
                   :class => SubscriberModel,
                   :attributes => [:field_1, :field_2, :field_3]
       end
     end
 
-    before { Replicable::Worker.run }
+    before { Promiscuous::Worker.run }
 
     it 'calls the error_handler with an exception' do
       PublisherModel.create
@@ -67,26 +67,26 @@ describe Replicable do
 
   context 'when the subscriber is missing' do
     before do
-      define_constant('PublisherEmbed', Replicable::Publisher::Mongoid) do
+      define_constant('PublisherEmbed', Promiscuous::Publisher::Mongoid) do
         publish :to => 'crowdtap/publisher_model_embed',
                 :class => PublisherModelEmbed,
                 :attributes => [:field_1, :field_2, :field_3, :model_embedded]
       end
 
-      define_constant('PublisherEmbedded', Replicable::Publisher::Mongoid) do
+      define_constant('PublisherEmbedded', Promiscuous::Publisher::Mongoid) do
         publish :to => 'crowdtap/model_embedded',
                 :class => PublisherModelEmbedded,
                 :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
       end
 
-      define_constant('SubscriberEmbed', Replicable::Subscriber::Mongoid) do
+      define_constant('SubscriberEmbed', Promiscuous::Subscriber::Mongoid) do
         subscribe :from => 'crowdtap/publisher_model_embed',
                   :class => SubscriberModelEmbed,
                   :attributes => [:field_1, :field_2, :field_3, :model_embedded]
       end
     end
 
-    before { Replicable::Worker.run }
+    before { Promiscuous::Worker.run }
 
     it 'calls the error_handler with an exception' do
       pub = PublisherModelEmbed.create(:field_1 => '1',
@@ -97,7 +97,7 @@ describe Replicable do
   end
 
   after do
-    Replicable::AMQP.close
-    Replicable::Subscriber::AMQP.subscribers.clear
+    Promiscuous::AMQP.close
+    Promiscuous::Subscriber::AMQP.subscribers.clear
   end
 end
