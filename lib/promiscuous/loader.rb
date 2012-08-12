@@ -9,7 +9,7 @@ module Promiscuous
             %w(publishers **_publisher.rb)
           when :subscribers
             require 'promiscuous/subscriber'
-            Promiscuous::Subscriber::AMQP.subscribers.clear
+            Promiscuous::Subscriber.subscribers.clear
             %w(subscribers **_subscriber.rb)
           end
 

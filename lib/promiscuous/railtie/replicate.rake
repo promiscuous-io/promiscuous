@@ -9,7 +9,7 @@ namespace :promiscuous do
       Promiscuous::Loader.load_descriptors :subscribers
       load args.initializer
       Promiscuous::Worker.replicate
-      puts "Promiscuous is ready to replicate"
+      puts "Replicating with #{Promiscuous::Subscriber.subscribers.count} subscribers"
     end
   end
 end

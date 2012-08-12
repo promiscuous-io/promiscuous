@@ -2,7 +2,7 @@ module Promiscuous
   module Worker
     def self.replicate
       queue_name = "#{Promiscuous::AMQP.app}.promiscuous"
-      bindings = Promiscuous::Subscriber::AMQP.subscribers.keys
+      bindings = Promiscuous::Subscriber.subscribers.keys
 
       stop = false
       Promiscuous::AMQP.subscribe(:queue_name => queue_name, :bindings => bindings) do |metadata, payload|
