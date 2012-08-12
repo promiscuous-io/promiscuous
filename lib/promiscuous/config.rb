@@ -11,8 +11,8 @@ module Promiscuous
 
       block.call(self)
       self.backend ||= defined?(EventMachine) && EventMachine.reactor_running? ? :rubyamqp : :bunny
+      self.logger ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
       self.queue_options ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
-      self.logger ||= Logger.new(STDOUT).tap { |l| l.level = Logger::WARN }
 
       Promiscuous::AMQP.connect
     end
