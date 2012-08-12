@@ -3,16 +3,11 @@ module Promiscuous
     module RubyAMQP
       mattr_accessor :channel, :queue_options
 
-      def self.configure(options)
+      def self.connect
         require 'amqp'
-        connection = ::AMQP.connect(build_connection_options(options))
-        self.channel = ::AMQP::Channel.new(connection)
-        self.queue_options = options[:queue_options] || {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
-      end
 
-      def self.build_connection_options(options)
-        if options[:server_uri]
-          uri = URI.parse(options[:server_uri])
+        amqp_options = if Promiscuous::Config.server_uri
+          uri = URI.parse(Promiscuous::Config.server_uri)
           raise "Please use amqp://user:password@host:port/vhost" if uri.scheme != 'amqp'
 
           {
@@ -24,6 +19,14 @@ module Promiscuous
             :vhost => uri.path.empty? ? "/" : uri.path,
          }
         end
+
+        connection = ::AMQP.connect(amqp_options)
+        self.channel = ::AMQP::Channel.new(connection)
+        self.queue_options = Promiscuous::Config.queue_options
+      end
+
+      def self.disconnect
+        channel.close
       end
 
       def self.subscribe(options={}, &block)
@@ -34,19 +37,15 @@ module Promiscuous
         exchange = channel.topic('promiscuous', :durable => true)
         bindings.each do |binding|
           queue.bind(exchange, :routing_key => binding)
-          AMQP.info "[bind] #{queue_name} -> #{binding}"
+          Promiscuous.info "[bind] #{queue_name} -> #{binding}"
         end
         queue.subscribe(:ack => true, &block)
       end
 
       def self.publish(msg)
-        AMQP.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
+        Promiscuous.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
         exchange = channel.topic('promiscuous', :durable => true)
         exchange.publish(msg[:payload], :routing_key => msg[:key], :persistent => true)
-      end
-
-      def self.close
-        channel.close
       end
     end
   end

@@ -3,7 +3,7 @@ require 'promiscuous/worker'
 
 describe Promiscuous::Worker, '.subscribe' do
   before { load_models }
-  before { use_fake_amqp(:app => 'test_subscriber') }
+  before { use_null_amqp(:app => 'test_subscriber') }
 
   before do
     define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
@@ -22,7 +22,7 @@ describe Promiscuous::Worker, '.subscribe' do
 
   it 'subscribes to the correct queue' do
     queue_name = 'test_subscriber.promiscuous'
-    Promiscuous::AMQP.subscribe_options[:queue_name].should == queue_name
+    Promiscuous::Worker.subscribe_options[:queue_name].should == queue_name
   end
 
   after do

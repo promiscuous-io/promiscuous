@@ -21,7 +21,7 @@ describe Promiscuous do
 
   context 'when updating' do
     it 'replicates' do
-      use_fake_amqp
+      use_null_amqp
       pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       use_real_amqp(:logger_level => Logger::FATAL)
 
@@ -41,7 +41,7 @@ describe Promiscuous do
 
   context 'when destroying' do
     it 'replicates' do
-      use_fake_amqp(:logger_level => Logger::FATAL)
+      use_null_amqp(:logger_level => Logger::FATAL)
       pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       use_real_amqp(:logger_level => Logger::FATAL)
 
@@ -58,7 +58,7 @@ describe Promiscuous do
   end
 
   after do
-    Promiscuous::AMQP.close
+    Promiscuous::AMQP.disconnect
     Promiscuous::Subscriber.subscribers.clear
   end
 end

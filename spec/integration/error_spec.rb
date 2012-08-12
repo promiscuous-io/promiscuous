@@ -97,7 +97,7 @@ describe Promiscuous do
   end
 
   after do
-    Promiscuous::AMQP.close
+    Promiscuous::AMQP.disconnect
     Promiscuous::Subscriber.subscribers.clear
   end
 end

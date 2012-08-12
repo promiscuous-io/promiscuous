@@ -1,25 +1,29 @@
 module Promiscuous
   module Worker
     def self.replicate
-      queue_name = "#{Promiscuous::AMQP.app}.promiscuous"
-      bindings = Promiscuous::Subscriber.subscribers.keys
-
       stop = false
-      Promiscuous::AMQP.subscribe(:queue_name => queue_name, :bindings => bindings) do |metadata, payload|
+      Promiscuous::AMQP.subscribe(subscribe_options) do |metadata, payload|
         begin
           unless stop
-            Promiscuous::AMQP.info "[receive] #{payload}"
+            Promiscuous.info "[receive] #{payload}"
             Promiscuous::Subscriber.process(JSON.parse(payload))
             metadata.ack
           end
         rescue Exception => e
           e = Promiscuous::Subscriber::Error.new(e, payload)
+
           stop = true
-          Promiscuous::AMQP.close
-          Promiscuous::AMQP.error "[receive] FATAL #{e}"
-          Promiscuous::AMQP.error_handler.call(e) if Promiscuous::AMQP.error_handler
+          Promiscuous::AMQP.disconnect
+          Promiscuous.error "[receive] FATAL #{e}"
+          Promiscuous::Config.error_handler.call(e) if Promiscuous::Config.error_handler
         end
       end
+    end
+
+    def self.subscribe_options
+      queue_name = "#{Promiscuous::Config.app}.promiscuous"
+      bindings = Promiscuous::Subscriber.subscribers.keys
+      {:queue_name => queue_name, :bindings => bindings}
     end
   end
 end

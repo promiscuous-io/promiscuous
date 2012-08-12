@@ -5,7 +5,7 @@ module Promiscuous::Subscriber::Mongoid::Upsert
     begin
       super
     rescue Mongoid::Errors::DocumentNotFound
-      Promiscuous::AMQP.warn "[receive] upserting #{payload}"
+      Promiscuous.warn "[receive] upserting #{payload}"
       klass.new.tap { |o| o.id = id }
     end
   end
