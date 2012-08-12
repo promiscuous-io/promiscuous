@@ -7,7 +7,7 @@ module Promiscuous
         require 'amqp'
         connection = ::AMQP.connect(build_connection_options(options))
         self.channel = ::AMQP::Channel.new(connection)
-        self.queue_options = options[:queue_options] || {}
+        self.queue_options = options[:queue_options] || {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
       end
 
       def self.build_connection_options(options)

@@ -1,12 +1,12 @@
-namespace :replicable do
+namespace :promiscuous do
   desc 'Run the subscribers worker'
-  task :run, [:initializer] => :environment do |t, args|
-    require 'replicable/worker'
+  task :replicate, [:initializer] => :environment do |t, args|
+    require 'promiscuous/worker'
     require 'eventmachine'
     require 'em-synchrony'
     EM.synchrony do
       load args.initializer
-      Replicable::Worker.run
+      Promiscuous::Worker.replicate
     end
   end
 end

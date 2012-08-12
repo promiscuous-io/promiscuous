@@ -25,7 +25,7 @@ describe Promiscuous do
       pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       use_real_amqp(:logger_level => Logger::FATAL)
 
-      Promiscuous::Worker.run
+      Promiscuous::Worker.replicate
 
       pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
@@ -45,7 +45,7 @@ describe Promiscuous do
       pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       use_real_amqp(:logger_level => Logger::FATAL)
 
-      Promiscuous::Worker.run
+      Promiscuous::Worker.replicate
 
       pub2 = PublisherModel.create(:field_1 => 'a', :field_2 => 'b', :field_3 => 'c')
       pub1.destroy

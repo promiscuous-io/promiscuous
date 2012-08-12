@@ -53,7 +53,7 @@ end
 
 ### Starting the subscriber worker
 
-    rake promiscuous:run[./path/to/promiscuous_initializer.rb]
+    rake promiscuous:replicate[./path/to/promiscuous_initializer.rb]
 
 How does it work ?
 ------------------

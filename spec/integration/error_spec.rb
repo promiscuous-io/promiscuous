@@ -22,7 +22,7 @@ describe Promiscuous do
       end
     end
 
-    before { Promiscuous::Worker.run }
+    before { Promiscuous::Worker.replicate }
     before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /updated/ } }
 
     it 'calls the error_handler with an exception' do
@@ -57,7 +57,7 @@ describe Promiscuous do
       end
     end
 
-    before { Promiscuous::Worker.run }
+    before { Promiscuous::Worker.replicate }
 
     it 'calls the error_handler with an exception' do
       PublisherModel.create
@@ -86,7 +86,7 @@ describe Promiscuous do
       end
     end
 
-    before { Promiscuous::Worker.run }
+    before { Promiscuous::Worker.replicate }
 
     it 'calls the error_handler with an exception' do
       pub = PublisherModelEmbed.create(:field_1 => '1',

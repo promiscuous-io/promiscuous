@@ -21,7 +21,7 @@ describe Promiscuous do
       end
     end
 
-    before { Promiscuous::Worker.run }
+    before { Promiscuous::Worker.replicate }
 
     context 'when creating' do
       it 'replicates the parent' do
@@ -118,7 +118,7 @@ describe Promiscuous do
       end
     end
 
-    before { Promiscuous::Worker.run }
+    before { Promiscuous::Worker.replicate }
 
     it 'doesn\'t replicate child fields' do
       SubscriberModelChild.class_eval { field :child_field_1, :default => "default" }

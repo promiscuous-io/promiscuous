@@ -18,7 +18,7 @@ describe Promiscuous::Worker, '.subscribe' do
     end
   end
 
-  before { Promiscuous::Worker.run }
+  before { Promiscuous::Worker.replicate }
 
   it 'subscribes to the correct queue' do
     queue_name = 'test_subscriber.promiscuous'
