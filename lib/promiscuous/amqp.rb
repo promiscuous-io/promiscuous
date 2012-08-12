@@ -1,6 +1,6 @@
 require 'promiscuous/amqp/bunny'
 require 'promiscuous/amqp/fake'
-require 'promiscuous/amqp/ruby-amqp'
+require 'promiscuous/amqp/rubyamqp'
 require 'promiscuous/amqp/null'
 
 module Promiscuous

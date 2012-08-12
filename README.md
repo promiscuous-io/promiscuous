@@ -24,7 +24,7 @@ Example
 ```ruby
 # initializer
 Promiscuous::AMQP.configure(:backend => :bunny, :app => 'crowdtap', :logger => Rails.logger,
-                           :server_uri => 'amqp://user:password@host:port/vhost')
+                            :server_uri => 'amqp://user:password@host:port/vhost')
 
 # publisher
 class ModelPublisher < Promiscuous::Publisher::Mongoid
@@ -39,9 +39,8 @@ end
 ```ruby
 # initializer
 Promiscuous::AMQP.configure(:backend => :rubyamqp, :app => 'sniper', :logger => Rails.logger,
-                           :server_uri => 'amqp://user:password@host:port/vhost',
-                           :queue_options => {:durable => true, :arguments => {'x-ha-policy' => 'all'}},
-                           :error_handler => some_proc)
+                            :server_uri => 'amqp://user:password@host:port/vhost',
+                            :error_handler => some_proc)
 
 # subscriber
 class ModelSubscriber < Promiscuous::Subscriber::Mongoid

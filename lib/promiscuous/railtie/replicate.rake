@@ -7,6 +7,7 @@ namespace :promiscuous do
     EM.synchrony do
       load args.initializer
       Promiscuous::Worker.replicate
+      puts "Promiscuous is ready to replicate"
     end
   end
 end
