@@ -4,7 +4,9 @@ namespace :promiscuous do
     require 'promiscuous/worker'
     require 'eventmachine'
     require 'em-synchrony'
+
     EM.synchrony do
+      Promiscuous::Loader.load_descriptors :subscribers
       load args.initializer
       Promiscuous::Worker.replicate
       puts "Promiscuous is ready to replicate"
