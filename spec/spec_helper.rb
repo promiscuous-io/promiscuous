@@ -2,8 +2,6 @@ require 'rubygems'
 require 'bundler'
 Bundler.require(:default, :test)
 
-require 'promiscuous/publisher'
-require 'promiscuous/subscriber'
 Dir["./spec/support/**/*.rb"].each {|f| require f}
 
 HOST = ENV['MONGOID_SPEC_HOST'] || 'localhost'

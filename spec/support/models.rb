@@ -8,13 +8,11 @@ module ModelsHelper
       field :field_3
     end
 
-
     define_constant('PublisherModelChild', PublisherModel) do
       field :child_field_1
       field :child_field_2
       field :child_field_3
     end
-
 
     define_constant('PublisherModelEmbedded') do
       include Mongoid::Document
@@ -35,7 +33,6 @@ module ModelsHelper
 
     define_constant('PublisherModelEmbed') do
       include Mongoid::Document
-
       embeds_one :model_embedded, :class_name => 'PublisherModelEmbedded'
 
       field :field_1

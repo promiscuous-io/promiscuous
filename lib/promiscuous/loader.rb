@@ -4,11 +4,9 @@ module Promiscuous
       [descriptors].flatten.each do |descriptor|
         dir, file_matcher = case descriptor
           when :publishers
-            require 'promiscuous/publisher'
             # TODO Cleanup publishers
             %w(publishers **_publisher.rb)
           when :subscribers
-            require 'promiscuous/subscriber'
             Promiscuous::Subscriber.subscribers.clear
             %w(subscribers **_subscriber.rb)
           end

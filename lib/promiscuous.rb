@@ -2,6 +2,8 @@ require 'active_support/core_ext'
 require 'promiscuous/config'
 require 'promiscuous/amqp'
 require 'promiscuous/loader'
+require 'promiscuous/publisher'
+require 'promiscuous/subscriber'
 require 'promiscuous/railtie' if defined?(Rails)
 
 module Promiscuous
