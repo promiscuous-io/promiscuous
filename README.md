@@ -23,7 +23,7 @@ Example
 
 ```ruby
 # initializer
-Promiscuous::AMQP.configure(:backend => :bunny, :app => 'crowdtap', :logger => Rails.logger,
+Promiscuous::AMQP.configure(:app => 'crowdtap',
                             :server_uri => 'amqp://user:password@host:port/vhost')
 
 # publisher
@@ -38,7 +38,7 @@ end
 
 ```ruby
 # initializer
-Promiscuous::AMQP.configure(:backend => :rubyamqp, :app => 'sniper', :logger => Rails.logger,
+Promiscuous::AMQP.configure(:app => 'sniper',
                             :server_uri => 'amqp://user:password@host:port/vhost',
                             :error_handler => some_proc)
 
@@ -52,7 +52,7 @@ end
 
 ### Starting the subscriber worker
 
-    rake promiscuous:replicate[./path/to/promiscuous_initializer.rb]
+    rake promiscuous:replicate
 
 How does it work ?
 ------------------
