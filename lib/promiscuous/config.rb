@@ -10,7 +10,7 @@ module Promiscuous
       class_variables.each { |var| class_variable_set(var, nil) }
 
       block.call(self)
-      self.backend ||= defined?(EM) ? :rubyamqp : :bunny
+      self.backend ||= defined?(EventMachine) && EventMachine.reactor_running? ? :rubyamqp : :bunny
       self.queue_options ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
       self.logger ||= Logger.new(STDOUT).tap { |l| l.level = Logger::WARN }
 
