@@ -7,6 +7,7 @@ module Promiscuous
         %w(SIGTERM SIGINT).each do |signal|
           Signal.trap(signal) do
             stop = true
+            EM.stop
             Promiscuous.info "exiting gracefully"
           end
         end
@@ -14,9 +15,7 @@ module Promiscuous
 
       Promiscuous::AMQP.subscribe(subscribe_options) do |metadata, payload|
         begin
-          if stop
-            EM.stop
-          else
+          unless stop
             Promiscuous.info "[receive] #{payload}"
             Promiscuous::Subscriber.process(JSON.parse(payload))
             metadata.ack
