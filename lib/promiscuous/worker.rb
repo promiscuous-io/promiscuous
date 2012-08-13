@@ -4,11 +4,13 @@ module Promiscuous
       stop = false
       lock = Mutex.new
 
-      %w(SIGTERM SIGINT).each do |signal|
-        Signal.trap(signal) do
-          lock.synchronize do
-            stop = true
-            EM.stop
+      unless ENV['TEST_ENV']
+        %w(SIGTERM SIGINT).each do |signal|
+          Signal.trap(signal) do
+            lock.synchronize do
+              stop = true
+              EM.stop
+            end
           end
         end
       end
