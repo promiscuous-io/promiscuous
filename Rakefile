@@ -2,24 +2,25 @@ require 'rubygems'
 require 'bundler'
 Bundler.require
 
-require 'appraisal'
-
-class Appraisal::Command
-  def self.from_args(gemfile)
-    if ARGV.size == 0
-      command = 'rake spec'
-    else
-      command = ([$0] + ARGV.slice(1, ARGV.size)).join(' ')
-    end
-    new(command, gemfile)
-  end
-end
-
 require 'rspec/core/rake_task'
-load 'promiscuous/railtie/replicate.rake'
-
 RSpec::Core::RakeTask.new("spec") do |spec|
   spec.pattern = "spec/**/*_spec.rb"
 end
 
-task :default => :appraisal
+def run(cmd)
+  exit(1) unless Kernel.system(cmd)
+end
+
+desc 'Run specs for each gemfile'
+task :all_specs do
+  Dir['gemfiles/*.gemfile'].each do |gemfile|
+    ENV['BUNDLE_GEMFILE'] = gemfile
+
+    puts "Running with #{gemfile}"
+    run("bundle") unless File.exist?("#{gemfile}.lock")
+    run("bundle exec rake spec")
+    puts ""
+  end
+end
+
+task :default => :all_specs

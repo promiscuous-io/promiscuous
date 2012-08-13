@@ -1,2 +1,2 @@
 Gemfile.lock
-gemfiles
+gemfiles/*.lock
