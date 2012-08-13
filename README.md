@@ -4,7 +4,7 @@ Promiscuous
 [![Build Status](https://secure.travis-ci.org/crowdtap/promiscuous.png?branch=master)](https://secure.travis-ci.org/crowdtap/promiscuous)
 
 Promiscuous offers an automatic way of propagating your model data across one or
-more applications.
+more applications. It supports Mongoid2, Mongoid3 and ActiveRecord.
 It uses [RabbitMQ](http://www.rabbitmq.com/).
 
 Usage

@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.email       = ["nicolas@viennot.biz", "kareem@doubleonemedia.com"]
   s.homepage    = "http://github.com/crowdtap/promiscuous"
   s.summary     = "Model replication over RabbitMQ"
-  s.description = "Replicate data across your applications"
+  s.description = "Replicate your Mongoid/ActiveRecord models across your applications"
 
   s.add_dependency("mongoid", ">= 2.4")
   s.add_dependency("activesupport")
