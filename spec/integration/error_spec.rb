@@ -9,13 +9,13 @@ describe Promiscuous do
 
   context 'when replicating the update of a model that fails' do
     before do
-      define_constant('Publisher', Promiscuous::Publisher::Mongoid) do
+      define_constant('Publisher', ORM::PublisherBase) do
         publish :to => 'crowdtap/publisher_model',
                 :class => PublisherModel,
                 :attributes => [:field_1, :field_2, :field_3]
       end
 
-      define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
+      define_constant('Subscriber', ORM::SubscriberBase) do
         subscribe :from => 'crowdtap/publisher_model',
                   :class => SubscriberModel,
                   :attributes => [:field_1, :field_2, :field_3]
@@ -44,13 +44,13 @@ describe Promiscuous do
 
   context 'when subscribing to non published fields' do
     before do
-      define_constant('Publisher', Promiscuous::Publisher::Mongoid) do
+      define_constant('Publisher', ORM::PublisherBase) do
         publish :to => 'crowdtap/publisher_model',
                 :class => PublisherModel,
                 :attributes => [:field_1, :field_2]
       end
 
-      define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
+      define_constant('Subscriber', ORM::SubscriberBase) do
         subscribe :from => 'crowdtap/publisher_model',
                   :class => SubscriberModel,
                   :attributes => [:field_1, :field_2, :field_3]
@@ -65,34 +65,36 @@ describe Promiscuous do
     end
   end
 
-  context 'when the subscriber is missing' do
-    before do
-      define_constant('PublisherEmbed', Promiscuous::Publisher::Mongoid) do
-        publish :to => 'crowdtap/publisher_model_embed',
-                :class => PublisherModelEmbed,
-                :attributes => [:field_1, :field_2, :field_3, :model_embedded]
-      end
-
-      define_constant('PublisherEmbedded', Promiscuous::Publisher::Mongoid) do
-        publish :to => 'crowdtap/model_embedded',
-                :class => PublisherModelEmbedded,
-                :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
-      end
-
-      define_constant('SubscriberEmbed', Promiscuous::Subscriber::Mongoid) do
-        subscribe :from => 'crowdtap/publisher_model_embed',
-                  :class => SubscriberModelEmbed,
+  if ORM.has(:embedded_documents)
+    context 'when the subscriber is missing' do
+      before do
+        define_constant('PublisherEmbed', ORM::PublisherBase) do
+          publish :to => 'crowdtap/publisher_model_embed',
+                  :class => PublisherModelEmbed,
                   :attributes => [:field_1, :field_2, :field_3, :model_embedded]
+        end
+
+        define_constant('PublisherEmbedded', ORM::PublisherBase) do
+          publish :to => 'crowdtap/model_embedded',
+                  :class => PublisherModelEmbedded,
+                  :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
+        end
+
+        define_constant('SubscriberEmbed', ORM::SubscriberBase) do
+          subscribe :from => 'crowdtap/publisher_model_embed',
+                    :class => SubscriberModelEmbed,
+                    :attributes => [:field_1, :field_2, :field_3, :model_embedded]
+        end
       end
-    end
 
-    before { Promiscuous::Worker.replicate }
+      before { Promiscuous::Worker.replicate }
 
-    it 'calls the error_handler with an exception' do
-      pub = PublisherModelEmbed.create(:field_1 => '1',
-                                       :model_embedded => { :embedded_field_1 => 'e1',
-                                                            :embedded_field_2 => 'e2' })
-      eventually { @error_handler_called_with.should be_a(Exception) }
+      it 'calls the error_handler with an exception' do
+        pub = PublisherModelEmbed.create(:field_1 => '1',
+                                         :model_embedded => { :embedded_field_1 => 'e1',
+                                                              :embedded_field_2 => 'e2' })
+        eventually { @error_handler_called_with.should be_a(Exception) }
+      end
     end
   end
 

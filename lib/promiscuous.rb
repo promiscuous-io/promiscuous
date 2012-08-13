@@ -2,9 +2,16 @@ require 'active_support/core_ext'
 require 'promiscuous/config'
 require 'promiscuous/amqp'
 require 'promiscuous/loader'
+require 'promiscuous/railtie' if defined?(Rails)
+
+begin
+  require 'mongoid'
+  require 'active_record'
+rescue LoadError
+end
+
 require 'promiscuous/publisher'
 require 'promiscuous/subscriber'
-require 'promiscuous/railtie' if defined?(Rails)
 
 module Promiscuous
   class << self

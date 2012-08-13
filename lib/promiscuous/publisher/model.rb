@@ -1,5 +1,8 @@
-module Promiscuous::Publisher::Mongoid::Root
+require 'promiscuous/publisher/envelope'
+
+module Promiscuous::Publisher::Model
   extend ActiveSupport::Concern
+  include Promiscuous::Publisher::Envelope
 
   def operation
     options[:operation]
@@ -29,3 +32,4 @@ module Promiscuous::Publisher::Mongoid::Root
     end
   end
 end
+

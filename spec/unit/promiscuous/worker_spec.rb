@@ -6,7 +6,7 @@ describe Promiscuous::Worker, '.subscribe' do
   before { use_null_amqp(:app => 'test_subscriber') }
 
   before do
-    define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
+    define_constant('Subscriber', ORM::SubscriberBase) do
       subscribe :from => 'crowdtap/publisher_model',
                 :class => SubscriberModel
 

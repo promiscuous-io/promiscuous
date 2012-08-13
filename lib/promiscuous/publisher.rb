@@ -1,3 +1,4 @@
 module Promiscuous::Publisher
-  require 'promiscuous/publisher/mongoid'
+  require 'promiscuous/publisher/active_record' if defined?(ActiveRecord)
+  require 'promiscuous/publisher/mongoid' if defined?(Mongoid)
 end

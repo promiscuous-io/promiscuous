@@ -5,7 +5,8 @@ gem 'rake'
 gem 'rspec'
 gem 'mocha', :require => false
 
-gem 'mongoid', '~> 2.0'
-gem 'bson_ext'
+gem 'activerecord'
+gem 'sqlite3'
+gem 'database_cleaner'
 
 gem 'pry'

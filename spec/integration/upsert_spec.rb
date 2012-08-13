@@ -5,13 +5,13 @@ describe Promiscuous do
   before { load_models }
 
   before do
-    define_constant('Publisher', Promiscuous::Publisher::Mongoid) do
+    define_constant('Publisher', ORM::PublisherBase) do
       publish :to => 'crowdtap/publisher_model',
               :class => PublisherModel,
               :attributes => [:field_1, :field_2, :field_3]
     end
 
-    define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
+    define_constant('Subscriber', ORM::SubscriberBase) do
       subscribe :from => 'crowdtap/publisher_model',
                 :class => SubscriberModel,
                 :upsert => true,
@@ -51,8 +51,8 @@ describe Promiscuous do
       pub1.destroy
 
       eventually do
-        SubscriberModel.where(:_id => pub1.id).count.should == 0
-        SubscriberModel.where(:_id => pub2.id).count.should == 1
+        SubscriberModel.where(ORM::ID => pub1.id).count.should == 0
+        SubscriberModel.where(ORM::ID => pub2.id).count.should == 1
       end
     end
   end

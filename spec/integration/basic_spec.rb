@@ -6,13 +6,13 @@ describe Promiscuous do
   before { use_real_amqp }
 
   before do
-    define_constant('Publisher', Promiscuous::Publisher::Mongoid) do
+    define_constant('Publisher', ORM::PublisherBase) do
       publish :to => 'crowdtap/publisher_model',
               :class => PublisherModel,
               :attributes => [:field_1, :field_2, :field_3]
     end
 
-    define_constant('Subscriber', Promiscuous::Subscriber::Mongoid) do
+    define_constant('Subscriber', ORM::SubscriberBase) do
       subscribe :from => 'crowdtap/publisher_model',
                 :class => SubscriberModel,
                 :attributes => [:field_1, :field_2, :field_3]

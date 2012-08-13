@@ -1,28 +1,16 @@
 require 'rubygems'
 require 'bundler'
-Bundler.require(:default, :test)
+Bundler.require
 
-Dir["./spec/support/**/*.rb"].each {|f| require f}
-
-HOST = ENV['MONGOID_SPEC_HOST'] || 'localhost'
-PORT = ENV['MONGOID_SPEC_PORT'] || '27017'
+MONGOID_HOST = ENV['MONGOID_SPEC_HOST'] || 'localhost'
+MONGOID_PORT = ENV['MONGOID_SPEC_PORT'] || '27017'
 DATABASE = 'promiscuous_test'
 
-mongoid3 = Gem.loaded_specs['mongoid'].version >= Gem::Version.new('3.0.0')
+gemfile = File.realpath(Bundler.default_gemfile)
+ENV['TEST_ENV'] = File.basename(gemfile, '.gemfile')
+load "./spec/spec_helper/#{ENV['TEST_ENV']}.rb"
 
-Mongoid.configure do |config|
-  if mongoid3
-    config.connect_to(DATABASE)
-    ::BSON = ::Moped::BSON
-    if ENV['LOGGER_LEVEL']
-      Moped.logger = Logger.new(STDOUT).tap { |l| l.level = ENV['LOGGER_LEVEL'].to_i }
-    end
-  else
-    database = Mongo::Connection.new(HOST, PORT.to_i).db(DATABASE)
-    config.master = database
-    config.logger = nil
-  end
-end
+Dir["./spec/support/**/*.rb"].each {|f| require f}
 
 RSpec.configure do |config|
   config.mock_with :mocha
@@ -31,17 +19,5 @@ RSpec.configure do |config|
   config.include AsyncHelper
   config.include AMQPHelper
   config.include ModelsHelper
-
-  config.before(:each) do
-  if mongoid3
-      Mongoid.purge!
-    else
-      Mongoid.database.collections.each do |collection|
-        unless collection.name.include?('system')
-          collection.remove
-        end
-      end
-    end
-    Mongoid::IdentityMap.clear
-  end
 end
+
