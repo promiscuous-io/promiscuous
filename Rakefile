@@ -9,7 +9,7 @@ task :all_specs do
     ENV['RUBYOPT'] = nil
     ENV['BUNDLE_GEMFILE'] = gemfile
 
-    run "bundle"
+    run "bundle --quiet"
     run "bundle exec rspec spec"
     puts ""
   end
