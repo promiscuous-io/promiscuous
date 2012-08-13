@@ -73,7 +73,8 @@ WARNING/TODO
 ------------
 
 Promiscuous does **not** handle:
-- Any of the atomic operatiors, such as inc, or add_to_set.
+- ActiveRecord polymorphism.
+- Any of the Mongoid atomic operatiors, such as inc, or add_to_set.
 - Association magic. Example:
   ```ruby
   # This will NOT replicate particiation_ids:
@@ -118,12 +119,7 @@ Compatibility
 
 Promiscuous is tested against MRI 1.9.2 and 1.9.3.
 
-Both Mongoid 2.4.x and Mongoid 3.0.x are supported.
-
-Acknowledgments
-----------------
-
-Inspired by [Service-Oriented Design with Ruby and Rails](http://www.amazon.com/Service-Oriented-Design-Addison-Wesley-Professional-Series/dp/0321659368)
+ActiveRecord, Mongoid 2.4.x and Mongoid 3.0.x are supported.
 
 License
 -------
