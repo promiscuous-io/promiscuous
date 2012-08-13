@@ -1,7 +1,7 @@
 require 'spec_helper'
 require 'promiscuous/worker'
 
-if ORM.has(:embedded_documents)
+if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
   describe Promiscuous do
     before { load_models }
     before { use_real_amqp }

@@ -3,10 +3,9 @@ gemspec :path => "."
 
 gem 'rake'
 gem 'rspec'
+gem 'pry'
 gem 'mocha', :require => false
 
 gem 'activerecord'
 gem 'sqlite3'
 gem 'database_cleaner'
-
-gem 'pry'

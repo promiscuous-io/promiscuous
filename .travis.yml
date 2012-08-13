@@ -1,5 +1,13 @@
 language: ruby
+script: bundle exec rspec spec
 rvm:
   - 1.9.2
   - 1.9.3
-install: "bundle && bundle exec rake appraisal:install"
+gemfile:
+  - gemfiles/mongoid2.gemfile
+  - gemfiles/mongoid3.gemfile
+  - gemfiles/active_record.gemfile
+matrix:
+  exclude:
+    - rvm: 1.9.2
+      gemfile: gemfiles/mongoid3.gemfile

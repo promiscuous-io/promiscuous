@@ -3,9 +3,8 @@ gemspec :path => "."
 
 gem 'rake'
 gem 'rspec'
+gem 'pry'
 gem 'mocha', :require => false
 
 gem 'mongoid', '~> 2.0'
 gem 'bson_ext'
-
-gem 'pry'
