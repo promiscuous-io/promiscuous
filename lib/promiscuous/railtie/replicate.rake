@@ -12,7 +12,7 @@ namespace :promiscuous do
       Promiscuous::AMQP.connect
 
       Promiscuous::Worker.replicate
-      puts "Replicating with #{Promiscuous::Subscriber.subscribers.count} subscribers"
+      $stderr.puts "Replicating with #{Promiscuous::Subscriber.subscribers.count} subscribers"
     end
   end
 end
