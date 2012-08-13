@@ -1,12 +1,3 @@
-require 'rubygems'
-require 'bundler'
-Bundler.require
-
-require 'rspec/core/rake_task'
-RSpec::Core::RakeTask.new("spec") do |spec|
-  spec.pattern = "spec/**/*_spec.rb"
-end
-
 def run(cmd)
   exit(1) unless Kernel.system(cmd)
 end
@@ -19,7 +10,7 @@ task :all_specs do
     ENV['BUNDLE_GEMFILE'] = gemfile
 
     run "bundle"
-    run "bundle exec rake spec"
+    run "bundle exec rspec spec"
     puts ""
   end
 end
