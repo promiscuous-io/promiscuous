@@ -2,27 +2,24 @@ module Promiscuous
   module Worker
     def self.replicate
       stop = false
-      lock = Mutex.new
 
       unless ENV['TEST_ENV']
         %w(SIGTERM SIGINT).each do |signal|
           Signal.trap(signal) do
-            lock.synchronize do
-              stop = true
-              EM.stop
-            end
+            stop = true
+            Promiscuous.info "exiting gracefully"
           end
         end
       end
 
       Promiscuous::AMQP.subscribe(subscribe_options) do |metadata, payload|
         begin
-          lock.synchronize do
-            unless stop
-              Promiscuous.info "[receive] #{payload}"
-              Promiscuous::Subscriber.process(JSON.parse(payload))
-              metadata.ack
-            end
+          if stop
+            EM.stop
+          else
+            Promiscuous.info "[receive] #{payload}"
+            Promiscuous::Subscriber.process(JSON.parse(payload))
+            metadata.ack
           end
         rescue Exception => e
           e = Promiscuous::Subscriber::Error.new(e, payload)
