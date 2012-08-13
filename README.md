@@ -75,6 +75,7 @@ WARNING/TODO
 Promiscuous does **not** handle:
 - ActiveRecord polymorphism.
 - Any of the Mongoid atomic operatiors, such as inc, or add_to_set.
+- Mixing databases (ActiveRecord <=> Mongoid) because of the id format mismatch.
 - Association magic. Example:
   ```ruby
   # This will NOT replicate particiation_ids:
@@ -101,18 +102,12 @@ equal to 2, while on the subscriber side, the document has a value of 1.  This
 will likely not occur in most scenarios BUT BEWARE.  We have plans to fix this
 issue by using version numbers and mongo's amazing findandmodify.
 
-What's up with bunny vs ruby-amqp ?
------------------------------------
+Backend: bunny / ruby-amqp
+--------------------------
 
-Our publisher app does not run an eventmachine loop, which is required for
+Your publisher app may not run an eventmachine loop, which is required for
 ruby-amqp. Bunny on the other hand allows a non-eventmachine based application
 to publish messages to rabbitmq.
-
-How to run the tests
---------------------
-
-    rake appraisal:install
-    rake
 
 Compatibility
 -------------
