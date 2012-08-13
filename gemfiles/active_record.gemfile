@@ -1,10 +1,10 @@
 source :rubygems
-gemspec :path => "."
+gemspec
 
 gem 'rake'
 gem 'rspec'
-gem 'pry'
 gem 'mocha', :require => false
+gem 'pry'
 
 gem 'activerecord'
 gem 'sqlite3'

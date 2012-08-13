@@ -1,10 +1,10 @@
 source :rubygems
-gemspec :path => "."
+gemspec
 
 gem 'rake'
 gem 'rspec'
-gem 'pry'
 gem 'mocha', :require => false
+gem 'pry'
 
-gem 'mongoid', '~> 2.0'
+gem 'mongoid', '~> 2.4'
 gem 'bson_ext'

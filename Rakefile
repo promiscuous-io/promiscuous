@@ -14,11 +14,12 @@ end
 desc 'Run specs for each gemfile'
 task :all_specs do
   Dir['gemfiles/*.gemfile'].each do |gemfile|
+    puts "Running with #{gemfile}"
+    ENV['RUBYOPT'] = nil
     ENV['BUNDLE_GEMFILE'] = gemfile
 
-    puts "Running with #{gemfile}"
-    run("bundle") unless File.exist?("#{gemfile}.lock")
-    run("bundle exec rake spec")
+    run "bundle"
+    run "bundle exec rake spec"
     puts ""
   end
 end
