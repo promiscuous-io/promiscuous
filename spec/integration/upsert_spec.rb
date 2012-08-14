@@ -14,7 +14,6 @@ describe Promiscuous do
     define_constant('Subscriber', ORM::SubscriberBase) do
       subscribe :from => 'crowdtap/publisher_model',
                 :class => SubscriberModel,
-                :upsert => true,
                 :attributes => [:field_1, :field_2, :field_3]
     end
   end

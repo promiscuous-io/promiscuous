@@ -12,6 +12,10 @@ class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
   include Promiscuous::Subscriber::AMQP
   include Promiscuous::Subscriber::Envelope
 
+  def self.missing_record_exception
+    Mongoid::Errors::DocumentNotFound
+  end
+
   def self.subscribe(options)
     return super if options[:mongoid_loaded]
 
@@ -25,10 +29,8 @@ class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
       require 'promiscuous/subscriber/model'
       include Promiscuous::Subscriber::Model
 
-      if options[:upsert]
-        require 'promiscuous/subscriber/mongoid/upsert'
-        include Promiscuous::Subscriber::Mongoid::Upsert
-      end
+      require 'promiscuous/subscriber/upsert'
+      include Promiscuous::Subscriber::Upsert
     end
 
     self.subscribe(options.merge(:mongoid_loaded => true))

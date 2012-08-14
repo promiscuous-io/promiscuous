@@ -69,6 +69,14 @@ Note that we use a single exchange to preserve the ordering of data updates
 across application so that subscribers always see a consistant state of the
 system.
 
+Synching databases
+-------------------
+
+Documents are created if not present when receiving an update on a non existing
+document.
+
+TODO: Explain how to sync databases.
+
 WARNING/TODO
 ------------
 
