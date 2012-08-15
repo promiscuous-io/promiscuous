@@ -2,14 +2,13 @@ class Promiscuous::Publisher::Mock
   def self.publish(options)
     if defined?(attributes)
       if options[:attributes]
-        raise "Do not specify the 'for' field in childrens" if options[:for]
+        raise "Do not specify the 'to' field in childrens" if options[:to]
         self.attributes = self.attributes + options[:attributes]
       end
     else
-      cattr_accessor :for
-      class_attribute :attributes
+      class_attribute :attributes, :to
 
-      self.for = options[:for]
+      self.to = options[:to]
       self.attributes = options[:attributes].to_a
 
       attr_accessor :id, :new_record
@@ -35,7 +34,7 @@ class Promiscuous::Publisher::Mock
 
   def payload
     {
-      '__amqp__'  => self.class.for,
+      '__amqp__'  => self.class.to,
       'id'        => self.id,
       'type'      => self.class.class_name,
       'operation' => self.new_record ? 'create' : 'update',
@@ -51,7 +50,7 @@ class Promiscuous::Publisher::Mock
 
   def destroy
     Promiscuous::Subscriber.process(
-      '__amqp__'  => self.class.for,
+      '__amqp__'  => self.class.to,
       'id'        => self.id,
       'type'      => self.class.class_name,
       'operation' => 'destroy'

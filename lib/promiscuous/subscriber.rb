@@ -1,8 +1,8 @@
 module Promiscuous::Subscriber
-  require 'promiscuous/subscriber/active_record' if defined?(ActiveRecord)
-  require 'promiscuous/subscriber/mongoid' if defined?(Mongoid)
-  require 'promiscuous/subscriber/error'
-  require 'promiscuous/subscriber/amqp'
+  autoload :ActiveRecord, 'promiscuous/subscriber/active_record'
+  autoload :Mongoid,      'promiscuous/subscriber/mongoid'
+  autoload :Error,        'promiscuous/subscriber/error'
+  autoload :AMQP,         'promiscuous/subscriber/amqp'
 
   mattr_accessor :subscribers
   self.subscribers = {}

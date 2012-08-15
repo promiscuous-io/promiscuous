@@ -4,16 +4,10 @@ require 'promiscuous/amqp'
 require 'promiscuous/loader'
 require 'promiscuous/railtie' if defined?(Rails)
 
-begin
-  require 'mongoid'
-  require 'active_record'
-rescue LoadError
-end
-
-require 'promiscuous/publisher'
-require 'promiscuous/subscriber'
-
 module Promiscuous
+  autoload :Publisher,  'promiscuous/publisher'
+  autoload :Subscriber, 'promiscuous/subscriber'
+
   class << self
     def configure(&block)
       Config.configure(&block)

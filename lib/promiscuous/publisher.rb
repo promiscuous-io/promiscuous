@@ -1,5 +1,5 @@
 module Promiscuous::Publisher
-  require 'promiscuous/publisher/active_record' if defined?(ActiveRecord)
-  require 'promiscuous/publisher/mongoid' if defined?(Mongoid)
-  require 'promiscuous/publisher/mock'
+  autoload :ActiveRecord, 'promiscuous/publisher/active_record'
+  autoload :Mongoid,      'promiscuous/publisher/mongoid'
+  autoload :Mock,         'promiscuous/publisher/mock'
 end
