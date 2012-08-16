@@ -32,6 +32,12 @@ class Promiscuous::Publisher::Mock
   end
   alias :save! :save
 
+  def update_attributes(attrs)
+    attrs.each { |attr, value| __send__("#{attr}=", value) }
+    save
+  end
+  alias :update_attributes! :update_attributes
+
   def payload
     {
       '__amqp__'  => self.class.to,
