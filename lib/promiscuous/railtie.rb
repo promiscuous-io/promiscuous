@@ -6,7 +6,7 @@ module Promiscuous
       config.after_initialize do
         Promiscuous::Loader.load_descriptors(:publishers)
         ActionDispatch::Reloader.to_prepare do
-          Promiscuous::Loader.load_descriptors(:publishers)
+          Promiscuous::Loader.load_descriptors
         end
       end
     end
