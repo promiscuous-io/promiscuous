@@ -6,9 +6,19 @@ module Promiscuous::Publisher::ClassBind
       super
 
       publisher_class = self
-      options[:class].class_eval do
+      klass.class_eval do
         class_attribute :promiscuous_publisher
         self.promiscuous_publisher = publisher_class
+      end
+    end
+
+    def klass
+      if options[:class]
+        options[:class].to_s.constantize
+      else
+        class_name = "::#{name.split('::').last}"
+        class_name = $1 if class_name =~ /^(.+)Publisher$/
+        class_name.constantize
       end
     end
   end

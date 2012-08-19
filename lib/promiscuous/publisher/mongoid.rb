@@ -13,16 +13,14 @@ class Promiscuous::Publisher::Mongoid < Promiscuous::Publisher::Base
   include Promiscuous::Publisher::Envelope
 
   def self.publish(options)
-    return super if options[:mongoid_loaded]
+    super
 
-    if options[:class].embedded?
+    if klass.embedded?
       require 'promiscuous/publisher/mongoid/embedded'
       include Promiscuous::Publisher::Mongoid::Embedded
     else
       require 'promiscuous/publisher/model'
       include Promiscuous::Publisher::Model
     end
-
-    self.publish(options.merge(:mongoid_loaded => true))
   end
 end

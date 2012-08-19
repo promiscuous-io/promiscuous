@@ -16,11 +16,15 @@ module Promiscuous::Publisher::Model
     operation != :destroy
   end
 
+  included do
+    publish(options) if initialized
+  end
+
   module ClassMethods
     def publish(options)
-      super
+      super unless initialized
 
-      options[:class].class_eval do
+      klass.class_eval do
         [:create, :update, :destroy].each do |operation|
           __send__("after_#{operation}", "promiscuous_publish_#{operation}".to_sym)
 
