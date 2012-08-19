@@ -5,20 +5,16 @@ module Promiscuous::Subscriber::Attributes
     super
     return unless process_attributes?
 
-    attributes.each do |attr|
+    self.class.attributes.each do |attr|
       attr = attr.to_s
-      optional = attr[-1] == '?'
-      attr = attr[0...-1] if optional
-      setter = "#{attr}="
-
-      if payload.has_key?(attr)
-        value = payload[attr]
-        old_value = instance.__send__(attr)
-        new_value = Promiscuous::Subscriber.process(payload[attr], :old_value => old_value)
-        instance.__send__(setter, new_value) if old_value != new_value
-      else
-        raise "Unknown attribute '#{attr}'" unless optional
+      unless payload.has_key?(attr)
+        raise "Attribute '#{attr}' is missing from the payload"
       end
+
+      value = payload[attr]
+      old_value = instance.__send__(attr)
+      new_value = Promiscuous::Subscriber.process(payload[attr], :old_value => old_value)
+      instance.__send__("#{attr}=", new_value) if old_value != new_value
     end
   end
 
@@ -27,4 +23,10 @@ module Promiscuous::Subscriber::Attributes
   end
 
   included { use_option :attributes }
+
+  module ClassMethods
+    def attributes=(value)
+      super(superclass.attributes.to_a + value)
+    end
+  end
 end

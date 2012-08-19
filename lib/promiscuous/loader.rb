@@ -17,7 +17,7 @@ module Promiscuous
       [descriptors].flatten.each do |descriptor|
         dir, file_matcher = case descriptor
           when :publishers then # TODO Cleanup publishers
-          when :subscribers then Promiscuous::Subscriber.subscribers.clear
+          when :subscribers then Promiscuous::Subscriber::AMQP.subscribers.clear
           end
       end
     end

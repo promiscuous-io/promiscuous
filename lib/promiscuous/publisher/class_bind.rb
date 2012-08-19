@@ -16,7 +16,7 @@ module Promiscuous::Publisher::ClassBind
 
     def klass
       if options[:class]
-        options[:class].to_s.constantize
+        "::#{options[:class]}".constantize
       else
         class_name = "::#{name.split('::').last}"
         class_name = $1 if class_name =~ /^(.+)Publisher$/

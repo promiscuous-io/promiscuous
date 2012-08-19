@@ -26,6 +26,6 @@ describe Promiscuous::Worker, '.subscribe' do
   end
 
   after do
-    Promiscuous::Subscriber.subscribers.clear
+    Promiscuous::Subscriber::AMQP.subscribers.clear
   end
 end

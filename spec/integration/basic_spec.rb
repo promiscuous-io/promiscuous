@@ -14,7 +14,7 @@ describe Promiscuous do
 
     define_constant('Subscriber', ORM::SubscriberBase) do
       subscribe :from => 'crowdtap/publisher_model',
-                :class => SubscriberModel,
+                :class => :SubscriberModel,
                 :attributes => [:field_1, :field_2, :field_3]
     end
   end
@@ -79,6 +79,6 @@ describe Promiscuous do
 
   after do
     Promiscuous::AMQP.disconnect
-    Promiscuous::Subscriber.subscribers.clear
+    Promiscuous::Subscriber::AMQP.subscribers.clear
   end
 end

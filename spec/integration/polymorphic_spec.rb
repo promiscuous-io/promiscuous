@@ -21,9 +21,15 @@ if ORM.has(:polymorphic)
 
         define_constant('Subscriber', ORM::SubscriberBase) do
           subscribe :from => 'crowdtap/publisher_model',
-                    :classes => {'PublisherModel'      => SubscriberModel,
-                                 'PublisherModelChild' => SubscriberModelChild },
-                    :attributes => [:field_1, :field_2, :field_3, :child_field_1?]
+                    :from_type => :PublisherModel,
+                    :class => :SubscriberModel,
+                    :attributes => [:field_1, :field_2, :field_3]
+        end
+
+        define_constant('SubscriberChild', Subscriber) do
+          subscribe :from_type => :PublisherModelChild,
+                    :class => :SubscriberModelChild,
+                    :attributes => [:child_field_1]
         end
       end
 
@@ -124,8 +130,14 @@ if ORM.has(:polymorphic)
 
         define_constant('Subscriber', ORM::SubscriberBase) do
           subscribe :from => 'crowdtap/publisher_model',
-                    :class => SubscriberModelChild,
-                    :attributes => [:field_1, :field_2, :field_3, :child_field_1?]
+                    :from_type => :PublisherModel,
+                    :class => :SubscriberModelChild,
+                    :attributes => [:field_1, :field_2, :field_3]
+        end
+
+        define_constant('SubscriberChild', Subscriber) do
+          subscribe :from_type => :PublisherModelChild,
+                    :attributes => [:child_field_1]
         end
       end
 
@@ -144,7 +156,7 @@ if ORM.has(:polymorphic)
 
     after do
       Promiscuous::AMQP.disconnect
-      Promiscuous::Subscriber.subscribers.clear
+      Promiscuous::Subscriber::AMQP.subscribers.clear
     end
   end
 end

@@ -44,7 +44,7 @@ module Promiscuous
 
     def self.subscribe_options
       queue_name = "#{Promiscuous::Config.app}.promiscuous"
-      bindings = Promiscuous::Subscriber.subscribers.keys
+      bindings = Promiscuous::Subscriber::AMQP.subscribers.keys
       {:queue_name => queue_name, :bindings => bindings}
     end
   end

@@ -21,16 +21,27 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
 
       define_constant('SubscriberEmbed', ORM::SubscriberBase) do
         subscribe :from => 'crowdtap/publisher_model_embeds',
-                  :classes => {'PublisherModelEmbed'      => SubscriberModelEmbed,
-                               'PublisherModelEmbedChild' => SubscriberModelEmbedChild },
+                  :from_type => :PublisherModelEmbed,
+                  :class => :SubscriberModelEmbed,
                   :attributes => [:field_1, :field_2, :field_3, :model_embedded]
+      end
+
+      define_constant('SubscriberEmbedChild', SubscriberEmbed) do
+        subscribe :from_type => :PublisherModelEmbedChild,
+                  :class => :SubscriberModelEmbedChild,
+                  :attributes => [:child_embedded_field_1]
       end
 
       define_constant('SubscriberEmbedded', ORM::SubscriberBase) do
         subscribe :from => 'crowdtap/model_embedded',
-                  :classes => {'PublisherModelEmbedded'      => SubscriberModelEmbedded,
-                               'PublisherModelEmbeddedChild' => SubscriberModelEmbeddedChild },
+                  :from_type => :PublisherModelEmbedded,
+                  :class => :SubscriberModelEmbedded,
                   :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
+      end
+
+      define_constant('SubscriberEmbeddedChild', SubscriberEmbedded) do
+        subscribe :from_type => :PublisherModelEmbeddedChild,
+                  :class => :SubscriberModelEmbeddedChild
       end
     end
 
@@ -103,7 +114,7 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
 
     after do
       Promiscuous::AMQP.disconnect
-      Promiscuous::Subscriber.subscribers.clear
+      Promiscuous::Subscriber::AMQP.subscribers.clear
     end
   end
 end

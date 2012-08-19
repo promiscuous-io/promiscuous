@@ -17,10 +17,7 @@ class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
   end
 
   def self.subscribe(options)
-    return super if options[:mongoid_loaded]
-
-    klass = options[:class]
-    klass = options[:classes].values.first if klass.nil?
+    super
 
     if klass.embedded?
       require 'promiscuous/subscriber/mongoid/embedded'
@@ -32,7 +29,5 @@ class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
       require 'promiscuous/subscriber/upsert'
       include Promiscuous::Subscriber::Upsert
     end
-
-    self.subscribe(options.merge(:mongoid_loaded => true))
   end
 end
