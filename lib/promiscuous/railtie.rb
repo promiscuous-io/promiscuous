@@ -8,6 +8,9 @@ module Promiscuous
         ActionDispatch::Reloader.to_prepare do
           Promiscuous::Loader.load_descriptors
         end
+        ActionDispatch::Reloader.to_cleanup do
+          Promiscuous::Loader.unload_descriptors
+        end
       end
     end
   end
