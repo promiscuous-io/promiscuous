@@ -29,7 +29,7 @@ Promiscuous::AMQP.configure(:app => 'crowdtap',
 # publisher
 class ModelPublisher < Promiscuous::Publisher::Mongoid
   publish :to => 'crowdtap/model',
-          :class => Model,
+          :class => :Model,
           :attributes => [:field_1, :field_2, :field_3]
 end
 ```

@@ -4,11 +4,7 @@ module Promiscuous::Publisher::Attributes
   def payload
     return nil unless include_attributes?
 
-    Hash[attributes.map do |field|
-      optional = field.to_s[-1] == '?'
-      field = field.to_s[0...-1].to_sym if optional
-      [field, payload_for(field)] if !optional || instance.respond_to?(field)
-    end]
+    Hash[attributes.map { |field| [field, payload_for(field)] }]
   end
 
   def payload_for(field)
@@ -25,4 +21,15 @@ module Promiscuous::Publisher::Attributes
   end
 
   included { use_option :attributes }
+
+  module ClassMethods
+    def publish(options)
+      if self.options[:attributes] and options[:attributes]
+        options = options.dup
+        options[:attributes] = (self.options[:attributes] + options[:attributes]).uniq
+      end
+
+      super(options)
+    end
+  end
 end

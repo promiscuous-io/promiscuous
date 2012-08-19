@@ -17,23 +17,26 @@ module Promiscuous::Publisher::Model
   end
 
   included do
-    publish(options) if initialized
+    hook_callbacks if published
   end
 
   module ClassMethods
     def publish(options)
-      super unless initialized
+      super
+      hook_callbacks
+    end
 
-      klass.class_eval do
-        [:create, :update, :destroy].each do |operation|
-          __send__("after_#{operation}", "promiscuous_publish_#{operation}".to_sym)
-
-          define_method "promiscuous_publish_#{operation}" do
-            self.class.promiscuous_publisher.new(:instance => self, :operation => operation).amqp_publish
+    def hook_callbacks
+      unless respond_to?(:promiscuous_publish_update)
+        klass.class_eval do
+          [:create, :update, :destroy].each do |operation|
+            __send__("after_#{operation}", "promiscuous_publish_#{operation}".to_sym)
+            define_method "promiscuous_publish_#{operation}" do
+              self.class.promiscuous_publisher.new(:instance => self, :operation => operation).amqp_publish
+            end
           end
         end
       end
     end
   end
 end
-

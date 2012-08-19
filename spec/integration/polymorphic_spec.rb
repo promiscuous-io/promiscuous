@@ -10,8 +10,13 @@ if ORM.has(:polymorphic)
       before do
         define_constant('Publisher', ORM::PublisherBase) do
           publish :to => 'crowdtap/publisher_model',
-                  :class => PublisherModel,
-                  :attributes => [:field_1, :field_2, :field_3, :child_field_1?]
+                  :class => :PublisherModel,
+                  :attributes => [:field_1, :field_2, :field_3]
+        end
+
+        define_constant('PublisherChild', Publisher) do
+          publish :class => :PublisherModelChild,
+                  :attributes => [:child_field_1]
         end
 
         define_constant('Subscriber', ORM::SubscriberBase) do
@@ -108,8 +113,13 @@ if ORM.has(:polymorphic)
       before do
         define_constant('Publisher', ORM::PublisherBase) do
           publish :to => 'crowdtap/publisher_model',
-                  :class => PublisherModel,
-                  :attributes => [:field_1, :field_2, :field_3, :child_field_1?]
+                  :class => :PublisherModel,
+                  :attributes => [:field_1, :field_2, :field_3]
+        end
+
+        define_constant('PublisherChild', Publisher) do
+          publish :class => :PublisherModelChild,
+                  :attributes => [:child_field_1]
         end
 
         define_constant('Subscriber', ORM::SubscriberBase) do

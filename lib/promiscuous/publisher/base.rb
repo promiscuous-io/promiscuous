@@ -1,6 +1,7 @@
 class Promiscuous::Publisher::Base
   attr_accessor :options
-  class_attribute :options, :initialized
+  class_attribute :options, :published
+  self.options = {}
 
   def initialize(options)
     self.options = options
@@ -11,8 +12,8 @@ class Promiscuous::Publisher::Base
   end
 
   def self.publish(options)
-    self.options = options
-    self.initialized = true
+    self.options = self.options.merge(options)
+    self.published = true
   end
 
   def self.use_option(attr)

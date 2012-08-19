@@ -5,10 +5,12 @@ module Promiscuous::Publisher::ClassBind
     def publish(options)
       super
 
-      publisher_class = self
-      klass.class_eval do
-        class_attribute :promiscuous_publisher
-        self.promiscuous_publisher = publisher_class
+      unless options[:inherited] and options[:class]
+        publisher_class = self
+        klass.class_eval do
+          class_attribute :promiscuous_publisher
+          self.promiscuous_publisher = publisher_class
+        end
       end
     end
 
