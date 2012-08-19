@@ -1,11 +1,5 @@
-require 'promiscuous/subscriber/envelope'
-
 module Promiscuous::Subscriber::CustomClass
   extend ActiveSupport::Concern
-
-  def klass
-    self.class.klass
-  end
 
   def instance
     @instance ||= fetch

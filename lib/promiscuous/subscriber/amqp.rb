@@ -1,5 +1,3 @@
-require 'promiscuous/subscriber/envelope'
-
 module Promiscuous::Subscriber::AMQP
   extend ActiveSupport::Concern
 

@@ -1,5 +1,3 @@
-require 'promiscuous/publisher/envelope'
-
 module Promiscuous::Publisher::AMQP
   extend ActiveSupport::Concern
   include Promiscuous::Publisher::Envelope

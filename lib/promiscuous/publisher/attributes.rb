@@ -23,13 +23,8 @@ module Promiscuous::Publisher::Attributes
   included { use_option :attributes }
 
   module ClassMethods
-    def publish(options)
-      if self.options[:attributes] and options[:attributes]
-        options = options.dup
-        options[:attributes] = (self.options[:attributes] + options[:attributes]).uniq
-      end
-
-      super(options)
+    def attributes=(value)
+      super(superclass.attributes.to_a + value)
     end
   end
 end

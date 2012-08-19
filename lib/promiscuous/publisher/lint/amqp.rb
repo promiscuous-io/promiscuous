@@ -10,5 +10,5 @@ module Promiscuous::Publisher::Lint::AMQP
     end
   end
 
-  included { use_option(:to) }
+  included { use_option :to }
 end

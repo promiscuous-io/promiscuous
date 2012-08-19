@@ -1,5 +1,3 @@
-require 'promiscuous/subscriber/envelope'
-
 module Promiscuous::Subscriber::Model
   extend ActiveSupport::Concern
   include Promiscuous::Subscriber::Envelope

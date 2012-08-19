@@ -5,10 +5,8 @@ module Promiscuous::Publisher::Lint::Attributes
     super
 
     instance = klass.new
-    publisher.options[:attributes].each do |attr|
+    publisher.attributes.each do |attr|
       instance.respond_to?(attr) or instance.__send__(attr)
     end
   end
-
-  included { use_option(:klass) }
 end

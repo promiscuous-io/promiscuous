@@ -1,5 +1,3 @@
-require 'promiscuous/publisher/envelope'
-
 module Promiscuous::Publisher::Model
   extend ActiveSupport::Concern
   include Promiscuous::Publisher::Envelope
@@ -27,13 +25,15 @@ module Promiscuous::Publisher::Model
     end
 
     def hook_callbacks
-      unless respond_to?(:promiscuous_publish_update)
-        klass.class_eval do
-          [:create, :update, :destroy].each do |operation|
-            __send__("after_#{operation}", "promiscuous_publish_#{operation}".to_sym)
-            define_method "promiscuous_publish_#{operation}" do
-              self.class.promiscuous_publisher.new(:instance => self, :operation => operation).amqp_publish
-            end
+      klass.class_eval do
+        cattr_accessor :publisher_operation_hooked
+        return if self.publisher_operation_hooked
+        self.publisher_operation_hooked = true
+
+        [:create, :update, :destroy].each do |operation|
+          __send__("after_#{operation}", "promiscuous_publish_#{operation}".to_sym)
+          define_method "promiscuous_publish_#{operation}" do
+            self.class.promiscuous_publisher.new(:instance => self, :operation => operation).amqp_publish
           end
         end
       end

@@ -5,6 +5,7 @@ require 'promiscuous/loader'
 require 'promiscuous/railtie' if defined?(Rails)
 
 module Promiscuous
+  autoload :Common,     'promiscuous/common'
   autoload :Publisher,  'promiscuous/publisher'
   autoload :Subscriber, 'promiscuous/subscriber'
 

@@ -9,6 +9,6 @@ module Promiscuous::Publisher::Lint::ClassBind
     end
   end
 
-  included { use_option(:klass) }
+  included { use_option :klass }
 end
 

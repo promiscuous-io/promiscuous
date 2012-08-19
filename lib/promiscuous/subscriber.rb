@@ -1,7 +1,15 @@
 module Promiscuous::Subscriber
   autoload :ActiveRecord, 'promiscuous/subscriber/active_record'
-  autoload :Mongoid,      'promiscuous/subscriber/mongoid'
+  autoload :AMQP,         'promiscuous/subscriber/amqp'
+  autoload :Attributes,   'promiscuous/subscriber/attributes'
+  autoload :Base,         'promiscuous/subscriber/base'
+  autoload :CustomClass,  'promiscuous/subscriber/custom_class'
+  autoload :Envelope,     'promiscuous/subscriber/envelope'
   autoload :Error,        'promiscuous/subscriber/error'
+  autoload :Model,        'promiscuous/subscriber/model'
+  autoload :Mongoid,      'promiscuous/subscriber/mongoid'
+  autoload :Polymorphic,  'promiscuous/subscriber/polymorphic'
+  autoload :Upsert,       'promiscuous/subscriber/upsert'
 
   def self.get_subscriber_from(payload)
     sub = AMQP.subscriber_from(payload)

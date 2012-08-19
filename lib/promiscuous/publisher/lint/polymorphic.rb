@@ -15,7 +15,7 @@ module Promiscuous::Publisher::Lint::Polymorphic
   end
 
   included do
-    use_option(:klass)
-    use_option(:skip_polymorphic)
+    use_option :klass
+    use_option :skip_polymorphic
   end
 end
