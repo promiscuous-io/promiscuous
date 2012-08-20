@@ -3,7 +3,7 @@ module Promiscuous::Publisher
   autoload :AMQP,         'promiscuous/publisher/amqp'
   autoload :Attributes,   'promiscuous/publisher/attributes'
   autoload :Base,         'promiscuous/publisher/base'
-  autoload :ClassBind,    'promiscuous/publisher/class_bind'
+  autoload :Class,        'promiscuous/publisher/class'
   autoload :Envelope,     'promiscuous/publisher/envelope'
   autoload :Lint,         'promiscuous/publisher/lint'
   autoload :Mock,         'promiscuous/publisher/mock'

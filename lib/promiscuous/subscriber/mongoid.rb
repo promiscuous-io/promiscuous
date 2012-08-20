@@ -1,11 +1,10 @@
 class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
   autoload :Embedded, 'promiscuous/subscriber/mongoid/embedded'
 
-  include Promiscuous::Subscriber::CustomClass
+  include Promiscuous::Subscriber::Class
   include Promiscuous::Subscriber::Attributes
   include Promiscuous::Subscriber::Polymorphic
   include Promiscuous::Subscriber::AMQP
-  include Promiscuous::Subscriber::Envelope
 
   def self.missing_record_exception
     Mongoid::Errors::DocumentNotFound

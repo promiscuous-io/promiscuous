@@ -3,7 +3,7 @@ module Promiscuous::Subscriber
   autoload :AMQP,         'promiscuous/subscriber/amqp'
   autoload :Attributes,   'promiscuous/subscriber/attributes'
   autoload :Base,         'promiscuous/subscriber/base'
-  autoload :CustomClass,  'promiscuous/subscriber/custom_class'
+  autoload :Class,        'promiscuous/subscriber/class'
   autoload :Envelope,     'promiscuous/subscriber/envelope'
   autoload :Error,        'promiscuous/subscriber/error'
   autoload :Model,        'promiscuous/subscriber/model'

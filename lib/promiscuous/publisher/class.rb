@@ -1,4 +1,4 @@
-module Promiscuous::Publisher::ClassBind
+module Promiscuous::Publisher::Class
   extend ActiveSupport::Concern
 
   included { use_option :class, :as => :klass }

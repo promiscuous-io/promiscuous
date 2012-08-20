@@ -1,4 +1,4 @@
-module Promiscuous::Subscriber::CustomClass
+module Promiscuous::Subscriber::Class
   extend ActiveSupport::Concern
 
   def instance
@@ -11,7 +11,7 @@ module Promiscuous::Subscriber::CustomClass
     def klass
       if super
         "::#{super}".constantize
-      else
+      elsif name
         class_name = "::#{name.split('::').last}"
         class_name = $1 if class_name =~ /^(.+)Subscriber$/
         class_name.constantize

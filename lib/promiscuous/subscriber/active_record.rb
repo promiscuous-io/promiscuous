@@ -1,5 +1,5 @@
 class Promiscuous::Subscriber::ActiveRecord < Promiscuous::Subscriber::Base
-  include Promiscuous::Subscriber::CustomClass
+  include Promiscuous::Subscriber::Class
   include Promiscuous::Subscriber::Attributes
   include Promiscuous::Subscriber::AMQP
   include Promiscuous::Subscriber::Model
