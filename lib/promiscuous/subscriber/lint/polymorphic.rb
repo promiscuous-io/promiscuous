@@ -28,7 +28,8 @@ module Promiscuous::Subscriber::Lint::Polymorphic
 
     unless skip_polymorphic
       subscriber.descendants.each do |pub|
-        self.class.new(options.merge(:publisher => pub,
+        self.class.new(options.merge(:subscriber => pub,
+                                     :klass => nil,
                                      :skip_polymorphic => true)).lint
       end
     end
