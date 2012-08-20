@@ -3,35 +3,33 @@ module Promiscuous::Subscriber::Lint::Polymorphic
 
   def publisher
     parent_publisher = super
-    if parent_publisher
-      if parent_publisher.class_name == subscriber.from_type
-        parent_publisher
-      else
-        parent_publisher.descendants.
-          select { |pub| pub.class_name == subscriber.from_type }.
-          first
-      end
-    end
+    return nil if parent_publisher.nil?
+
+    publishers.
+      select { |pub| pub <= parent_publisher }.
+      select { |pub| pub.class_name == subscriber.from_type }.
+      first
   end
 
   def lint
     super
+    return if skip_polymorphic
+
+    sub_descendants = subscriber.descendants
+    pub_descendants = publishers.select { |pub| pub < publisher }
 
     if check_publisher
-      subscriber_types = subscriber.descendants.map &:from_type
-      publisher_types = publisher.descendants.map &:class_name
+      subscriber_types = sub_descendants.map &:from_type
+      publisher_types = pub_descendants.map &:class_name
       missing_types = publisher_types - subscriber_types
       if missing_types.present?
-        raise "#{publisher} misses some child types: #{missing_types.join(", ")}"
+        raise "#{subscriber} does not cover #{missing_types.join(", ")}"
       end
     end
 
-    unless skip_polymorphic
-      subscriber.descendants.each do |pub|
-        self.class.new(options.merge(:subscriber => pub,
-                                     :klass => nil,
-                                     :skip_polymorphic => true)).lint
-      end
+    sub_descendants.each do |pub|
+      self.class.new(options.merge(:klass => nil, :subscriber => pub,
+                                   :skip_polymorphic => true)).lint
     end
   end
 
