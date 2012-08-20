@@ -6,9 +6,10 @@ class Promiscuous::Publisher::Mock
         self.attributes = self.attributes + options[:attributes]
       end
     else
-      class_attribute :attributes, :to
+      class_attribute :to, :attributes, :klass
 
       self.to = options[:to]
+      self.klass = options[:class]
       self.attributes = options[:attributes].to_a
 
       attr_accessor :id, :new_record
@@ -17,7 +18,13 @@ class Promiscuous::Publisher::Mock
   end
 
   def self.class_name
-    name.split('::').last
+    if self.klass
+      self.klass
+    elsif name
+      class_name = "#{name.split('::').last}"
+      class_name = $1 if class_name =~ /^(.+)Publisher$/
+      class_name
+    end
   end
 
   def initialize

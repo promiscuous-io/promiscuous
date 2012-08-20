@@ -1,4 +1,4 @@
-module Promiscuous::Publisher::Lint::ClassBind
+module Promiscuous::Publisher::Lint::Class
   extend ActiveSupport::Concern
 
   def lint
@@ -11,4 +11,3 @@ module Promiscuous::Publisher::Lint::ClassBind
 
   included { use_option :klass }
 end
-

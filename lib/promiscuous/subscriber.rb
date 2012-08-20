@@ -6,10 +6,15 @@ module Promiscuous::Subscriber
   autoload :Class,        'promiscuous/subscriber/class'
   autoload :Envelope,     'promiscuous/subscriber/envelope'
   autoload :Error,        'promiscuous/subscriber/error'
+  autoload :Lint,         'promiscuous/subscriber/lint'
   autoload :Model,        'promiscuous/subscriber/model'
   autoload :Mongoid,      'promiscuous/subscriber/mongoid'
   autoload :Polymorphic,  'promiscuous/subscriber/polymorphic'
   autoload :Upsert,       'promiscuous/subscriber/upsert'
+
+  def self.lint(*args)
+    Lint.lint(*args)
+  end
 
   def self.get_subscriber_from(payload)
     sub = AMQP.subscriber_from(payload)

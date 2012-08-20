@@ -1,6 +1,6 @@
 module Promiscuous::Publisher::Lint
   autoload :Base,        'promiscuous/publisher/lint/base'
-  autoload :ClassBind,   'promiscuous/publisher/lint/class_bind'
+  autoload :Class,       'promiscuous/publisher/lint/class'
   autoload :Attributes,  'promiscuous/publisher/lint/attributes'
   autoload :Polymorphic, 'promiscuous/publisher/lint/polymorphic'
   autoload :AMQP,        'promiscuous/publisher/lint/amqp'
@@ -17,8 +17,8 @@ module Promiscuous::Publisher::Lint
     classes.each do |klass, to|
       pub = get_publisher(klass)
 
-      lint = Class.new(Base)
-      lint.__send__(:include, ClassBind)   if pub.include?(Promiscuous::Publisher::ClassBind)
+      lint = ::Class.new(Base)
+      lint.__send__(:include, Class)       if pub.include?(Promiscuous::Publisher::Class)
       lint.__send__(:include, Attributes)  if pub.include?(Promiscuous::Publisher::Attributes)
       lint.__send__(:include, Polymorphic) if pub.include?(Promiscuous::Publisher::Polymorphic)
       lint.__send__(:include, AMQP)        if pub.include?(Promiscuous::Publisher::AMQP)
