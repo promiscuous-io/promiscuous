@@ -20,8 +20,8 @@ module Promiscuous::Publisher::Lint
       lint = ::Class.new(Base)
       lint.__send__(:include, Class)       if pub.include?(Promiscuous::Publisher::Class)
       lint.__send__(:include, Attributes)  if pub.include?(Promiscuous::Publisher::Attributes)
-      lint.__send__(:include, Polymorphic) if pub.include?(Promiscuous::Publisher::Polymorphic)
       lint.__send__(:include, AMQP)        if pub.include?(Promiscuous::Publisher::AMQP)
+      lint.__send__(:include, Polymorphic) if pub.include?(Promiscuous::Publisher::Polymorphic)
       lint.new(:klass => klass, :publisher => pub, :to => to).lint
     end
     true

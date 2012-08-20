@@ -2,7 +2,7 @@ module Promiscuous::Subscriber::Lint::AMQP
   extend ActiveSupport::Concern
 
   def publisher
-    Promiscuous::Publisher::Mock.descendants.
+    publishers.
       select { |pub| pub.superclass == Promiscuous::Publisher::Mock }.
       select { |pub| pub.to == from }.
       tap { |pubs| raise "#{from} has multiple publishers: #{pubs}" if pubs.size > 1 }.

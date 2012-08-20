@@ -1,17 +1,16 @@
 module Promiscuous::Subscriber::Lint::Polymorphic
   extend ActiveSupport::Concern
 
-  def parent_publisher
-    publisher
-    @parent_publisher
-  end
-
   def publisher
-    @parent_publisher = super
-    if @parent_publisher
-      ([parent_publisher] + parent_publisher.descendants).
-        select { |pub| pub.class_name == subscriber.from_type }.
-        first
+    parent_publisher = super
+    if parent_publisher
+      if parent_publisher.class_name == subscriber.from_type
+        parent_publisher
+      else
+        parent_publisher.descendants.
+          select { |pub| pub.class_name == subscriber.from_type }.
+          first
+      end
     end
   end
 

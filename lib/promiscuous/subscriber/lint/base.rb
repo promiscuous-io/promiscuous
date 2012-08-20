@@ -1,8 +1,14 @@
 class Promiscuous::Subscriber::Lint::Base
   include Promiscuous::Common::Lint::Base
 
-  class_attribute :check_publisher
-  self.check_publisher = Promiscuous::Publisher::Mock.descendants.present?
+  class_attribute :publishers
+  def self.reload_publishers
+    self.publishers = Promiscuous::Publisher::Mock.descendants
+  end
+
+  def check_publisher
+    self.class.publishers.present?
+  end
 
   use_option(:subscriber)
 end
