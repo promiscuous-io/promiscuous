@@ -17,4 +17,14 @@ module ORM
     SubscriberBase = Promiscuous::Subscriber::ActiveRecord
     ID = :id
   end
+
+  def self.generate_id
+    if has(:mongoid)
+      BSON::ObjectId.new
+    else
+      @ar_id ||= 10
+      @ar_id += 1
+      @ar_id
+    end
+  end
 end

@@ -12,6 +12,7 @@ class PromiscuousMigration < ActiveRecord::Migration
         t.string :child_field_1
         t.string :child_field_2
         t.string :child_field_3
+        t.integer :publisher_id
       end
     end
   end

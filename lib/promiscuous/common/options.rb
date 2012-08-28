@@ -2,10 +2,12 @@ module Promiscuous::Common::Options
   extend ActiveSupport::Concern
 
   included do
-    class_attribute :options, :options_mappings,
+    class_attribute :raw_options, :options, :options_mappings,
                     :instance_reader => false,
                     :instance_writer => false
-    self.options = self.options_mappings = {}
+    self.raw_options = {}
+    self.options = {}
+    self.options_mappings = {}
   end
 
   module ClassMethods
@@ -32,9 +34,14 @@ module Promiscuous::Common::Options
       if instance_reader
         define_method("#{attr_alias}") { self.class.__send__("#{attr_alias}") }
       end
+
+      self.__send__("#{attr_alias}=", raw_options[attr]) if raw_options[attr]
     end
 
     def load_options(options)
+      self.raw_options = self.raw_options.dup
+      self.raw_options.merge!(options)
+
       options.each do |attr, value|
         attr_alias = self.options_mappings[attr]
         self.__send__("#{attr_alias}=", value) if attr_alias

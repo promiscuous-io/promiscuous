@@ -54,6 +54,8 @@ module ModelsHelper
       field :field_1
       field :field_2
       field :field_3
+
+      field :publisher_id, :type => BSON::ObjectId
     end
 
     define_constant('SubscriberModelChild', SubscriberModel) do
@@ -69,6 +71,8 @@ module ModelsHelper
       field :embedded_field_1
       field :embedded_field_2
       field :embedded_field_3
+
+      field :embedded_publisher_id, :type => BSON::ObjectId
     end
 
     define_constant('SubscriberModelEmbeddedChild', SubscriberModelEmbedded) do

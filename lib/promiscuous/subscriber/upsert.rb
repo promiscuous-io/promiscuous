@@ -6,7 +6,7 @@ module Promiscuous::Subscriber::Upsert
       super
     rescue self.class.missing_record_exception
       Promiscuous.warn "[receive] upserting #{payload}"
-      klass.new.tap { |o| o.id = id }
+      fetch_new
     end
   end
 end
