@@ -45,8 +45,9 @@ Promiscuous::AMQP.configure(:app => 'sniper',
 # subscriber
 class ModelSubscriber < Promiscuous::Subscriber::Mongoid
   subscribe :from => 'crowdtap/model',
-            :class => Model,
-            :attributes => [:field_1, :field_2, :field_3]
+            :attributes => [:field_1, :field_2, :field_3],
+            :class => Model, # optional
+            :foreign_key => :publisher_id # optional
 end
 ```
 
@@ -83,7 +84,6 @@ WARNING/TODO
 Promiscuous does **not** handle:
 - ActiveRecord polymorphism.
 - Any of the Mongoid atomic operatiors, such as inc, or add_to_set.
-- Mixing databases (ActiveRecord <=> Mongoid) because of the id format mismatch.
 - Association magic. Example:
   ```ruby
   # This will NOT replicate particiation_ids:
