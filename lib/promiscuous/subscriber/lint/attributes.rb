@@ -5,9 +5,10 @@ module Promiscuous::Subscriber::Lint::Attributes
     super
 
     instance = subscriber.klass.new
-    subscriber.attributes.each do |attr|
-      instance.respond_to?("#{attr}=") or instance.__send__("#{attr}=")
-    end
+    attributes = subscriber.attributes
+    attributes += [subscriber.foreign_key] if subscriber.foreign_key
+
+    attributes.each { |attr| instance.respond_to?("#{attr}=") or instance.__send__("#{attr}=") }
 
     if check_publisher
       missing_attributes = subscriber.attributes - publisher.attributes
