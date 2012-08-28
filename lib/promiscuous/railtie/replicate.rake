@@ -6,7 +6,7 @@ namespace :promiscuous do
     require 'em-synchrony'
 
     EM.synchrony do
-      Promiscuous::Loader.load_descriptors :subscribers
+      Promiscuous::Loader.load_descriptors :subscribers if defined?(Rails)
       Promiscuous::AMQP.disconnect
       Promiscuous::Config.backend = :rubyamqp
       Promiscuous::AMQP.connect
