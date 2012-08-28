@@ -14,9 +14,7 @@ Gem::Specification.new do |s|
   s.summary     = "Model replication over RabbitMQ"
   s.description = "Replicate your Mongoid/ActiveRecord models across your applications"
 
-  s.add_dependency("mongoid", ">= 2.4")
   s.add_dependency("activesupport")
-  s.add_dependency("activemodel")
   s.add_dependency("bunny")
   s.add_dependency("amqp")
   s.add_dependency("em-synchrony")
