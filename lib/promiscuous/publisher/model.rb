@@ -36,6 +36,7 @@ module Promiscuous::Publisher::Model
             self.class.promiscuous_publisher.new(:instance => self, :operation => operation).amqp_publish
           end
         end
+        alias :promiscuous_sync :promiscuous_publish_update
       end
     end
   end
