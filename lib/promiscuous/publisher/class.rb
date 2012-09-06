@@ -26,10 +26,15 @@ module Promiscuous::Publisher::Class
       if super
         "::#{super}".constantize
       elsif name
-        class_name = "::#{name.split('::').last}"
+        class_name = name.split("::").reverse.take_while { |name| name != 'Publishers' }.reverse.join('::')
+        class_name = "::#{class_name}"
         class_name = $1 if class_name =~ /^(.+)Publisher$/
         class_name.constantize
       end
     end
   end
 end
+
+    #define_constant('Scoped::NameScopedPublisherModel', PublisherModel) do
+      #field :field_4
+    #end

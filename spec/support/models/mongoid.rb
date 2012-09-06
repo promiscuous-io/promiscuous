@@ -46,6 +46,9 @@ module ModelsHelper
       field :child_field_3
     end
 
+    define_constant('Scoped::ScopedPublisherModel', PublisherModel) do
+    end
+
     ##############################################
 
     define_constant('SubscriberModel') do
@@ -95,6 +98,9 @@ module ModelsHelper
       field :child_field_1
       field :child_field_2
       field :child_field_3
+    end
+
+    define_constant('Scoped::ScopedSubscriberModel', SubscriberModel) do
     end
   end
 end

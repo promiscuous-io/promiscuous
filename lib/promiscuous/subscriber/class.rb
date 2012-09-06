@@ -12,7 +12,8 @@ module Promiscuous::Subscriber::Class
       if super
         "::#{super}".constantize
       elsif name
-        class_name = "::#{name.split('::').last}"
+        class_name = name.split("::").reverse.take_while { |name| name != 'Subscribers' }.reverse.join('::')
+        class_name = "::#{class_name}"
         class_name = $1 if class_name =~ /^(.+)Subscriber$/
         class_name.constantize
       end

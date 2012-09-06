@@ -6,12 +6,18 @@ module ModelsHelper
     define_constant('PublisherModelChild', PublisherModel) do
     end
 
+    define_constant('Scoped::ScopedPublisherModel', PublisherModel) do
+    end
+
     ##############################################
 
     define_constant('SubscriberModel', ActiveRecord::Base) do
     end
 
     define_constant('SubscriberModelChild', SubscriberModel) do
+    end
+
+    define_constant('Scoped::ScopedSubscriberModel', SubscriberModel) do
     end
   end
 end
