@@ -1,4 +1,6 @@
 class Promiscuous::Publisher::Mock
+  include Promiscuous::Common::ClassHelpers
+
   def self.publish(options)
     if defined?(attributes)
       if options[:attributes]
@@ -21,9 +23,7 @@ class Promiscuous::Publisher::Mock
     if self.klass
       self.klass
     elsif name
-      class_name = "#{name.split('::').last}"
-      class_name = $1 if class_name =~ /^(.+)Publisher$/
-      class_name
+      guess_class_name('Publishers')
     end
   end
 

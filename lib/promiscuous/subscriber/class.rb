@@ -1,5 +1,6 @@
 module Promiscuous::Subscriber::Class
   extend ActiveSupport::Concern
+  include Promiscuous::Common::ClassHelpers
 
   def instance
     @instance ||= fetch
@@ -12,10 +13,7 @@ module Promiscuous::Subscriber::Class
       if super
         "::#{super}".constantize
       elsif name
-        class_name = name.split("::").reverse.take_while { |name| name != 'Subscribers' }.reverse.join('::')
-        class_name = "::#{class_name}"
-        class_name = $1 if class_name =~ /^(.+)Subscriber$/
-        class_name.constantize
+        guess_class_name('Subscribers').constantize
       end
     end
   end

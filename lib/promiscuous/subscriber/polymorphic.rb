@@ -1,6 +1,7 @@
 module Promiscuous::Subscriber::Polymorphic
   extend ActiveSupport::Concern
   include Promiscuous::Subscriber::Envelope
+  include Promiscuous::Common::ClassHelpers
 
   included do
     class_attribute :polymorphic_map
@@ -12,9 +13,7 @@ module Promiscuous::Subscriber::Polymorphic
       return super if super
 
       if name
-        class_name = "#{name.split('::').last}"
-        class_name = $1 if class_name =~ /^(.+)Subscriber$/
-        class_name
+        guess_class_name('Subscribers')
       end
     end
 

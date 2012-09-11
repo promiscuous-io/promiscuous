@@ -1,5 +1,6 @@
 module Promiscuous::Publisher::Class
   extend ActiveSupport::Concern
+  include Promiscuous::Common::ClassHelpers
 
   included { use_option :class, :as => :klass }
 
@@ -26,15 +27,8 @@ module Promiscuous::Publisher::Class
       if super
         "::#{super}".constantize
       elsif name
-        class_name = name.split("::").reverse.take_while { |name| name != 'Publishers' }.reverse.join('::')
-        class_name = "::#{class_name}"
-        class_name = $1 if class_name =~ /^(.+)Publisher$/
-        class_name.constantize
+        guess_class_name('Publishers').constantize
       end
     end
   end
 end
-
-    #define_constant('Scoped::NameScopedPublisherModel', PublisherModel) do
-      #field :field_4
-    #end
