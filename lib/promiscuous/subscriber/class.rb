@@ -10,11 +10,8 @@ module Promiscuous::Subscriber::Class
 
   module ClassMethods
     def klass
-      if super
-        "::#{super}".constantize
-      elsif name
-        guess_class_name('Subscribers').constantize
-      end
+      return nil if name.nil?
+      "::#{super ? super : guess_class_name('Subscribers')}".constantize
     end
   end
 end

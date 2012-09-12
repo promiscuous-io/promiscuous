@@ -20,11 +20,7 @@ class Promiscuous::Publisher::Mock
   end
 
   def self.class_name
-    if self.klass
-      self.klass
-    elsif name
-      guess_class_name('Publishers')
-    end
+    self.klass ? self.klass : guess_class_name('Publishers')
   end
 
   def initialize

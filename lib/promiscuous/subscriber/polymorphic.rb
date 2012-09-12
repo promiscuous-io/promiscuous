@@ -10,11 +10,7 @@ module Promiscuous::Subscriber::Polymorphic
 
   module ClassMethods
     def from_type
-      return super if super
-
-      if name
-        guess_class_name('Subscribers')
-      end
+      super ? super : guess_class_name('Subscribers')
     end
 
     def from_type=(value)

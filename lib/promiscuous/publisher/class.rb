@@ -24,11 +24,8 @@ module Promiscuous::Publisher::Class
     end
 
     def klass
-      if super
-        "::#{super}".constantize
-      elsif name
-        guess_class_name('Publishers').constantize
-      end
+      return nil if name.nil?
+      "::#{super ? super : guess_class_name('Publishers')}".constantize
     end
   end
 end
