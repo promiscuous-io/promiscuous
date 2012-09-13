@@ -17,6 +17,15 @@ class Promiscuous::Publisher::Mock
       attr_accessor :id, :new_record
     end
     attr_accessor *attributes
+
+    associations = attributes.map { |attr| $1 if attr =~ /^(.*)_id$/ }.compact
+    associations.each do |attr|
+      attr_accessor attr
+      define_method("#{attr}=") do |value|
+        instance_variable_set("@#{attr}", value)
+        instance_variable_set("@#{attr}_id", value.id)
+      end
+    end
   end
 
   def self.class_name
