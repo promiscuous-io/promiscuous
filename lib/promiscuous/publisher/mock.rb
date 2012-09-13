@@ -38,7 +38,9 @@ class Promiscuous::Publisher::Mock
   end
 
   def save
-    Promiscuous::Subscriber.process(payload)
+    if payload['__amqp__'].in? Promiscuous::Subscriber::AMQP.subscribers.keys
+      Promiscuous::Subscriber.process(payload)
+    end
     self.new_record = false
     true
   end
