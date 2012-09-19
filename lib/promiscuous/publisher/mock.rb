@@ -23,7 +23,7 @@ class Promiscuous::Publisher::Mock
       attr_accessor attr
       define_method("#{attr}=") do |value|
         instance_variable_set("@#{attr}", value)
-        instance_variable_set("@#{attr}_id", value.id)
+        instance_variable_set("@#{attr}_id", value.nil? ? value : value.id)
       end
     end
   end
