@@ -12,9 +12,16 @@ module Promiscuous::Subscriber::Attributes
       end
 
       value = payload[attr]
-      old_value = instance.__send__(attr)
-      new_value = Promiscuous::Subscriber.process(payload[attr], :old_value => old_value)
-      instance.__send__("#{attr}=", new_value) if old_value != new_value
+
+      if instance.respond_to?(attr)
+        old_value = instance.__send__(attr)
+        new_value = Promiscuous::Subscriber.process(payload[attr], :old_value => old_value)
+        instance.__send__("#{attr}=", new_value) if old_value != new_value
+      else
+        # TODO Add unit test
+        new_value = Promiscuous::Subscriber.process(payload[attr])
+        instance.__send__("#{attr}=", new_value)
+      end
     end
   end
 
