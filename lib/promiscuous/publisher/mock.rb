@@ -39,7 +39,7 @@ class Promiscuous::Publisher::Mock
 
   def save
     if payload['__amqp__'].in? Promiscuous::Subscriber::AMQP.subscribers.keys
-      Promiscuous::Subscriber.process(payload)
+      Promiscuous::Subscriber.process(JSON.parse(payload.to_json))
     end
     self.new_record = false
     true
