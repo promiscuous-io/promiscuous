@@ -37,7 +37,7 @@ describe Promiscuous do
       eventually do
         obs = ModelObserver.create_instance
         # XXX Note that the observer's id is a string (due to JSON serialization)
-        obs.id.should == pub.id.to_s
+        obs.id.to_s.should == pub.id.to_s
         obs.field_1.should == pub.field_1
         obs.field_2.should == pub.field_2
         obs.field_3.should == pub.field_3
@@ -52,7 +52,7 @@ describe Promiscuous do
 
       eventually do
         obs = ModelObserver.update_instance
-        obs.id.should == pub.id.to_s
+        obs.id.to_s.should == pub.id.to_s
         obs.field_1.should == pub.field_1
         obs.field_2.should == pub.field_2
         obs.field_3.should == pub.field_3
@@ -65,7 +65,7 @@ describe Promiscuous do
       pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
 
       pub.destroy
-      eventually { ModelObserver.destroy_instance.id.should == pub.id.to_s }
+      eventually { ModelObserver.destroy_instance.id.to_s.should == pub.id.to_s }
     end
   end
 
