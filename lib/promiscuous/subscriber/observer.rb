@@ -21,10 +21,7 @@ class Promiscuous::Subscriber::Observer < Promiscuous::Subscriber::Base
   def self.subscribe(options)
     super
     raise "#{klass} must inherit from Promiscuous::Observer" unless klass < Promiscuous::Observer
-  end
 
-  def self.subscribe(options)
-    super
     use_payload_attribute :id
     use_payload_attribute :operation, :symbolize => true
   end
