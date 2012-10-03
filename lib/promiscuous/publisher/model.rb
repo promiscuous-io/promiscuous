@@ -33,7 +33,7 @@ module Promiscuous::Publisher::Model
         [:create, :update, :destroy].each do |operation|
           __send__("after_#{operation}", "promiscuous_publish_#{operation}".to_sym)
           define_method "promiscuous_publish_#{operation}" do
-            self.class.promiscuous_publisher.new(:instance => self, :operation => operation).amqp_publish
+            self.class.promiscuous_publisher.new(:instance => self, :operation => operation).publish
           end
         end
         alias :promiscuous_sync :promiscuous_publish_update

@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'promiscuous/worker'
 
 if ORM.has(:embedded_documents)
   describe Promiscuous do

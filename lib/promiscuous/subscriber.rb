@@ -12,6 +12,7 @@ module Promiscuous::Subscriber
   autoload :Polymorphic,  'promiscuous/subscriber/polymorphic'
   autoload :Upsert,       'promiscuous/subscriber/upsert'
   autoload :Observer,     'promiscuous/subscriber/observer'
+  autoload :Worker,       'promiscuous/subscriber/worker'
 
   def self.lint(*args)
     Lint.lint(*args)

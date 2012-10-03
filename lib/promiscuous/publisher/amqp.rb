@@ -2,7 +2,7 @@ module Promiscuous::Publisher::AMQP
   extend ActiveSupport::Concern
   include Promiscuous::Publisher::Envelope
 
-  def amqp_publish
+  def publish
     Promiscuous::AMQP.publish(:key => to, :payload => payload.to_json)
   end
 
