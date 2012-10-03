@@ -1,6 +1,7 @@
 class Promiscuous::Subscriber::Observer < Promiscuous::Subscriber::Base
   include Promiscuous::Subscriber::Class
   include Promiscuous::Subscriber::Attributes
+  include Promiscuous::Subscriber::Polymorphic
   include Promiscuous::Subscriber::AMQP
   include Promiscuous::Subscriber::Envelope
 
