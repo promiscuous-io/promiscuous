@@ -20,9 +20,8 @@ describe Promiscuous do
 
     ModelObserver.class_eval do
       [:create, :update, :destroy].each do |cb|
-        called_with = "#{cb}_instance"
         cattr_accessor "#{cb}_instance"
-        __send__("after_#{cb}", proc { self.class.send("#{called_with}=", self) })
+        __send__("after_#{cb}", proc { self.class.send("#{cb}_instance=", self) })
       end
     end
   end
