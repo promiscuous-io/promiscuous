@@ -8,6 +8,7 @@ module Promiscuous
   autoload :Common,     'promiscuous/common'
   autoload :Publisher,  'promiscuous/publisher'
   autoload :Subscriber, 'promiscuous/subscriber'
+  autoload :Observer,   'promiscuous/observer'
 
   class << self
     def configure(&block)

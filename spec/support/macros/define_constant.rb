@@ -2,7 +2,7 @@ require 'set'
 
 module DefineConstantMacros
   def define_constant(class_name, base = Object, &block)
-    name = class_name.split("::")
+    name = class_name.to_s.split("::")
     if name.length > 1
       module_name = name.first
       klass_name = name.last
