@@ -30,7 +30,6 @@ module Promiscuous::Subscriber::Polymorphic
 
     def polymorphic_subscriber_from(payload)
       type = payload.is_a?(Hash) ? payload['type'] : nil
-      raise "The payload is missing the type information'" if type.nil?
       polymorphic_map[type] || self
     end
   end
