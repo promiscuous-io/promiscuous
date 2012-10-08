@@ -11,8 +11,12 @@ namespace :promiscuous do
 
       Promiscuous::Loader.load_descriptors if defined?(Rails)
 
-      Promiscuous::Subscriber::Worker.replicate
-      $stderr.puts "Replicating with #{Promiscuous::Subscriber::AMQP.subscribers.count} subscribers"
+      Promiscuous::Worker.replicate
+
+      msg = "Replicating with #{Promiscuous::Subscriber::AMQP.subscribers.count} subscribers" +
+            " and #{Promiscuous::Publisher::Mongoid::Defer.klasses.count} publishers"
+      Promiscuous.info msg
+      $stderr.puts msg
     end
   end
 
@@ -20,6 +24,7 @@ namespace :promiscuous do
     %w(SIGTERM SIGINT).each do |signal|
       Signal.trap(signal) do
         Promiscuous.info "Exiting..."
+        Promiscuous::Worker.stop
         EM.stop
       end
     end

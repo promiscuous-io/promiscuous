@@ -10,6 +10,8 @@ module Promiscuous::Publisher
   autoload :Model,        'promiscuous/publisher/model'
   autoload :Mongoid,      'promiscuous/publisher/mongoid'
   autoload :Polymorphic,  'promiscuous/publisher/polymorphic'
+  autoload :Worker,       'promiscuous/publisher/worker'
+  autoload :Error,        'promiscuous/publisher/error'
 
   def self.lint(*args)
     Lint.lint(*args)
