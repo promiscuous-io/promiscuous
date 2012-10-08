@@ -22,22 +22,31 @@ describe Promiscuous do
     end
 
     before { Promiscuous::Worker.replicate }
-    before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /updated/ } }
 
-    it 'calls the error_handler with an exception' do
-      pub = PublisherModel.create
-      pub.update_attributes(:field_1 => 'updated')
-      eventually { @error_handler_called_with.should be_a(Exception) }
-    end
+    context 'on the subscriber side' do
+      before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /death/ } }
 
-    it 'stops processing anything' do
-      pub = PublisherModel.create
-      pub.update_attributes!(:field_1 => 'updated')
-      pub.update_attributes!(:field_1 => 'another_update')
+      it 'calls the error_handler with an exception' do
+        pub = PublisherModel.create
+        pub.update_attributes(:field_1 => 'death')
+        eventually do
+          @error_handler_called_with.should be_a(Promiscuous::Subscriber::Error)
+          @error_handler_called_with.payload.should =~ /death/
+        end
+      end
 
-      eventually { @error_handler_called_with.should be_a(Exception) }
-      EM::Synchrony.sleep 0.5
-      eventually { SubscriberModel.find(pub.id).field_1.should_not == 'another_update' }
+      it 'stops processing messages' do
+        Promiscuous::AMQP.stubs(:disconnect)
+
+        pub = PublisherModel.create
+        pub.update_attributes!(:field_1 => 'death')
+        eventually { @error_handler_called_with.should be_a(Exception) }
+
+        pub.update_attributes!(:field_1 => 'another_update')
+        eventually { SubscriberModel.find(pub.id).field_1.should_not == 'another_update' }
+
+        Promiscuous::AMQP.unstub(:disconnect)
+      end
     end
   end
 
