@@ -45,10 +45,7 @@ describe Promiscuous do
   context 'when destroying' do
     it 'replicates' do
       pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-
-      eventually do
-        SubscriberModel.first.should_not == nil
-      end
+      eventually { SubscriberModel.first.should_not == nil }
 
       SubscriberModel.delete_all
 
