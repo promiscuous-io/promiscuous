@@ -60,16 +60,16 @@ describe Promiscuous do
 
   context 'when updating (upsert)' do
     it 'replicates' do
-      use_null_amqp
       pub_id = ORM.generate_id
       pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       pub.id = pub_id
       pub.save
-      use_real_amqp(:logger_level => Logger::FATAL)
 
-      Promiscuous::Worker.replicate
+      eventually { SubscriberModel.first.should_not == nil }
 
+      SubscriberModel.delete_all
       pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
+      use_real_amqp(:logger_level => Logger::FATAL)
 
       eventually do
         sub = SubscriberModel.first
@@ -80,7 +80,6 @@ describe Promiscuous do
       end
     end
   end
-
 
   context 'when destroying' do
     it 'replicates' do
