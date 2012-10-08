@@ -11,12 +11,12 @@ module Promiscuous
           raise "Please use amqp://user:password@host:port/vhost" if uri.scheme != 'amqp'
 
           {
-            :host => uri.host,
-            :port => uri.port,
+            :host   => uri.host,
+            :port   => uri.port,
             :scheme => uri.scheme,
-            :user => uri.user,
-            :pass => uri.password,
-            :vhost => uri.path.empty? ? "/" : uri.path,
+            :user   => uri.user,
+            :pass   => uri.password,
+            :vhost  => uri.path.empty? ? "/" : uri.path,
          }
         end
 
@@ -26,7 +26,8 @@ module Promiscuous
       end
 
       def self.disconnect
-        channel.close
+        self.channel.close if self.channel
+        self.channel = nil
       end
 
       def self.subscribe(options={}, &block)
