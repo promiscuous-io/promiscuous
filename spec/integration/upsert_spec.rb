@@ -2,6 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models }
+  before { use_real_amqp(:logger_level => Logger::FATAL) }
 
   before do
     define_constant('Publisher', ORM::PublisherBase) do
@@ -17,14 +18,18 @@ describe Promiscuous do
     end
   end
 
+  before { Promiscuous::Worker.replicate }
+
   context 'when updating' do
     it 'replicates' do
-      use_null_amqp
-      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      use_real_amqp(:logger_level => Logger::FATAL)
+      pub_id = ORM.generate_id
+      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.id = pub_id
+      pub.save
 
-      Promiscuous::Worker.replicate
+      eventually { SubscriberModel.first.should_not == nil }
 
+      SubscriberModel.delete_all
       pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
       eventually do
@@ -39,11 +44,10 @@ describe Promiscuous do
 
   context 'when destroying' do
     it 'replicates' do
-      use_null_amqp(:logger_level => Logger::FATAL)
       pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      use_real_amqp(:logger_level => Logger::FATAL)
+      eventually { SubscriberModel.first.should_not == nil }
 
-      Promiscuous::Worker.replicate
+      SubscriberModel.delete_all
 
       pub2 = PublisherModel.create(:field_1 => 'a', :field_2 => 'b', :field_3 => 'c')
       pub1.destroy
