@@ -8,6 +8,14 @@ module ModelsHelper
       field :field_3
     end
 
+    define_constant('PublisherModelOther') do
+      include Mongoid::Document
+
+      field :field_1
+      field :field_2
+      field :field_3
+    end
+
     define_constant('PublisherModelChild', PublisherModel) do
       field :child_field_1
       field :child_field_2

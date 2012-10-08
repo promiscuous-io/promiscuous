@@ -3,6 +3,7 @@ module Promiscuous::Worker
   self.workers = []
 
   def self.replicate
+    self.workers << Promiscuous::Publisher::Worker.new
     self.workers << Promiscuous::Subscriber::Worker.new
     self.workers.each { |w| w.replicate }
   end
