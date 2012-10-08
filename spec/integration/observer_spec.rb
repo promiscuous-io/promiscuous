@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'promiscuous/worker'
 
 describe Promiscuous do
   before { load_models; load_observers }

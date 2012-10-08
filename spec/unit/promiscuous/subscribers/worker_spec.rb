@@ -1,7 +1,6 @@
 require 'spec_helper'
-require 'promiscuous/worker'
 
-describe Promiscuous::Worker, '.subscribe' do
+describe Promiscuous::Subscriber::Worker, '.subscribe' do
   before { load_models }
   before { use_null_amqp(:app => 'test_subscriber') }
 
@@ -18,14 +17,11 @@ describe Promiscuous::Worker, '.subscribe' do
     end
   end
 
-  before { Promiscuous::Worker.replicate }
+  let(:sub_worker) { Promiscuous::Subscriber::Worker.new }
+  before { sub_worker.replicate }
 
   it 'subscribes to the correct queue' do
     queue_name = 'test_subscriber.promiscuous'
-    Promiscuous::Worker.subscribe_options[:queue_name].should == queue_name
-  end
-
-  after do
-    Promiscuous::Subscriber::AMQP.subscribers.clear
+    sub_worker.subscribe_options[:queue_name].should == queue_name
   end
 end
