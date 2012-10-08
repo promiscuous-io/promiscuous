@@ -3,17 +3,10 @@ class Promiscuous::Subscriber::Worker
 
   def replicate
     Promiscuous::AMQP.subscribe(subscribe_options) do |metadata, payload|
+      # Note: This code always runs on the root Fiber,
+      # so ordering is always preserved
       begin
         unless self.stop
-          # FIXME Investigate: Do we need a mutex around the mongo query ?
-          # It wouldn't be surprising that we keep pumping messages while mongo
-          # blocks on the socket.
-          # If Mongoid uses a poll of connections, we most likely need to
-          # serialize. Note that If we do, we just need it during save!
-          # TODO Maybe we could offer different levels of consistency, because
-          # some of our users may already be resilient to reading out of order
-          # writes.
-
           Promiscuous.info "[receive] #{payload}"
           self.unit_of_work { Promiscuous::Subscriber.process(JSON.parse(payload)) }
           metadata.ack

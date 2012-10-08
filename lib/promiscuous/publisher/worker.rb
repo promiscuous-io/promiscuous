@@ -32,6 +32,7 @@ class Promiscuous::Publisher::Worker
 
   def replicate_collection(klass)
     return if self.stop
+    # TODO Check for indexes and if not there, bail out
     psp_field = klass.aliased_fields["promiscous_sync_pending"]
     while instance = klass.where(psp_field => true).find_and_modify({'$unset' => {psp_field => 1}})
       replicate_instance(instance)
@@ -42,6 +43,7 @@ class Promiscuous::Publisher::Worker
     return if self.stop
     instance.class.promiscuous_publisher.new(:instance => instance, :operation => :update, :defer => false).publish
   rescue Exception => e
+    # TODO set back the psp field
     raise Promiscuous::Publisher::Error.new(e, instance)
   end
 end
