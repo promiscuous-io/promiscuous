@@ -110,10 +110,5 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
         end
       end
     end
-
-    after do
-      Promiscuous::AMQP.disconnect
-      Promiscuous::Subscriber::AMQP.subscribers.clear
-    end
   end
 end

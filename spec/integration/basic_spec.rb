@@ -75,9 +75,4 @@ describe Promiscuous do
       eventually { SubscriberModel.count.should == 0 }
     end
   end
-
-  after do
-    Promiscuous::AMQP.disconnect
-    Promiscuous::Subscriber::AMQP.subscribers.clear
-  end
 end
