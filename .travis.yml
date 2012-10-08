@@ -13,3 +13,4 @@ matrix:
       gemfile: gemfiles/mongoid3.gemfile
 services:
   - mongodb
+  - rabbitmq
