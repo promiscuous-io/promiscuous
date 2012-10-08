@@ -25,6 +25,12 @@ RSpec.configure do |config|
     Promiscuous::AMQP.disconnect
     Promiscuous::Worker.stop
     Promiscuous::Subscriber::AMQP.subscribers.clear
+    Promiscuous::Publisher::Mongoid::Defer.klasses.clear
   end
 end
 
+Promiscuous::Publisher::Worker.class_eval do
+  def self.poll_delay
+    0.1.second
+  end
+end
