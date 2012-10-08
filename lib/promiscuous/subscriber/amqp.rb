@@ -16,7 +16,7 @@ module Promiscuous::Subscriber::AMQP
   included { use_option :from }
 
   module ClassMethods
-    def from=(value)
+    def from=(_)
       super
       old_sub = Promiscuous::Subscriber::AMQP.subscribers[from]
       raise "The subscriber '#{old_sub}' already listen on '#{from}'" if old_sub
