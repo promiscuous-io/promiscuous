@@ -2,7 +2,7 @@ module Promiscuous::Subscriber::Mongoid::Embedded
   extend ActiveSupport::Concern
 
   def fetch
-    old_value.nil? ? klass.new.tap { |m| m.id = id } : old_value
+    (old_value || klass.new).tap { |m| m.id = id }
   end
 
   def old_value

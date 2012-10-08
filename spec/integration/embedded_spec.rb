@@ -87,6 +87,22 @@ if ORM.has(:embedded_documents)
           pub = PublisherModelEmbed.create(:field_1 => '1',
                                            :model_embedded => { :embedded_field_1 => 'e1',
                                                                 :embedded_field_2 => 'e2' })
+          pub_e = pub.model_embedded
+
+          eventually do
+            sub = SubscriberModelEmbed.first
+            sub.id.should == pub.id
+            sub.field_1.should == pub.field_1
+            sub.field_2.should == pub.field_2
+            sub.field_3.should == pub.field_3
+
+            sub_e = sub.model_embedded
+            sub_e.id.should == pub_e.id
+            sub_e.embedded_field_1.should == pub_e.embedded_field_1
+            sub_e.embedded_field_2.should == pub_e.embedded_field_2
+            sub_e.embedded_field_3.should == pub_e.embedded_field_3
+          end
+
           pub.model_embedded = PublisherModelEmbeddedChild.new(:embedded_field_1 => 'e1_updated')
           pub.save
 
