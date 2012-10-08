@@ -66,9 +66,4 @@ describe Promiscuous do
       eventually { ModelObserver.destroy_instance.id.to_s.should == pub.id.to_s }
     end
   end
-
-  after do
-    Promiscuous::AMQP.disconnect
-    Promiscuous::Subscriber::AMQP.subscribers.clear
-  end
 end
