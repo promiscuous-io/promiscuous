@@ -34,3 +34,7 @@ Promiscuous::Publisher::Worker.class_eval do
     0.1.second
   end
 end
+
+Promiscuous::Publisher::Worker.class_eval do
+  def check_indexes; end
+end

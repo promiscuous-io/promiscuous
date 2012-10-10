@@ -7,7 +7,16 @@ class Promiscuous::Publisher::Worker
     1.second
   end
 
+  def check_indexes
+    Promiscuous::Publisher::Mongoid::Defer.klasses.values.each do |klass|
+      unless klass.collection.indexes.any? { |i| i['key'].keys.include? '_psp' }
+        raise 'Please run rake db:mongoid:create_indexes'
+      end
+    end
+  end
+
   def replicate
+    check_indexes
     EM.defer proc { self.replicate_once },
              proc { EM::Timer.new(self.class.poll_delay) { replicate } }
   end
