@@ -21,8 +21,19 @@ module Promiscuous
         end
 
         connection = ::AMQP.connect(amqp_options)
-        self.channel = ::AMQP::Channel.new(connection)
+        self.channel = ::AMQP::Channel.new(connection, :auto_recovery => true)
         self.queue_options = Promiscuous::Config.queue_options
+
+        connection.on_connection_interruption do |connection|
+          connection.periodically_reconnect(2)
+        end
+
+        connection.on_error do |connection, connection_close|
+          # CONNECTION_FORCED - broker forced connection closure with reason 'shutdown'
+          if connection_close.reply_code == 320
+            connection.periodically_reconnect(2)
+          end
+        end
       end
 
       def self.disconnect
