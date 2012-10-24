@@ -17,6 +17,7 @@ class Promiscuous::Subscriber::Worker
         # TODO Discuss with Arjun about having an error queue.
         self.stop = true
         Promiscuous::AMQP.disconnect
+        Promiscuous.error "[receive] FATAL #{e} #{e.backtrace.join("\n")}"
         Promiscuous.error "[receive] FATAL #{e}"
         Promiscuous::Config.error_handler.try(:call, e)
       end

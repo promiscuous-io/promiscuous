@@ -10,6 +10,7 @@ module Promiscuous
   autoload :Subscriber, 'promiscuous/subscriber'
   autoload :Observer,   'promiscuous/observer'
   autoload :Worker,     'promiscuous/worker'
+  autoload :Ephemeral,  'promiscuous/ephemeral'
 
   class << self
     def configure(&block)

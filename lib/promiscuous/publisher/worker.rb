@@ -34,7 +34,7 @@ class Promiscuous::Publisher::Worker
       unless e.is_a?(Promiscuous::Publisher::Error)
         e = Promiscuous::Publisher::Error.new(e, nil)
       end
-      Promiscuous.error "[publish] FATAL #{e}"
+      Promiscuous.error "[publish] FATAL #{e} #{e.backtrace}"
       Promiscuous::Config.error_handler.try(:call, e)
     end
   end

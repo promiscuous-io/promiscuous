@@ -12,6 +12,7 @@ module Promiscuous::Publisher
   autoload :Polymorphic,  'promiscuous/publisher/polymorphic'
   autoload :Worker,       'promiscuous/publisher/worker'
   autoload :Error,        'promiscuous/publisher/error'
+  autoload :Ephemeral,    'promiscuous/publisher/ephemeral'
 
   def self.lint(*args)
     Lint.lint(*args)
