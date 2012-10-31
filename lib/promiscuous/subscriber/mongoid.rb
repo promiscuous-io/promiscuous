@@ -14,6 +14,7 @@ class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
     super
 
     if klass.embedded?
+      require 'promiscuous/subscriber/mongoid/embedded_many'
       include Promiscuous::Subscriber::Mongoid::Embedded
     else
       include Promiscuous::Subscriber::Model

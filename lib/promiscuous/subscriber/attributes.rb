@@ -1,6 +1,8 @@
 module Promiscuous::Subscriber::Attributes
   extend ActiveSupport::Concern
 
+  class DontUpdate < StandardError; end
+
   def process
     super
     return unless process_attributes?
@@ -15,8 +17,13 @@ module Promiscuous::Subscriber::Attributes
 
       if instance.respond_to?(attr)
         old_value = instance.__send__(attr)
-        new_value = Promiscuous::Subscriber.process(payload[attr], :old_value => old_value)
-        instance.__send__("#{attr}=", new_value) if old_value != new_value
+
+        begin
+          new_value = Promiscuous::Subscriber.process(
+            payload[attr], :old_value => old_value, :parent => instance)
+            instance.__send__("#{attr}=", new_value) if old_value != new_value
+        rescue DontUpdate
+        end
       else
         # TODO Add unit test
         new_value = Promiscuous::Subscriber.process(payload[attr])
