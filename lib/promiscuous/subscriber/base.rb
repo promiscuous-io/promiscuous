@@ -15,6 +15,10 @@ class Promiscuous::Subscriber::Base
   def process
   end
 
+  def should_update_parent?
+    true
+  end
+
   def subscribe_options
     self.class.options
   end
