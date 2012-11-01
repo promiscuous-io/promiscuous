@@ -54,6 +54,15 @@ module ModelsHelper
       field :child_field_3
     end
 
+    define_constant('PublisherModelEmbedMany') do
+      include Mongoid::Document
+      embeds_many :models_embedded, :class_name => 'PublisherModelEmbedded'
+
+      field :field_1
+      field :field_2
+      field :field_3
+    end
+
     define_constant('Scoped::ScopedPublisherModel', PublisherModel) do
     end
 
@@ -106,6 +115,15 @@ module ModelsHelper
       field :child_field_1
       field :child_field_2
       field :child_field_3
+    end
+
+    define_constant('SubscriberModelEmbedMany') do
+      include Mongoid::Document
+      embeds_many :models_embedded, :class_name => 'SubscriberModelEmbedded'
+
+      field :field_1
+      field :field_2
+      field :field_3
     end
 
     define_constant('Scoped::ScopedSubscriberModel', SubscriberModel) do

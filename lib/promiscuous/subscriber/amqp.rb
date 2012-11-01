@@ -1,5 +1,6 @@
 module Promiscuous::Subscriber::AMQP
   extend ActiveSupport::Concern
+  include Promiscuous::Subscriber::Envelope
 
   mattr_accessor :subscribers
   self.subscribers = {}

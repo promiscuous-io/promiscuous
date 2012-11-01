@@ -2,6 +2,7 @@ class Promiscuous::Publisher::Mongoid < Promiscuous::Publisher::Base
   autoload :Embedded,      'promiscuous/publisher/mongoid/embedded'
   autoload :DeferEmbedded, 'promiscuous/publisher/mongoid/defer_embedded'
   autoload :Defer,         'promiscuous/publisher/mongoid/defer'
+  autoload :EmbeddedMany,  'promiscuous/publisher/mongoid/embedded_many'
 
   include Promiscuous::Publisher::Class
   include Promiscuous::Publisher::Attributes
