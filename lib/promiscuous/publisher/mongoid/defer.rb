@@ -1,7 +1,6 @@
 module Promiscuous::Publisher::Mongoid::Defer
   extend ActiveSupport::Concern
 
-  PSP_FIELD = :_psp
   mattr_accessor :klasses
   mattr_accessor :collections
   self.klasses = {}
@@ -27,7 +26,7 @@ module Promiscuous::Publisher::Mongoid::Defer
       alias_method :update_orig, :update
       def update(change, flags = nil)
         if Promiscuous::Publisher::Mongoid::Defer.collections[@collection.name]
-          psp_field = PSP_FIELD
+          psp_field = :_psp
           change = change.dup
           change['$set'] ||= {}
           change['$set'].merge!(psp_field => true)
@@ -44,8 +43,8 @@ module Promiscuous::Publisher::Mongoid::Defer
       self.publisher_defer_hooked = true
 
       # TODO Make sure we are not overriding a field, although VERY unlikly
-      field PSP_FIELD, :type => Boolean
-      index({PSP_FIELD => 1}, :background => true, :sparse => true)
+      field :_psp, :type => Boolean
+      index({:_psp => 1}, :background => true, :sparse => true)
 
       Promiscuous::Publisher::Mongoid::Defer.hook_mongoid
       Promiscuous::Publisher::Mongoid::Defer.klasses[self.to_s] = self

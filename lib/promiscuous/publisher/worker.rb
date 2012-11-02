@@ -42,8 +42,7 @@ class Promiscuous::Publisher::Worker
   def replicate_collection(klass)
     return if self.stop
     # TODO Check for indexes and if not there, bail out
-    psp_field = Promiscuous::Publisher::Mongoid::Defer::PSP_FIELD
-    while instance = klass.where(psp_field => true).find_and_modify({'$unset' => {psp_field => 1}})
+    while instance = klass.where(:_psp => true).find_and_modify({'$unset' => {:_psp => 1}})
       replicate_instance(instance)
     end
   end
