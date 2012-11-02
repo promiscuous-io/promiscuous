@@ -2,7 +2,9 @@ module Promiscuous::Publisher::Mongoid::Defer
   extend ActiveSupport::Concern
 
   mattr_accessor :klasses
+  mattr_accessor :collections
   self.klasses = {}
+  self.collections = {}
 
   def publish
     super unless should_defer?
@@ -23,8 +25,8 @@ module Promiscuous::Publisher::Mongoid::Defer
     Moped::Query.class_eval do
       alias_method :update_orig, :update
       def update(change, flags = nil)
-        if klass = Promiscuous::Publisher::Mongoid::Defer.klasses[@collection.name]
-          psp_field = klass.aliased_fields["promiscous_sync_pending"]
+        if Promiscuous::Publisher::Mongoid::Defer.collections[@collection.name]
+          psp_field = :_psp
           change = change.dup
           change['$set'] ||= {}
           change['$set'].merge!(psp_field => true)
@@ -41,12 +43,12 @@ module Promiscuous::Publisher::Mongoid::Defer
       self.publisher_defer_hooked = true
 
       # TODO Make sure we are not overriding a field, although VERY unlikly
-      psp_field = :_psp
-      field psp_field, :as => :promiscous_sync_pending, :type => Boolean
-      index({psp_field => 1}, :background => true, :sparse => true)
+      field :_psp, :type => Boolean
+      index({:_psp => 1}, :background => true, :sparse => true)
 
       Promiscuous::Publisher::Mongoid::Defer.hook_mongoid
-      Promiscuous::Publisher::Mongoid::Defer.klasses[collection.name] = self
+      Promiscuous::Publisher::Mongoid::Defer.klasses[self.to_s] = self
+      Promiscuous::Publisher::Mongoid::Defer.collections[collection.name] = true
     end
   end
 end

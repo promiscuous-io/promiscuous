@@ -22,6 +22,12 @@ module ModelsHelper
       field :child_field_3
     end
 
+    define_constant('PublisherModelAnotherChild', PublisherModel) do
+      field :another_child_field_1
+      field :another_child_field_2
+      field :another_child_field_3
+    end
+
     define_constant('PublisherModelEmbedded') do
       include Mongoid::Document
       embedded_in :publisher_model_embeds
@@ -73,6 +79,12 @@ module ModelsHelper
       field :child_field_1
       field :child_field_2
       field :child_field_3
+    end
+
+    define_constant('SubscriberModelAnotherChild', SubscriberModel) do
+      field :another_child_field_1
+      field :another_child_field_2
+      field :another_child_field_3
     end
 
     define_constant('SubscriberModelEmbedded') do

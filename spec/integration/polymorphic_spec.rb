@@ -152,5 +152,96 @@ if ORM.has(:polymorphic)
         end
       end
     end
+
+    context 'when subscirbing to child classes individually' do
+      before do
+        define_constant('PublisherChild', ORM::PublisherBase) do
+          publish :to => 'crowdtap/publisher_child_model',
+                  :class => :PublisherModelChild,
+                  :attributes => [:field_1, :child_field_1]
+        end
+
+        define_constant('PublisherAnotherChild', ORM::PublisherBase) do
+          publish :to => 'crowdtap/publisher_another_child_model',
+                  :class => :PublisherModelAnotherChild,
+                  :attributes => [:field_1, :another_child_field_1]
+        end
+
+        define_constant('SubscriberChild', ORM::SubscriberBase) do
+          subscribe :from => 'crowdtap/publisher_child_model',
+                    :from_type => :PublisherModelChild,
+                    :class => :SubscriberModelChild,
+                    :attributes => [:field_1, :child_field_1]
+        end
+
+        define_constant('SubscriberAnotherChild', ORM::SubscriberBase) do
+          subscribe :from => 'crowdtap/publisher_another_child_model',
+                    :from_type => :PublisherModelAnotherChild,
+                    :class => :SubscriberModelAnotherChild,
+                    :attributes => [:field_1, :another_child_field_1]
+        end
+      end
+
+      before { Promiscuous::Worker.replicate }
+
+      context 'when creating' do
+        it 'replicates both child models' do
+          pub1 = PublisherModelChild.create(:field_1 => '1', :child_field_1 => '2')
+          pub2 = PublisherModelAnotherChild.create(:field_1 => '1', :another_child_field_1 => '2')
+
+          eventually do
+            sub1 = SubscriberModelChild.find(pub1.id)
+            sub1.id.should == pub1.id
+            sub1.field_1.should == pub1.field_1
+            sub1.child_field_1.should == pub1.child_field_1
+
+            sub2 = SubscriberModelAnotherChild.find(pub2.id)
+            sub2.id.should == pub2.id
+            sub2.field_1.should == pub2.field_1
+            sub2.another_child_field_1.should == pub2.another_child_field_1
+          end
+        end
+      end
+
+      context 'when updating' do
+        it 'replicates both child models' do
+          pub1 = PublisherModelChild.create(:field_1 => '1', :child_field_1 => '2')
+          pub2 = PublisherModelAnotherChild.create(:field_1 => '1', :another_child_field_1 => '2')
+
+          pub1.update_attributes(:field_1 => '1_updated', :child_field_1 => '2_updated')
+          pub2.update_attributes(:field_1 => '1_updated', :another_child_field_1 => '2_updated')
+
+          eventually do
+            sub1 = SubscriberModelChild.find(pub1.id)
+            sub1.id.should == pub1.id
+            sub1.field_1.should == pub1.field_1
+            sub1.child_field_1.should == pub1.child_field_1
+
+            sub2 = SubscriberModelAnotherChild.find(pub2.id)
+            sub2.id.should == pub2.id
+            sub2.field_1.should == pub2.field_1
+            sub2.another_child_field_1.should == pub2.another_child_field_1
+          end
+        end
+      end
+
+      context 'when destroying' do
+        it 'replicates the parent' do
+          pub1 = PublisherModelChild.create(:field_1 => '1', :child_field_1 => '2')
+          pub2 = PublisherModelAnotherChild.create(:field_1 => '1', :another_child_field_1 => '2')
+
+          eventually do
+            SubscriberModelChild.count.should == 1
+            SubscriberModelAnotherChild.count.should == 1
+          end
+          pub1.destroy
+          pub2.destroy
+          eventually do
+            SubscriberModelChild.count.should == 0
+            SubscriberModelAnotherChild.count.should == 0
+          end
+        end
+      end
+    end
   end
 end
