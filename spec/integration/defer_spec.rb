@@ -48,7 +48,7 @@ if ORM.has(:pub_deferred_updates)
             sub = SubscriberModel.first
             sub.field_1.should == pub.field_1
             pub.reload
-            pub.promiscous_sync_pending.should == nil
+            pub._psp.should == nil
           end
         end
 
@@ -61,7 +61,7 @@ if ORM.has(:pub_deferred_updates)
     end
 
     context 'when not publishing some models' do
-      it 'does not set the promiscous_sync_pending' do
+      it 'does not set the _psp field' do
         PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
         eventually do
           SubscriberModel.first.should_not == nil

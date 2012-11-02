@@ -44,7 +44,7 @@ module Promiscuous::Publisher::Mongoid::Defer
       self.publisher_defer_hooked = true
 
       # TODO Make sure we are not overriding a field, although VERY unlikly
-      field PSP_FIELD, :as => :promiscous_sync_pending, :type => Boolean
+      field PSP_FIELD, :type => Boolean
       index({PSP_FIELD => 1}, :background => true, :sparse => true)
 
       Promiscuous::Publisher::Mongoid::Defer.hook_mongoid
