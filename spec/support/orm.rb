@@ -1,4 +1,8 @@
 module ORM
+  def self.backend
+    @backend ||= ENV['TEST_ENV'].to_sym
+  end
+
   def self.has(feature)
     {
       :active_record           => [:active_record],
@@ -7,7 +11,7 @@ module ORM
       :embedded_documents      => [:mongoid2, :mongoid3],
       :pub_deferred_updates    => [:mongoid3],
       :many_embedded_documents => [:mongoid3],
-    }[feature].any? { |orm| orm.to_s == ENV['TEST_ENV'] }
+    }[feature].any? { |orm| orm == backend }
   end
 
   if has(:mongoid)
