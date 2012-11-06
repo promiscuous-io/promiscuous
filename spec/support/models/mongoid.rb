@@ -116,7 +116,8 @@ module ModelsHelper
 
     define_constant('SubscriberModelEmbed') do
       include Mongoid::Document
-      embeds_one :model_embedded, :class_name => 'SubscriberModelEmbedded'
+      embeds_one :model_embedded, :class_name => 'SubscriberModelEmbedded',
+                 :cascade_callbacks => true
 
       field :field_1
       field :field_2
@@ -131,7 +132,8 @@ module ModelsHelper
 
     define_constant('SubscriberModelEmbedMany') do
       include Mongoid::Document
-      embeds_many :models_embedded, :class_name => 'SubscriberModelEmbedded'
+      embeds_many :models_embedded, :class_name => 'SubscriberModelEmbedded',
+                  :cascade_callbacks => true
 
       field :field_1
       field :field_2

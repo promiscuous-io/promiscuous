@@ -124,7 +124,6 @@ if ORM.has(:embedded_documents)
         end
       end
 
-
       context 'when parent document is saved' do
         it 'replicates' do
           pub = PublisherModelEmbed.create(:field_1 => '1',
