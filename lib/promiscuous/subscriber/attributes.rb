@@ -1,8 +1,6 @@
 module Promiscuous::Subscriber::Attributes
   extend ActiveSupport::Concern
 
-  class DontUpdate < StandardError; end
-
   def process
     super
     return unless process_attributes?
@@ -13,22 +11,13 @@ module Promiscuous::Subscriber::Attributes
         raise "Attribute '#{attr}' is missing from the payload"
       end
 
-      value = payload[attr]
+      options = {}
+      options[:parent]    = instance
+      options[:old_value] = instance.__send__(attr) if instance.respond_to?(attr)
+      sub = Promiscuous::Subscriber.subscriber_for(payload[attr], options)
 
-      if instance.respond_to?(attr)
-        old_value = instance.__send__(attr)
-
-        begin
-          new_value = Promiscuous::Subscriber.process(
-            payload[attr], :old_value => old_value, :parent => instance)
-            instance.__send__("#{attr}=", new_value) if old_value != new_value
-        rescue DontUpdate
-        end
-      else
-        # TODO Add unit test
-        new_value = Promiscuous::Subscriber.process(payload[attr])
-        instance.__send__("#{attr}=", new_value)
-      end
+      sub.process
+      instance.__send__("#{attr}=", sub.instance) if sub.should_update_parent?
     end
   end
 

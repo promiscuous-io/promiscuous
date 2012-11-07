@@ -18,7 +18,7 @@ module Promiscuous::Subscriber
     Lint.lint(*args)
   end
 
-  def self.get_subscriber_from(payload)
+  def self.subscriber_class_for(payload)
     sub = AMQP.subscriber_from(payload)
     if sub && defined?(Polymorphic) && sub.include?(Polymorphic)
       sub = sub.polymorphic_subscriber_from(payload)
@@ -26,10 +26,12 @@ module Promiscuous::Subscriber
     sub || Base
   end
 
-  def self.process(payload, options={})
-    subscriber_klass = self.get_subscriber_from(payload)
+  def self.subscriber_for(payload, options={})
+    self.subscriber_class_for(payload).new(options.merge(:payload => payload))
+  end
 
-    sub = subscriber_klass.new(options.merge(:payload => payload))
+  def self.process(payload, options={})
+    sub = self.subscriber_for(payload, options)
     sub.process
     sub.instance
   end
