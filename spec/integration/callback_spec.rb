@@ -88,10 +88,10 @@ describe Promiscuous do
         before { Promiscuous::Worker.replicate }
 
         context 'when creating' do
-          it 'calls proper callbacks', :pending => 'Mongoid is broken' do
+          it 'calls proper callbacks' do
             pub = PublisherModelEmbed.create(:model_embedded => { :embedded_field_1 => 'e1' })
             pub_e = pub.model_embedded
-            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should == [:create, :save] }
+            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should =~ [:create, :save] }
           end
         end
 
@@ -103,7 +103,7 @@ describe Promiscuous do
             SubscriberModelEmbedded.callbacks.clear
             pub.model_embedded = PublisherModelEmbedded.new
             pub_e = pub.model_embedded
-            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should == [:update, :save] }
+            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should =~ [:update, :save] }
           end
         end
 
@@ -113,13 +113,13 @@ describe Promiscuous do
             eventually { SubscriberModelEmbed.first.should_not == nil }
 
             SubscriberModelEmbedded.callbacks.clear
-            pub.update_attributes(:embedded_field_1 => 'updated')
             pub_e = pub.model_embedded
-            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should == [:update, :save] }
+            pub_e.update_attributes(:embedded_field_1 => 'updated')
+            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should =~ [:update, :save] }
           end
         end
 
-        context 'when destroying', :pending => 'Mongoid is broken' do
+        context 'when destroying' do
           it 'calls proper callbacks' do
             pub = PublisherModelEmbed.create(:model_embedded => { :embedded_field_1 => 'e1' })
             eventually { SubscriberModelEmbed.first.should_not == nil }
@@ -166,11 +166,11 @@ describe Promiscuous do
 
       before { Promiscuous::Worker.replicate }
 
-      context 'when creating', :pending => 'Mongoid is broken' do
+      context 'when creating' do
         it 'calls proper callbacks' do
           pub = PublisherModelEmbedMany.create(:models_embedded => [{:embedded_field_1 => 'e1'}])
           pub_e1 = pub.models_embedded[0]
-          eventually { SubscriberModelEmbedded.callbacks[pub_e1.id].should == [:create, :save] }
+          eventually { SubscriberModelEmbedded.callbacks[pub_e1.id].should =~ [:create, :save] }
         end
       end
 
@@ -181,7 +181,7 @@ describe Promiscuous do
           SubscriberModelEmbedded.callbacks.clear
 
           pub_e2 = pub.models_embedded.create(:embedded_field_1 => 'e2')
-          eventually { SubscriberModelEmbedded.callbacks[pub_e2.id].should == [:create, :save] }
+          eventually { SubscriberModelEmbedded.callbacks[pub_e2.id].should =~ [:create, :save] }
         end
       end
 
@@ -193,7 +193,7 @@ describe Promiscuous do
 
           pub_e1 = pub.models_embedded[0]
           pub_e1.update_attributes(:embedded_field_1 => 'e1_updated')
-          eventually { SubscriberModelEmbedded.callbacks[pub_e1.id].should == [:update, :save] }
+          eventually { SubscriberModelEmbedded.callbacks[pub_e1.id].should =~ [:update, :save] }
         end
       end
 
@@ -227,9 +227,9 @@ describe Promiscuous do
 
           eventually do
             cb = SubscriberModelEmbedded.callbacks
-            cb[pub_e1.id].should == [:update, :save]
-            cb[pub_e2.id].should == [:destroy]
-            cb[pub_e4.id].should == [:create, :save]
+            cb[pub_e1.id].should =~ [:update, :save]
+            cb[pub_e2.id].should =~ [:destroy]
+            cb[pub_e4.id].should =~ [:create, :save]
           end
         end
       end
