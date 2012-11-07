@@ -10,6 +10,10 @@ module Promiscuous::Subscriber::Mongoid::Embedded
     instance.save! if old_value
   end
 
+  def should_update_parent?
+    old_value.nil?
+  end
+
   def old_value
     options[:old_value]
   end
