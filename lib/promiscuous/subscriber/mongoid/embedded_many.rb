@@ -38,7 +38,7 @@ class Promiscuous::Subscriber::Mongoid::EmbeddedMany < Promiscuous::Subscriber::
     end
   end
 
-  def instance
-    raise Promiscuous::Subscriber::Attributes::DontUpdate.new
+  def should_update_parent?
+    false
   end
 end
