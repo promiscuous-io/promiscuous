@@ -1,3 +1,4 @@
+- middleware pattern
 - index [:psp, :_type]
 - dry tests up
 - remove synchrony (fiber stack overflow)
