@@ -21,6 +21,7 @@ RSpec.configure do |config|
   config.include ModelsHelper
   config.include ObserversHelper
   config.include EphemeralsHelper
+  config.include CallbacksHelper
 
   config.after do
     Promiscuous::AMQP.disconnect
