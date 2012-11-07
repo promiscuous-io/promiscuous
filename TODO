@@ -1,3 +1,4 @@
-- callbacks tests
 - index [:psp, :_type]
 - dry tests up
+- remove synchrony (fiber stack overflow)
+- mocks/factories actions
