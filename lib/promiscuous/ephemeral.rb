@@ -10,4 +10,5 @@ class Promiscuous::Ephemeral
   def save
     self.class.promiscuous_publisher.new(:instance => self).publish
   end
+  alias save! save
 end
