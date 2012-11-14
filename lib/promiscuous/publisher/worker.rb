@@ -49,7 +49,7 @@ class Promiscuous::Publisher::Worker
 
   def replicate_instance(instance)
     return if self.stop
-    instance.class.promiscuous_publisher.new(:instance => instance, :operation => :update, :defer => false).publish
+    instance.promiscuous_sync
   rescue Exception => e
     # TODO set back the psp field
     raise Promiscuous::Publisher::Error.new(e, instance)

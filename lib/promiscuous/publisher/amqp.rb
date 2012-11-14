@@ -3,7 +3,9 @@ module Promiscuous::Publisher::AMQP
   include Promiscuous::Publisher::Envelope
 
   def publish
-    Promiscuous::AMQP.publish(:key => to, :payload => payload.to_json)
+    exchange_name = Promiscuous::AMQP::EXCHANGE
+    exchange_name += ".#{options[:personality]}" if options[:personality]
+    Promiscuous::AMQP.publish(:exchange_name => exchange_name, :key => to, :payload => payload.to_json)
   end
 
   def payload
