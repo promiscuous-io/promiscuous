@@ -19,6 +19,7 @@ Gem::Specification.new do |s|
   s.add_dependency("bunny")
   s.add_dependency("amqp")
   s.add_dependency("em-synchrony")
+  s.add_dependency("ruby-progressbar")
 
   s.files        = Dir["lib/**/*"] + ['README.md']
   s.require_path = 'lib'

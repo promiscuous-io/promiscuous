@@ -1,7 +1,7 @@
 module Promiscuous
   module AMQP
     module RubyAMQP
-      mattr_accessor :channel, :queue_options
+      mattr_accessor :channel
 
       def self.connect
         require 'amqp'
@@ -17,12 +17,11 @@ module Promiscuous
             :user   => uri.user,
             :pass   => uri.password,
             :vhost  => uri.path.empty? ? "/" : uri.path,
-         }
+          }
         end
 
         connection = ::AMQP.connect(amqp_options)
         self.channel = ::AMQP::Channel.new(connection)
-        self.queue_options = Promiscuous::Config.queue_options
       end
 
       def self.disconnect
@@ -30,23 +29,26 @@ module Promiscuous
         self.channel = nil
       end
 
-      def self.subscribe(options={}, &block)
+      def self.open_queue(options={}, &block)
         queue_name = options[:queue_name]
         bindings   = options[:bindings]
 
-        queue = self.channel.queue(queue_name, self.queue_options)
-        exchange = channel.topic('promiscuous', :durable => true)
+        queue = self.channel.queue(queue_name, Promiscuous::Config.queue_options)
         bindings.each do |binding|
-          queue.bind(exchange, :routing_key => binding)
+          queue.bind(exchange(options[:exchange_name]), :routing_key => binding)
           Promiscuous.info "[bind] #{queue_name} -> #{binding}"
         end
-        queue.subscribe(:ack => true, &block)
+        block.call(queue) if block
       end
 
-      def self.publish(msg)
-        Promiscuous.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
-        exchange = channel.topic('promiscuous', :durable => true)
-        exchange.publish(msg[:payload], :routing_key => msg[:key], :persistent => true)
+      def self.publish(options={})
+        Promiscuous.info "[publish] (#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
+        exchange(options[:exchange_name]).
+          publish(options[:payload], :routing_key => options[:key], :persistent => true)
+      end
+
+      def self.exchange(name)
+        channel.topic(name, :durable => true)
       end
     end
   end

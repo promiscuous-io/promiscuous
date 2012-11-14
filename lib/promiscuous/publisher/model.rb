@@ -36,7 +36,12 @@ module Promiscuous::Publisher::Model
             self.class.promiscuous_publisher.new(:instance => self, :operation => operation).publish
           end
         end
-        alias :promiscuous_sync :promiscuous_publish_update
+
+        def promiscuous_sync(options={})
+          options = options.merge({ :instance => self, :operation => :update, :defer => false })
+          self.class.promiscuous_publisher.new(options).publish
+          true
+        end
       end
     end
   end
