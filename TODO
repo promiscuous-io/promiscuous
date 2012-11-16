@@ -1,5 +1,18 @@
-- middleware pattern
-- index [:psp, :_type]
+NOW:
+- psp versioning to enable: atomic syncing + multiple workers
+- auto-detect publisher/subscriber type (Mongoid, Ephermal, ActiveRecord, Observers)
+- 'bareback' mode for subscriber: don't stop processing
+- rename error_handler -> error_notifier
 - dry tests up
-- remove synchrony (fiber stack overflow)
+- defer: findandmodify
+- index [:psp, :_type] so that if you're publishing partial hierarchy of a model the query is eefficient
 - mocks/factories actions
+- drop mongoid2 support
+
+LATER:
+- middleware pattern
+- remove synchrony (fiber stack overflow)
+- dashboard: publisher/subscriber configs, stats per collection, status etc..
+- sanity checks on worker boot: check attributes only added to namespace, subscribers are valid, etc...
+- command-line: add attirbutes wizard, add subscriber wizard, workers
+- race-safe activerecord
