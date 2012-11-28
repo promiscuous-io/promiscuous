@@ -8,6 +8,7 @@ NOW:
 - index [:psp, :_type] so that if you're publishing partial hierarchy of a model the query is eefficient
 - mocks/factories actions
 - drop mongoid2 support
+- conflicting updates and versionning is a problem.
 
 LATER:
 - middleware pattern

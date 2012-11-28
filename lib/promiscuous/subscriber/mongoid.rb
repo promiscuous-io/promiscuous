@@ -1,5 +1,6 @@
 class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
-  autoload :Embedded, 'promiscuous/subscriber/mongoid/embedded'
+  autoload :Embedded,   'promiscuous/subscriber/mongoid/embedded'
+  autoload :Versioning, 'promiscuous/subscriber/mongoid/versioning'
 
   include Promiscuous::Subscriber::Class
   include Promiscuous::Subscriber::Attributes
@@ -19,6 +20,7 @@ class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
     else
       include Promiscuous::Subscriber::Model
       include Promiscuous::Subscriber::Upsert
+      include Promiscuous::Subscriber::Mongoid::Versioning
     end
   end
 end
