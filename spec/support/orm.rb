@@ -11,6 +11,7 @@ module ORM
       :embedded_documents      => [:mongoid2, :mongoid3],
       :pub_deferred_updates    => [:mongoid3],
       :many_embedded_documents => [:mongoid3],
+      :versioning              => [:mongoid3],
     }[feature].any? { |orm| orm == backend }
   end
 

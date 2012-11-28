@@ -41,10 +41,18 @@ module Promiscuous::Subscriber::Model
   def process
     super
     case operation
-    when :create  then instance.save!
-    when :update  then instance.save!
-    when :destroy then instance.destroy
+    when :create  then save_instance
+    when :update  then save_instance
+    when :destroy then destroy_instance
     end
+  end
+
+  def save_instance
+    instance.save!
+  end
+
+  def destroy_instance
+    instance.destroy
   end
 
   included do
