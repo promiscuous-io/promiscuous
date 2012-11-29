@@ -42,20 +42,23 @@ module Promiscuous::Publisher::Mongoid::Defer
     end
   end
 
-  included do
-    klass.class_eval do
-      cattr_accessor :publisher_defer_hooked
-      return if self.publisher_defer_hooked
-      self.publisher_defer_hooked = true
+  module ClassMethods
+    def setup_class_binding
+      super
+      klass.class_eval do
+        cattr_accessor :publisher_defer_hooked
+        return if self.publisher_defer_hooked
+        self.publisher_defer_hooked = true
 
-      # TODO Make sure we are not overriding a field, although VERY unlikly
-      field :_psp, :type => Boolean
-      field :_psv, :type => Integer
-      index({:_psp => 1}, :background => true, :sparse => true)
+        # TODO Make sure we are not overriding a field, although VERY unlikly
+        field :_psp, :type => Boolean
+        field :_psv, :type => Integer
+        index({:_psp => 1}, :background => true, :sparse => true)
 
-      Promiscuous::Publisher::Mongoid::Defer.hook_mongoid
-      Promiscuous::Publisher::Mongoid::Defer.klasses[self.to_s] = self
-      Promiscuous::Publisher::Mongoid::Defer.collections[collection.name] = true
+        Promiscuous::Publisher::Mongoid::Defer.hook_mongoid
+        Promiscuous::Publisher::Mongoid::Defer.klasses[self.to_s] = self
+        Promiscuous::Publisher::Mongoid::Defer.collections[collection.name] = true
+      end if klass
     end
   end
 end

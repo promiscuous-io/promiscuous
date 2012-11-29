@@ -14,17 +14,9 @@ module Promiscuous::Publisher::Model
     operation != :destroy
   end
 
-  included do
-    hook_callbacks if published
-  end
-
   module ClassMethods
-    def publish(options)
+    def setup_class_binding
       super
-      hook_callbacks
-    end
-
-    def hook_callbacks
       klass.class_eval do
         cattr_accessor :publisher_operation_hooked
         return if self.publisher_operation_hooked
@@ -42,7 +34,7 @@ module Promiscuous::Publisher::Model
           self.class.promiscuous_publisher.new(options).publish
           true
         end
-      end
+      end if klass
     end
   end
 end

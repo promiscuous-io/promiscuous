@@ -22,6 +22,8 @@ class Promiscuous::Publisher::Mongoid < Promiscuous::Publisher::Base
       include Promiscuous::Publisher::Model
       include Promiscuous::Publisher::Mongoid::Defer if mongoid3?
     end
+
+    setup_class_binding
   end
 
   def self.mongoid3?

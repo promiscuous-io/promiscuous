@@ -22,5 +22,12 @@ module Promiscuous
         Promiscuous::Config.logger.__send__(level, "[promiscuous] #{msg}")
       end
     end
+
+    def reload
+      desc  = Promiscuous::Publisher::Base.descendants
+      desc += Promiscuous::Subscriber::Base.descendants
+      desc.reject! { |klass| klass.name =~ /^Promiscuous::/ }
+      desc.each { |klass| klass.setup_class_binding }
+    end
   end
 end

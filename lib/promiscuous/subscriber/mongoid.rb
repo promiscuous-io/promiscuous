@@ -22,5 +22,7 @@ class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
       include Promiscuous::Subscriber::Upsert
       include Promiscuous::Subscriber::Mongoid::Versioning
     end
+
+    setup_class_binding
   end
 end

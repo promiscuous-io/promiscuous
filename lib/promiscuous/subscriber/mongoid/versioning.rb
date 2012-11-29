@@ -29,8 +29,12 @@ module Promiscuous::Subscriber::Mongoid::Versioning
     instance.use_atomic_promiscuous_selector = false
   end
 
-  included do
-    klass.__send__(:include, AtomicSelector)
-    use_payload_attribute :version
+  included { use_payload_attribute :version }
+
+  module ClassMethods
+    def setup_class_binding
+      super
+      klass.__send__(:include, AtomicSelector) if klass
+    end
   end
 end
