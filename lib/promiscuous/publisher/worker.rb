@@ -43,7 +43,8 @@ class Promiscuous::Publisher::Worker
   def replicate_collection(klass)
     return if self.stop
     # TODO Check for indexes and if not there, bail out
-    while instance = klass.where(:_psp => true).find_and_modify({'$unset' => {:_psp => 1}})
+    while instance = klass.where(:_psp => true).find_and_modify(
+                       {'$unset' => {:_psp => 1}}, :bypass_promiscuous => true)
       replicate_instance(instance)
     end
   end
