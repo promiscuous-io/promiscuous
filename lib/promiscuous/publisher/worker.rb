@@ -30,7 +30,8 @@ class Promiscuous::Publisher::Worker
         end
       end
     rescue Exception => e
-      self.stop = true
+      self.stop = true unless bareback?
+
       unless e.is_a?(Promiscuous::Publisher::Error)
         e = Promiscuous::Publisher::Error.new(e, nil)
       end
