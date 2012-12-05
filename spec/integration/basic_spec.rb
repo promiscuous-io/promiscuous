@@ -64,6 +64,22 @@ describe Promiscuous do
         sub.field_3.should == pub.field_3
       end
     end
+
+    if ORM.has(:find_and_modify)
+      it 'replicate' do
+        pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        PublisherModel.find_and_modify('$set' => { :field_1 => '1_updated', :field_2 => '2_updated'})
+        pub.reload
+
+        eventually do
+          sub = SubscriberModel.first
+          sub.id.should == pub.id
+          sub.field_1.should == pub.field_1
+          sub.field_2.should == pub.field_2
+          sub.field_3.should == pub.field_3
+        end
+      end
+    end
   end
 
   context 'when destroying' do
