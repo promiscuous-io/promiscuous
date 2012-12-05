@@ -1,7 +1,5 @@
 NOW:
-- psp versioning to enable: atomic syncing + multiple workers
 - auto-detect publisher/subscriber type (Mongoid, Ephermal, ActiveRecord, Observers)
-- 'bareback' mode for subscriber: don't stop processing
 - rename error_handler -> error_notifier
 - dry tests up
 - defer: findandmodify
