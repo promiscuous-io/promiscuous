@@ -1,8 +1,5 @@
 NOW:
-- auto-detect publisher/subscriber type (Mongoid, Ephermal, ActiveRecord, Observers)
-- rename error_handler -> error_notifier
 - dry tests up
-- defer: findandmodify
 - index [:psp, :_type] so that if you're publishing partial hierarchy of a model the query is eefficient
 - mocks/factories actions
 - drop mongoid2 support
@@ -10,6 +7,8 @@ NOW:
 
 LATER:
 - middleware pattern
+  - auto-detect publisher/subscriber type (Mongoid, Ephermal, ActiveRecord, Observers)
+  - rename error_handler -> error_notifier
 - remove synchrony (fiber stack overflow)
 - dashboard: publisher/subscriber configs, stats per collection, status etc..
 - sanity checks on worker boot: check attributes only added to namespace, subscribers are valid, etc...
