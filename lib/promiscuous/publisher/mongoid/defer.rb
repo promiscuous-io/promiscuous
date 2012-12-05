@@ -30,6 +30,17 @@ module Promiscuous::Publisher::Mongoid::Defer
     Moped::Query.class_eval do
       alias_method :update_orig, :update
       def update(change, flags = nil)
+        change = promiscuous_seasoning(change)
+        update_orig(change, flags)
+      end
+
+      alias_method :modify_orig, :modify
+      def modify(change, options={})
+        change = promiscuous_seasoning(change) unless options[:bypass_promiscuous]
+        modify_orig(change, options)
+      end
+
+      def promiscuous_seasoning(change)
         if Promiscuous::Publisher::Mongoid::Defer.collections[@collection.name]
           change = change.dup
           change['$set'] ||= {}
@@ -37,7 +48,7 @@ module Promiscuous::Publisher::Mongoid::Defer
           change['$set'].merge!(:_psp => true)
           change['$inc'].merge!(:_psv => 1)
         end
-        update_orig(change, flags)
+        change
       end
     end
   end
