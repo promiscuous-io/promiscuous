@@ -9,7 +9,9 @@ class Promiscuous::Subscriber::Worker
         begin
           unless self.stop
             Promiscuous.info "[receive] #{payload}"
-            self.unit_of_work { Promiscuous::Subscriber.process(JSON.parse(payload)) }
+            parsed_payload = JSON.parse(payload)
+            queue = parsed_payload['__amqp__']
+            self.unit_of_work(queue) { Promiscuous::Subscriber.process(parsed_payload) }
             metadata.ack
           end
         rescue Exception => e

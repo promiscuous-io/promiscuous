@@ -24,7 +24,7 @@ class Promiscuous::Publisher::Worker
   def replicate_once
     return if self.stop
     begin
-      self.unit_of_work do
+      self.unit_of_work('publisher') do
         Promiscuous::Publisher::Mongoid::Defer.klasses.values.each do |klass|
           replicate_collection(klass)
         end

@@ -6,7 +6,7 @@ module Promiscuous::Common::Worker
     self.stop = false
   end
 
-  def unit_of_work
+  def unit_of_work(type)
     if defined?(Mongoid)
       Mongoid.unit_of_work { yield }
     else
