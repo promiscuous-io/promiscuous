@@ -20,11 +20,13 @@ RSpec.configure do |config|
   config.include AMQPHelper
   config.include ModelsHelper
   config.include ObserversHelper
+  config.include EphemeralsHelper
+  config.include CallbacksHelper
 
   config.after do
     Promiscuous::AMQP.disconnect
     Promiscuous::Worker.stop
-    Promiscuous::Subscriber::AMQP.subscribers.clear
+    Promiscuous::Subscriber::AMQP.subscribers.select! { |k| k =~ /__promiscuous__/ }
     Promiscuous::Publisher::Mongoid::Defer.klasses.clear
   end
 end

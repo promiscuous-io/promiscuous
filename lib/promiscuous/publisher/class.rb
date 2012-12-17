@@ -5,7 +5,7 @@ module Promiscuous::Publisher::Class
   included { use_option :class, :as => :klass }
 
   module ClassMethods
-    def setup_binding
+    def setup_class_binding
       publisher_class = self
       klass.class_eval do
         class_attribute :promiscuous_publisher
@@ -13,14 +13,19 @@ module Promiscuous::Publisher::Class
       end if klass
     end
 
+    def self.publish(options)
+      super
+      setup_class_binding
+    end
+
     def inherited(subclass)
       super
-      subclass.setup_binding unless options[:class]
+      subclass.setup_class_binding unless options[:class]
     end
 
     def klass=(value)
       super
-      setup_binding
+      setup_class_binding
     end
 
     def klass

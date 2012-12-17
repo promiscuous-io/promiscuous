@@ -1,6 +1,8 @@
 class Promiscuous::Publisher::Mongoid < Promiscuous::Publisher::Base
-  autoload :Embedded, 'promiscuous/publisher/mongoid/embedded'
-  autoload :Defer,    'promiscuous/publisher/mongoid/defer'
+  autoload :Embedded,      'promiscuous/publisher/mongoid/embedded'
+  autoload :DeferEmbedded, 'promiscuous/publisher/mongoid/defer_embedded'
+  autoload :Defer,         'promiscuous/publisher/mongoid/defer'
+  autoload :EmbeddedMany,  'promiscuous/publisher/mongoid/embedded_many'
 
   include Promiscuous::Publisher::Class
   include Promiscuous::Publisher::Attributes
@@ -11,11 +13,17 @@ class Promiscuous::Publisher::Mongoid < Promiscuous::Publisher::Base
     super
 
     if klass.embedded?
-      include Promiscuous::Publisher::Mongoid::Embedded
+      if mongoid3?
+        include Promiscuous::Publisher::Mongoid::DeferEmbedded
+      else
+        include Promiscuous::Publisher::Mongoid::Embedded
+      end
     else
       include Promiscuous::Publisher::Model
       include Promiscuous::Publisher::Mongoid::Defer if mongoid3?
     end
+
+    setup_class_binding
   end
 
   def self.mongoid3?

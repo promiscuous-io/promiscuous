@@ -22,6 +22,6 @@ describe Promiscuous::Subscriber::Worker, '.subscribe' do
 
   it 'subscribes to the correct queue' do
     queue_name = 'test_subscriber.promiscuous'
-    sub_worker.subscribe_options[:queue_name].should == queue_name
+    sub_worker.queue_bindings[:queue_name].should == queue_name
   end
 end

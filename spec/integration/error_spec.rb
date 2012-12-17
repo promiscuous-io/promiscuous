@@ -66,17 +66,33 @@ describe Promiscuous do
         end
       end
 
-      it 'stops processing messages' do
-        Promiscuous::AMQP.stubs(:disconnect)
+      context 'when using regular mode' do
+        it 'stops processing messages' do
+          Promiscuous::AMQP.stubs(:disconnect)
 
-        pub = PublisherModel.create
-        pub.update_attributes!(:field_1 => 'death')
-        eventually { @error_handler_called_with.should be_a(Exception) }
+          pub = PublisherModel.create
+          pub.update_attributes!(:field_1 => 'death')
+          eventually { @error_handler_called_with.should be_a(Exception) }
 
-        pub.update_attributes!(:field_1 => 'another_update')
-        eventually { SubscriberModel.find(pub.id).field_1.should_not == 'another_update' }
+          pub.update_attributes!(:field_1 => 'another_update')
+          eventually { SubscriberModel.find(pub.id).field_1.should_not == 'another_update' }
 
-        Promiscuous::AMQP.unstub(:disconnect)
+          Promiscuous::AMQP.unstub(:disconnect)
+        end
+      end
+
+      context 'when using bareback mode' do
+        before { ENV['BAREBACK'] = '1' }
+        after  { ENV['BAREBACK'] = nil }
+
+        it 'continues processing messages' do
+          pub = PublisherModel.create
+          pub.update_attributes!(:field_1 => 'death')
+          eventually { @error_handler_called_with.should be_a(Exception) }
+
+          pub.update_attributes!(:field_1 => 'another_update')
+          eventually { SubscriberModel.find(pub.id).field_1.should == 'another_update' }
+        end
       end
     end
   end

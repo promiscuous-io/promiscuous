@@ -13,14 +13,18 @@ module Promiscuous
         self.connection.stop
       end
 
-      def self.publish(msg)
-        Promiscuous.info "[publish] #{msg[:key]} -> #{msg[:payload]}"
-        exchange = connection.exchange('promiscuous', :type => :topic, :durable => true)
-        exchange.publish(msg[:payload], :key => msg[:key], :persistent => true)
+      def self.publish(options={})
+        Promiscuous.info "[publish] (#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
+        exchange(options[:exchange_name]).
+          publish(options[:payload], :key => options[:key], :persistent => true)
       end
 
-      def self.subscribe(options={}, &block)
-        raise "Cannot subscribe with bunny"
+      def self.open_queue(options={}, &block)
+        raise "Cannot open queue with bunny"
+      end
+
+      def self.exchange(name)
+        connection.exchange(name, :type => :topic, :durable => true)
       end
     end
   end

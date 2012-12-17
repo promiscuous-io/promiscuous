@@ -9,7 +9,9 @@ module Promiscuous::Publisher::Attributes
 
   def payload_for(field)
     value = instance.__send__(field)
-    if value.class.respond_to?(:promiscuous_publisher)
+    if value.respond_to?(:promiscuous_publisher)
+      value.promiscuous_publisher.new(options.merge(:instance => value)).payload
+    elsif value.class.respond_to?(:promiscuous_publisher)
       value.class.promiscuous_publisher.new(options.merge(:instance => value)).payload
     else
       value

@@ -24,17 +24,18 @@ class Promiscuous::Publisher::Worker
   def replicate_once
     return if self.stop
     begin
-      self.unit_of_work do
+      self.unit_of_work('publisher') do
         Promiscuous::Publisher::Mongoid::Defer.klasses.values.each do |klass|
           replicate_collection(klass)
         end
       end
     rescue Exception => e
-      self.stop = true
+      self.stop = true unless bareback?
+
       unless e.is_a?(Promiscuous::Publisher::Error)
         e = Promiscuous::Publisher::Error.new(e, nil)
       end
-      Promiscuous.error "[publish] FATAL #{e}"
+      Promiscuous.error "[publish] FATAL #{e} #{e.backtrace}"
       Promiscuous::Config.error_handler.try(:call, e)
     end
   end
@@ -42,15 +43,15 @@ class Promiscuous::Publisher::Worker
   def replicate_collection(klass)
     return if self.stop
     # TODO Check for indexes and if not there, bail out
-    psp_field = klass.aliased_fields["promiscous_sync_pending"]
-    while instance = klass.where(psp_field => true).find_and_modify({'$unset' => {psp_field => 1}})
+    while instance = klass.where(:_psp => true).find_and_modify(
+                       {'$unset' => {:_psp => 1}}, :bypass_promiscuous => true)
       replicate_instance(instance)
     end
   end
 
   def replicate_instance(instance)
     return if self.stop
-    instance.class.promiscuous_publisher.new(:instance => instance, :operation => :update, :defer => false).publish
+    instance.promiscuous_sync
   rescue Exception => e
     # TODO set back the psp field
     raise Promiscuous::Publisher::Error.new(e, instance)

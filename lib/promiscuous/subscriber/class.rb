@@ -9,6 +9,18 @@ module Promiscuous::Subscriber::Class
   included { use_option :class, :as => :klass }
 
   module ClassMethods
+    def setup_class_binding; end
+
+    def self.subscribe(options)
+      super
+      setup_class_binding
+    end
+
+    def klass=(value)
+      super
+      setup_class_binding
+    end
+
     def klass
       return nil if name.nil?
       "::#{super ? super : guess_class_name('Subscribers')}".constantize
