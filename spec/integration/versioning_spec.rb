@@ -44,7 +44,7 @@ if ORM.has(:versioning)
           sub.id.should == pub.id
         end
 
-        # The subscriber will ignore the 3 first updates with a version set to 3
+        # The subscriber will ignore the two first updates with a version set to 3
         sub._psv = 3
         sub.field_1 = 'sub'
         sub.save
@@ -56,7 +56,7 @@ if ORM.has(:versioning)
         eventually { sub.reload; sub.field_1.should == 'sub' }
 
         pub.update_attributes(:field_1 => 'pub3')
-        eventually { sub.reload; sub.field_1.should == 'sub' }
+        eventually { sub.reload; sub.field_1.should == 'pub3' }
 
         pub.update_attributes(:field_1 => 'pub4')
         eventually { sub.reload; sub.field_1.should == 'pub4' }
