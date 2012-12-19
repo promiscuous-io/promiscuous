@@ -1,7 +1,5 @@
 module Promiscuous
   class Railtie < Rails::Railtie
-    rake_tasks { load 'promiscuous/railtie/replicate.rake' }
-
     initializer 'load promiscuous' do
       config.after_initialize do
         Promiscuous::Loader.load_descriptors(:publishers)

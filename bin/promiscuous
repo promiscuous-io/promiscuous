@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+
+begin
+  require 'promiscuous'
+  Promiscuous::CLI.new.run
+rescue => e
+  $stderr.puts e.backtrace.join("\n")
+  $stderr.puts '-' * 80
+  $stderr.puts e.message
+end

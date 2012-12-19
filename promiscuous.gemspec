@@ -14,6 +14,8 @@ Gem::Specification.new do |s|
   s.summary     = "Model replication over RabbitMQ"
   s.description = "Replicate your Mongoid/ActiveRecord models across your applications"
 
+  s.executables   = ['promiscuous']
+
   s.add_dependency("activesupport")
   s.add_dependency("activemodel")
   s.add_dependency("bunny")
@@ -21,7 +23,7 @@ Gem::Specification.new do |s|
   s.add_dependency("em-synchrony")
   s.add_dependency("ruby-progressbar")
 
-  s.files        = Dir["lib/**/*"] + ['README.md']
+  s.files        = Dir["lib/**/*"] + Dir["bin/**/*"] + ['README.md']
   s.require_path = 'lib'
   s.has_rdoc     = false
 end
