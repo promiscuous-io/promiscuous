@@ -27,6 +27,18 @@ class Promiscuous::CLI
         EM.stop
       end
     end
+
+    Signal.trap 'SIGUSR2' do
+      Thread.list.each do |thread|
+        print_status '-' * 80
+        if thread.backtrace
+          print_status "Thread #{thread} #{thread['label']}"
+          print_status thread.backtrace.join("\n")
+        else
+          print_status "Thread #{thread} #{thread['label']} -- no backtrace"
+        end
+      end
+    end
   end
 
   def publish(options={})
