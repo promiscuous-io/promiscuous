@@ -21,8 +21,7 @@ module Promiscuous
         end
 
         connection = ::AMQP.connect(amqp_options)
-        self.channel = ::AMQP::Channel.new(connection, :auto_recovery => true)
-        self.queue_options = Promiscuous::Config.queue_options
+        self.channel = ::AMQP::Channel.new(connection)
 
         connection.on_connection_interruption do |connection|
           connection.periodically_reconnect(2)
