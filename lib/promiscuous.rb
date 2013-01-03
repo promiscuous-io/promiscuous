@@ -11,6 +11,7 @@ module Promiscuous
   autoload :Observer,   'promiscuous/observer'
   autoload :Worker,     'promiscuous/worker'
   autoload :Ephemeral,  'promiscuous/ephemeral'
+  autoload :CLI,        'promiscuous/cli'
 
   class << self
     def configure(&block)

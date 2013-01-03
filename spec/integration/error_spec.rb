@@ -82,8 +82,7 @@ describe Promiscuous do
       end
 
       context 'when using bareback mode' do
-        before { ENV['BAREBACK'] = '1' }
-        after  { ENV['BAREBACK'] = nil }
+        before { Promiscuous::Worker.workers.each { |w| w.options[:bareback] = true } }
 
         it 'continues processing messages' do
           pub = PublisherModel.create

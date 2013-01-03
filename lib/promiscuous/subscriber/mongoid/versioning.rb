@@ -6,7 +6,7 @@ module Promiscuous::Subscriber::Mongoid::Versioning
 
     def atomic_selector
       if use_atomic_promiscuous_selector
-        super.merge({ '$or' => [{'_psv' => { '$lt'     => self._psv }},
+        super.merge({ '$or' => [{'_psv' => { '$lte'    => self._psv }},
                                 {'_psv' => { '$exists' => false     }}]})
       else
         super

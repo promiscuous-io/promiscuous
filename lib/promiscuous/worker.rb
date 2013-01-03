@@ -3,11 +3,11 @@ module Promiscuous::Worker
   self.workers = []
 
   def self.replicate(options={})
-    publish   = options[:only].nil? || options[:only] == :publish
-    subscribe = options[:only].nil? || options[:only] == :subscribe
+    options[:action] ||= [:publish, :subscribe]
+    actions = [options[:action]].flatten
 
-    self.workers << Promiscuous::Publisher::Worker.new(options) if publish
-    self.workers << Promiscuous::Subscriber::Worker.new(options) if subscribe
+    self.workers << Promiscuous::Publisher::Worker.new(options)  if :publish.in? actions
+    self.workers << Promiscuous::Subscriber::Worker.new(options) if :subscribe.in? actions
     self.workers.each { |w| w.replicate }
   end
 

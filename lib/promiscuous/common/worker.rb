@@ -15,7 +15,7 @@ module Promiscuous::Common::Worker
   end
 
   def bareback?
-    !!ENV['BAREBACK']
+    !!options[:bareback]
   end
 
   included { attr_accessor :stop, :options }
