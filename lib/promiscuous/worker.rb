@@ -15,4 +15,12 @@ module Promiscuous::Worker
     self.workers.each { |w| w.stop = true }
     self.workers.clear
   end
+
+  def self.pause
+    self.workers.each { |w| w.stop = true }
+  end
+
+  def self.resume
+    self.workers.each { |w| w.stop = false }
+  end
 end

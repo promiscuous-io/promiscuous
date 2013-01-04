@@ -1,6 +1,8 @@
 class Promiscuous::Publisher::Worker
   include Promiscuous::Common::Worker
 
+  attr_accessor :recovered
+
   def self.poll_delay
     # TODO Configurable globally
     # TODO Configurable per publisher
@@ -17,8 +19,7 @@ class Promiscuous::Publisher::Worker
 
   def replicate
     check_indexes
-    EM.defer proc { self.replicate_once },
-             proc { EM::Timer.new(self.class.poll_delay) { replicate } }
+    EM::PeriodicTimer.new(self.class.poll_delay) { self.replicate_once }
   end
 
   def replicate_once
@@ -35,25 +36,50 @@ class Promiscuous::Publisher::Worker
       unless e.is_a?(Promiscuous::Publisher::Error)
         e = Promiscuous::Publisher::Error.new(e, nil)
       end
-      Promiscuous.error "[publish] FATAL #{e} #{e.backtrace}"
+
+      if self.recovered
+        Promiscuous.warn "[publish] will retry #{e.instance.try(:id)} #{e} #{e.backtrace}"
+      else
+        Promiscuous.error "[publish] FATAL #{e.instance.try(:id)} #{e} #{e.backtrace}"
+      end
+
       Promiscuous::Config.error_handler.try(:call, e)
     end
   end
 
   def replicate_collection(klass)
-    return if self.stop
-    # TODO Check for indexes and if not there, bail out
-    while instance = klass.where(:_psp => true).find_and_modify(
-                       {'$unset' => {:_psp => 1}}, :bypass_promiscuous => true)
+    loop do
+      break if self.stop
+
+      self.recovered = false
+      instance = klass.where(:_psp => true).
+                   find_and_modify({'$unset' => {:_psp => 1}}, :bypass_promiscuous => true)
+      break unless instance
+
       replicate_instance(instance)
     end
   end
 
   def replicate_instance(instance)
-    return if self.stop
     instance.promiscuous_sync
   rescue Exception => e
-    # TODO set back the psp field
-    raise Promiscuous::Publisher::Error.new(e, instance)
+    # We failed publishing. Best effort recover.
+    if e.is_a?(Promiscuous::Publisher::Error)
+      e.instance = instance
+    else
+      e = Promiscuous::Publisher::Error.new(e, instance)
+    end
+
+    begin
+      # The following update will set the _psp flag to true again, effectively
+      # requeuing the publish action.
+      instance.class.where(instance.atomic_selector).update({})
+      self.recovered = true
+    rescue
+      # Swallow exception of a failed recovery, the log file will have a FATAL entry.
+      # The user needs to manually resync.
+    end
+
+    raise e
   end
 end

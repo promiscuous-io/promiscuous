@@ -21,11 +21,37 @@ module Promiscuous
         end
 
         connection = ::AMQP.connect(amqp_options)
-        self.channel = ::AMQP::Channel.new(connection)
+        self.channel = ::AMQP::Channel.new(connection, :auto_recovery => true)
+
+        connection.on_tcp_connection_loss do |conn|
+          unless conn.reconnecting?
+            Promiscuous.warn "[connection] Lost connection. Reconnecting..."
+            conn.periodically_reconnect(2)
+
+            exception = StandardError.new 'Lost connection'
+            Promiscuous::Config.error_handler.try(:call, exception)
+
+            Promiscuous::Worker.pause # TODO XXX This doesn't belong here
+          end
+        end
+
+        connection.on_recovery do |conn|
+          Promiscuous.warn "[connection] Reconnected"
+          Promiscuous::Worker.resume # TODO XXX This doesn't belong here
+        end
+
+        connection.on_error do |conn, conn_close|
+          # No need to handle CONNECTION_FORCED since on_tcp_connection_loss takes
+          # care of it.
+          Promiscuous.warn "[connection] #{conn_close.reply_text}"
+        end
       end
 
       def self.disconnect
-        self.channel.close if self.channel
+        if self.channel && self.channel.connection.connected?
+          self.channel.connection.close
+          self.channel.close
+        end
         self.channel = nil
       end
 
@@ -42,7 +68,14 @@ module Promiscuous
       end
 
       def self.publish(options={})
-        Promiscuous.info "[publish] (#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
+        info_msg = "(#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
+
+        unless channel.connection.connected?
+          exception = StandardError.new 'Lost connection'
+          raise Promiscuous::Publisher::Error.new(exception, info_msg)
+        end
+
+        Promiscuous.info "[publish] #{info_msg}"
         exchange(options[:exchange_name]).
           publish(options[:payload], :routing_key => options[:key], :persistent => true)
       end

@@ -6,6 +6,10 @@ module AMQPHelper
       config.error_handler = options[:error_handler] if options[:error_handler]
     end
     config_logger(options)
+
+    # Let amqp connect first before we do anything.
+    # Otherwise, Promiscuous::AMQP::RubyAMQP.publish will fail with connection lost.
+    EM::Synchrony.sleep 0.1
   end
 
   def use_null_amqp(options={})
