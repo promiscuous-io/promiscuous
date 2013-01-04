@@ -55,6 +55,10 @@ module Promiscuous
         self.channel = nil
       end
 
+      def self.connected?
+        !!self.channel.try(:connection).try(:connected?)
+      end
+
       def self.open_queue(options={}, &block)
         queue_name = options[:queue_name]
         bindings   = options[:bindings]

@@ -7,7 +7,10 @@ module Promiscuous
       def self.disconnect
       end
 
-      def self.publish(msg, options={})
+      def self.connected?
+      end
+
+      def self.publish(options={})
       end
 
       def self.open_queue(options={}, &block)

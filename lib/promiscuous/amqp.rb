@@ -10,6 +10,6 @@ module Promiscuous::AMQP
       Promiscuous::Config.backend
     end
 
-    delegate :connect, :disconnect, :publish, :open_queue, :to => :backend
+    delegate :connect, :disconnect, :connected?, :publish, :open_queue, :to => :backend
   end
 end

@@ -13,6 +13,10 @@ module Promiscuous
         self.connection.stop
       end
 
+      def self.connected?
+        !!self.connection.try(:connected?)
+      end
+
       def self.publish(options={})
         Promiscuous.info "[publish] (#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
         exchange(options[:exchange_name]).
