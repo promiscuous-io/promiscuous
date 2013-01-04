@@ -23,7 +23,7 @@ Promiscuous to the rescue
 Compatibility
 -------------
 
-Promiscuous is tested against MRI 1.9.2 and 1.9.3.
+Promiscuous is tested against MRI 1.9.3.
 
 ActiveRecord, Mongoid 2.4.x and Mongoid 3.0.x are supported.
 
