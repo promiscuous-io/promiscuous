@@ -29,7 +29,7 @@ module Promiscuous
             conn.periodically_reconnect(2)
 
             exception = Promiscuous::Error::Connection.new 'Lost connection'
-            Promiscuous::Config.error_handler.try(:call, exception)
+            Promiscuous::Config.error_notifier.try(:call, exception)
 
             Promiscuous::Worker.pause # TODO XXX This doesn't belong here
           end

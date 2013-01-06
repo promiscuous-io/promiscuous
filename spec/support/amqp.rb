@@ -3,7 +3,7 @@ module AMQPHelper
     Promiscuous.configure do |config|
       config.app = options[:app] || 'test_subscriber'
       config.queue_options = {:auto_delete => true}
-      config.error_handler = options[:error_handler] if options[:error_handler]
+      config.error_notifier = options[:error_notifier] if options[:error_notifier]
     end
     config_logger(options)
 

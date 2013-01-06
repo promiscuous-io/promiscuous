@@ -17,7 +17,7 @@ class Promiscuous::Subscriber::Worker
         rescue Exception => e
           e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
 
-          Promiscuous::Config.error_handler.try(:call, e)
+          Promiscuous::Config.error_notifier.try(:call, e)
 
           if bareback?
             Promiscuous.error "[receive] (bareback, don't care) #{e} #{e.backtrace.join("\n")}"

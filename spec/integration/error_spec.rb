@@ -3,8 +3,8 @@ require 'spec_helper'
 describe Promiscuous do
   before { load_models }
 
-  let!(:error_handler) { proc { |exception| @error_handler_called_with = exception } }
-  before { use_real_amqp(:error_handler => error_handler, :logger_level => Logger::FATAL) }
+  let!(:error_notifier) { proc { |exception| @error_notifier_called_with = exception } }
+  before { use_real_amqp(:error_notifier => error_notifier, :logger_level => Logger::FATAL) }
 
   context 'when replicating the update of a model that fails' do
     before do
@@ -41,14 +41,14 @@ describe Promiscuous do
           end
         end
 
-        it 'calls the error_handler with an exception' do
+        it 'calls the error_notifier with an exception' do
           pub = PublisherModel.create
           pub.update_attributes!(:field_1 => 'going through')
           eventually { SubscriberModel.first.field_1.should == 'going through' }
           pub.update_attributes!(:field_1 => 'death')
           eventually do
-            @error_handler_called_with.should be_a(Promiscuous::Error::Publisher)
-            @error_handler_called_with.instance.should be_a(PublisherModel)
+            @error_notifier_called_with.should be_a(Promiscuous::Error::Publisher)
+            @error_notifier_called_with.instance.should be_a(PublisherModel)
           end
         end
       end
@@ -57,12 +57,12 @@ describe Promiscuous do
     context 'on the subscriber side' do
       before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /death/ } }
 
-      it 'calls the error_handler with an exception' do
+      it 'calls the error_notifier with an exception' do
         pub = PublisherModel.create
         pub.update_attributes(:field_1 => 'death')
         eventually do
-          @error_handler_called_with.should be_a(Promiscuous::Error::Subscriber)
-          @error_handler_called_with.payload.should =~ /death/
+          @error_notifier_called_with.should be_a(Promiscuous::Error::Subscriber)
+          @error_notifier_called_with.payload.should =~ /death/
         end
       end
 
@@ -72,7 +72,7 @@ describe Promiscuous do
 
           pub = PublisherModel.create
           pub.update_attributes!(:field_1 => 'death')
-          eventually { @error_handler_called_with.should be_a(Exception) }
+          eventually { @error_notifier_called_with.should be_a(Exception) }
 
           pub.update_attributes!(:field_1 => 'another_update')
           eventually { SubscriberModel.find(pub.id).field_1.should_not == 'another_update' }
@@ -87,7 +87,7 @@ describe Promiscuous do
         it 'continues processing messages' do
           pub = PublisherModel.create
           pub.update_attributes!(:field_1 => 'death')
-          eventually { @error_handler_called_with.should be_a(Exception) }
+          eventually { @error_notifier_called_with.should be_a(Exception) }
 
           pub.update_attributes!(:field_1 => 'another_update')
           eventually { SubscriberModel.find(pub.id).field_1.should == 'another_update' }
@@ -113,9 +113,9 @@ describe Promiscuous do
 
     before { Promiscuous::Worker.replicate }
 
-    it 'calls the error_handler with an exception' do
+    it 'calls the error_notifier with an exception' do
       PublisherModel.create
-      eventually { @error_handler_called_with.should be_a(Exception) }
+      eventually { @error_notifier_called_with.should be_a(Exception) }
     end
   end
 
@@ -143,11 +143,11 @@ describe Promiscuous do
 
       before { Promiscuous::Worker.replicate }
 
-      it 'calls the error_handler with an exception' do
+      it 'calls the error_notifier with an exception' do
         pub = PublisherModelEmbed.create(:field_1 => '1',
                                          :model_embedded => { :embedded_field_1 => 'e1',
                                                               :embedded_field_2 => 'e2' })
-        eventually { @error_handler_called_with.should be_a(Exception) }
+        eventually { @error_notifier_called_with.should be_a(Exception) }
       end
     end
   end
