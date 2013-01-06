@@ -16,11 +16,4 @@ module Promiscuous::Config
 
     Promiscuous::AMQP.connect
   end
-
-  # TODO backward compatibility. to be removed.
-  def self.error_handler=(value)
-    ActiveSupport::Deprecation.behavior = :stderr
-    ActiveSupport::Deprecation.warn "'error_handler' is deprecated, please use 'error_notifier'", caller
-    self.error_notifier = value
-  end
 end

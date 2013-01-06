@@ -1,7 +1,7 @@
 Promiscuous
 ===========
 
-[![Build Status](https://secure.travis-ci.org/crowdtap/promiscuous.png?branch=master)](https://secure.travis-ci.org/crowdtap/promiscuous)
+[![Build Status](https://travis-ci.org/crowdtap/promiscuous.png?branch=travis)](https://travis-ci.org/crowdtap/promiscuous)
 
 Promiscuous is designed to facilitate designing a
 [service-oriented architecture](http://en.wikipedia.org/wiki/Service-oriented_architecture)
