@@ -4,8 +4,8 @@ begin
   require 'promiscuous'
   Promiscuous::CLI.new.run
 rescue => e
-  $stderr.puts e.backtrace.join("\n")
+  $stderr.puts "#{e.class}: #{e.message}"
   $stderr.puts '-' * 80
-  $stderr.puts e.message
+  $stderr.puts e.backtrace.join("\n")
   exit 1
 end
