@@ -13,9 +13,11 @@ module Promiscuous::Common::Lint::Base
   end
 
   module ClassMethods
-    def use_option(attr)
-      define_method(attr) do
-        self.options[attr]
+    def use_option(*attrs)
+      attrs.each do |attr|
+        define_method(attr) do
+          self.options[attr]
+        end
       end
     end
   end

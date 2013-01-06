@@ -13,8 +13,17 @@ module Promiscuous::Publisher::Lint
     klass.promiscuous_publisher
   end
 
-  def self.lint(classes)
-    classes.each do |klass, to|
+  def self.lint(class_bindings={})
+    if class_bindings.empty?
+      class_bindings = Promiscuous::Publisher::Mongoid::Defer.klasses.values.reduce({}) do |res, klass|
+        res[klass] = klass.promiscuous_publisher.to
+        res
+      end
+
+      raise "No publishers found" if class_bindings.empty?
+    end
+
+    class_bindings.each do |klass, to|
       pub = get_publisher(klass)
 
       lint = ::Class.new(Base)

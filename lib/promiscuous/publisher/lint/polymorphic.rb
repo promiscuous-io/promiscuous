@@ -9,6 +9,7 @@ module Promiscuous::Publisher::Lint::Polymorphic
         pub = Promiscuous::Publisher::Lint.get_publisher(subclass)
         self.class.new(options.merge(:klass => subclass,
                                      :publisher => pub,
+                                     :parent => klass,
                                      :skip_polymorphic => true)).lint
       end
     end

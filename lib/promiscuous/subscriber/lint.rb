@@ -5,8 +5,17 @@ module Promiscuous::Subscriber::Lint
   autoload :Polymorphic, 'promiscuous/subscriber/lint/polymorphic'
   autoload :AMQP,        'promiscuous/subscriber/lint/amqp'
 
-  def self.lint(binding_classes)
+  def self.lint(binding_classes={})
     Base.reload_publishers
+
+    if binding_classes.empty?
+      binding_classes = Promiscuous::Subscriber::AMQP.subscribers.reduce({}) do |res, e|
+        from, sub = e
+        res[from] = sub.klass unless from =~ /^__promiscuous__/
+        res
+      end
+      raise "No subscribers found" if binding_classes.empty?
+    end
 
     binding_classes.each do |from, klass|
       sub = Promiscuous::Subscriber::AMQP.subscribers[from]
