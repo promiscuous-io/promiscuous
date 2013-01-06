@@ -7,4 +7,5 @@ rescue => e
   $stderr.puts e.backtrace.join("\n")
   $stderr.puts '-' * 80
   $stderr.puts e.message
+  exit 1
 end

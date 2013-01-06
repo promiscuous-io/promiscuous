@@ -35,7 +35,7 @@ class Promiscuous::Publisher::Worker
         e = Promiscuous::Error::Publisher.new(e)
       end
 
-      Promiscuous.error "[publish] #{e} #{e.backtrace.join("\n")}"
+      Promiscuous.error "[publish] #{e}"
       Promiscuous::Config.error_notifier.try(:call, e)
     end
   end
