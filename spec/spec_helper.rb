@@ -24,8 +24,8 @@ RSpec.configure do |config|
   config.include CallbacksHelper
 
   config.after do
-    Promiscuous::AMQP.disconnect
-    Promiscuous::Worker.stop
+    Promiscuous::Worker.kill
+    Promiscuous::AMQP.disconnect # This cleansup the queues since they have the auto-delete behavior
     Promiscuous::Subscriber::AMQP.subscribers.select! { |k| k =~ /__promiscuous__/ }
     Promiscuous::Publisher::Mongoid::Defer.klasses.clear
   end

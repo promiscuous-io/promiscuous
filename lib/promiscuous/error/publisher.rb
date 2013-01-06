@@ -2,7 +2,8 @@ class Promiscuous::Error::Publisher < RuntimeError
   attr_accessor :inner, :instance, :out_of_sync
 
   def initialize(inner, options={})
-    super(inner)
+    super(nil)
+    inner = inner.inner if inner.is_a?(Promiscuous::Error::Publisher)
     set_backtrace(inner.backtrace)
     self.inner = inner
     self.instance = options[:instance]
@@ -10,8 +11,11 @@ class Promiscuous::Error::Publisher < RuntimeError
   end
 
   def message
-    msg = "#{inner.class}: #{inner.message} while publishing #{instance.inspect}"
-    msg = "FATAL (out of synch) #{msg}" if out_of_sync
+    msg = "#{inner.class}: #{inner.message}"
+    if instance
+      msg = "#{msg} while publishing #{instance.inspect}"
+      msg = "FATAL (out of sync) #{msg}" if out_of_sync
+    end
     msg
   end
 

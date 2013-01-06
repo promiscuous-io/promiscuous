@@ -23,7 +23,7 @@ class Promiscuous::CLI
     %w(SIGTERM SIGINT).each do |signal|
       Signal.trap(signal) do
         print_status "Exiting..."
-        Promiscuous::Worker.stop
+        Promiscuous::Worker.kill
         EM.stop
       end
     end

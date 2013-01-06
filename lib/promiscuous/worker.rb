@@ -6,21 +6,21 @@ module Promiscuous::Worker
     options[:action] ||= [:publish, :subscribe]
     actions = [options[:action]].flatten
 
-    self.workers << Promiscuous::Publisher::Worker.new(options)  if :publish.in? actions
-    self.workers << Promiscuous::Subscriber::Worker.new(options) if :subscribe.in? actions
-    self.workers.each { |w| w.replicate }
+    self.workers <<  Promiscuous::Publisher::Worker.new(options).tap { |w| w.resume } if :publish.in? actions
+    self.workers << Promiscuous::Subscriber::Worker.new(options).tap { |w| w.resume } if :subscribe.in? actions
+  end
+
+  def self.kill
+    stop
+    # TODO FIXME We should wait for them to be idle
+    workers.clear
   end
 
   def self.stop
-    self.workers.each { |w| w.stop = true }
-    self.workers.clear
-  end
-
-  def self.pause
-    self.workers.each { |w| w.stop = true }
+    workers.each(&:stop)
   end
 
   def self.resume
-    self.workers.each { |w| w.stop = false }
+    workers.each(&:resume)
   end
 end

@@ -29,15 +29,14 @@ module Promiscuous
             conn.periodically_reconnect(2)
 
             exception = Promiscuous::Error::Connection.new 'Lost connection'
+            Promiscuous::Worker.stop # TODO XXX This doesn't belong here. hooks ?
             Promiscuous::Config.error_notifier.try(:call, exception)
-
-            Promiscuous::Worker.pause # TODO XXX This doesn't belong here
           end
         end
 
         connection.on_recovery do |conn|
           Promiscuous.warn "[connection] Reconnected"
-          Promiscuous::Worker.resume # TODO XXX This doesn't belong here
+          Promiscuous::Worker.resume # TODO XXX This doesn't belong here. hooks ?
         end
 
         connection.on_error do |conn, conn_close|
