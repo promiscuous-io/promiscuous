@@ -24,7 +24,6 @@ class Promiscuous::CLI
       Signal.trap(signal) do
         print_status "Exiting..."
         Promiscuous::Worker.stop
-        Promiscuous::AMQP.disconnect
         EM.stop
       end
     end

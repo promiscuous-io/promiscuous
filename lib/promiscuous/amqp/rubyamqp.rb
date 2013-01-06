@@ -55,6 +55,9 @@ module Promiscuous
         self.channel = nil
       end
 
+      # Always disconnect when shutting down to avoid reconnection
+      EM.add_shutdown_hook { Promiscuous::AMQP::RubyAMQP.disconnect }
+
       def self.connected?
         !!self.channel.try(:connection).try(:connected?)
       end
