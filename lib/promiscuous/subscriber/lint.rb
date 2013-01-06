@@ -1,9 +1,6 @@
 module Promiscuous::Subscriber::Lint
-  autoload :Base,        'promiscuous/subscriber/lint/base'
-  autoload :Class,       'promiscuous/subscriber/lint/class'
-  autoload :Attributes,  'promiscuous/subscriber/lint/attributes'
-  autoload :Polymorphic, 'promiscuous/subscriber/lint/polymorphic'
-  autoload :AMQP,        'promiscuous/subscriber/lint/amqp'
+  extend Promiscuous::Autoload
+  autoload :Base, :Class, :Attributes, :Polymorphic, :AMQP
 
   def self.lint(binding_classes={})
     Base.reload_publishers

@@ -1,9 +1,6 @@
 module Promiscuous::Publisher::Lint
-  autoload :Base,        'promiscuous/publisher/lint/base'
-  autoload :Class,       'promiscuous/publisher/lint/class'
-  autoload :Attributes,  'promiscuous/publisher/lint/attributes'
-  autoload :Polymorphic, 'promiscuous/publisher/lint/polymorphic'
-  autoload :AMQP,        'promiscuous/publisher/lint/amqp'
+  extend Promiscuous::Autoload
+  autoload :Base, :Class, :Attributes, :Polymorphic, :AMQP
 
   def self.get_publisher(klass)
     unless klass.respond_to?(:promiscuous_publisher)

@@ -1,5 +1,3 @@
-require 'promiscuous'
-
 class Promiscuous::CLI
   def replicate(config_options={}, &block)
     require 'eventmachine'

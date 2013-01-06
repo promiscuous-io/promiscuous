@@ -1,18 +1,7 @@
 module Promiscuous::Publisher
-  autoload :ActiveRecord, 'promiscuous/publisher/active_record'
-  autoload :AMQP,         'promiscuous/publisher/amqp'
-  autoload :Attributes,   'promiscuous/publisher/attributes'
-  autoload :Base,         'promiscuous/publisher/base'
-  autoload :Class,        'promiscuous/publisher/class'
-  autoload :Envelope,     'promiscuous/publisher/envelope'
-  autoload :Lint,         'promiscuous/publisher/lint'
-  autoload :Mock,         'promiscuous/publisher/mock'
-  autoload :Model,        'promiscuous/publisher/model'
-  autoload :Mongoid,      'promiscuous/publisher/mongoid'
-  autoload :Polymorphic,  'promiscuous/publisher/polymorphic'
-  autoload :Worker,       'promiscuous/publisher/worker'
-  autoload :Error,        'promiscuous/publisher/error'
-  autoload :Ephemeral,    'promiscuous/publisher/ephemeral'
+  extend Promiscuous::Autoload
+  autoload :ActiveRecord, :AMQP, :Attributes, :Base, :Class, :Envelope, :Lint,
+           :Mock, :Model, :Mongoid, :Polymorphic, :Worker, :Error, :Ephemeral
 
   def self.lint(*args)
     Lint.lint(*args)

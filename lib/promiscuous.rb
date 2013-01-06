@@ -1,18 +1,12 @@
 require 'active_support/core_ext'
-require 'promiscuous/config'
-require 'promiscuous/amqp'
-require 'promiscuous/loader'
-require 'promiscuous/railtie' if defined?(Rails)
 
 module Promiscuous
-  autoload :Common,     'promiscuous/common'
-  autoload :Publisher,  'promiscuous/publisher'
-  autoload :Subscriber, 'promiscuous/subscriber'
-  autoload :Observer,   'promiscuous/observer'
-  autoload :Worker,     'promiscuous/worker'
-  autoload :Ephemeral,  'promiscuous/ephemeral'
-  autoload :CLI,        'promiscuous/cli'
-  autoload :Error,      'promiscuous/error'
+  require 'promiscuous/autoload'
+  require 'promiscuous/railtie' if defined?(Rails)
+
+  extend Promiscuous::Autoload
+  autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
+           :CLI, :Error, :Loader, :AMQP, :Config
 
   class << self
     def configure(&block)

@@ -1,6 +1,6 @@
 class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
-  autoload :Embedded,   'promiscuous/subscriber/mongoid/embedded'
-  autoload :Versioning, 'promiscuous/subscriber/mongoid/versioning'
+  extend Promiscuous::Autoload
+  autoload :Embedded, :Versioning
 
   include Promiscuous::Subscriber::Class
   include Promiscuous::Subscriber::Attributes
