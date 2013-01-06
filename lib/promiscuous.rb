@@ -12,6 +12,7 @@ module Promiscuous
   autoload :Worker,     'promiscuous/worker'
   autoload :Ephemeral,  'promiscuous/ephemeral'
   autoload :CLI,        'promiscuous/cli'
+  autoload :Error,      'promiscuous/error'
 
   class << self
     def configure(&block)

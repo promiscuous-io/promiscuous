@@ -15,16 +15,18 @@ class Promiscuous::Subscriber::Worker
             metadata.ack
           end
         rescue Exception => e
-          e = Promiscuous::Subscriber::Error.new(e, payload)
+          e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
+
+          Promiscuous::Config.error_handler.try(:call, e)
 
           if bareback?
+            Promiscuous.error "[receive] (bareback, don't care) #{e} #{e.backtrace.join("\n")}"
             metadata.ack
           else
+            Promiscuous.error "[receive] #{e} #{e.backtrace.join("\n")}"
             self.stop = true
             Promiscuous::AMQP.disconnect
           end
-          Promiscuous.error "[receive] FATAL #{"skipping " if bareback?}#{e} #{e.backtrace.join("\n")}"
-          Promiscuous::Config.error_handler.try(:call, e)
         end
       end
     end

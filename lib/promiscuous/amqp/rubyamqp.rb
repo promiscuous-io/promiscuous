@@ -28,7 +28,7 @@ module Promiscuous
             Promiscuous.warn "[connection] Lost connection. Reconnecting..."
             conn.periodically_reconnect(2)
 
-            exception = StandardError.new 'Lost connection'
+            exception = Promiscuous::Error::Connection.new 'Lost connection'
             Promiscuous::Config.error_handler.try(:call, exception)
 
             Promiscuous::Worker.pause # TODO XXX This doesn't belong here
@@ -75,8 +75,7 @@ module Promiscuous
         info_msg = "(#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
 
         unless channel.connection.connected?
-          exception = StandardError.new 'Lost connection'
-          raise Promiscuous::Publisher::Error.new(exception, info_msg)
+          raise Promiscuous::Error::Connection.new 'Not connected'
         end
 
         Promiscuous.info "[publish] #{info_msg}"

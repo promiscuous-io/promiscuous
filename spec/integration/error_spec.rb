@@ -47,7 +47,7 @@ describe Promiscuous do
           eventually { SubscriberModel.first.field_1.should == 'going through' }
           pub.update_attributes!(:field_1 => 'death')
           eventually do
-            @error_handler_called_with.should be_a(Promiscuous::Publisher::Error)
+            @error_handler_called_with.should be_a(Promiscuous::Error::Publisher)
             @error_handler_called_with.instance.should be_a(PublisherModel)
           end
         end
@@ -61,7 +61,7 @@ describe Promiscuous do
         pub = PublisherModel.create
         pub.update_attributes(:field_1 => 'death')
         eventually do
-          @error_handler_called_with.should be_a(Promiscuous::Subscriber::Error)
+          @error_handler_called_with.should be_a(Promiscuous::Error::Subscriber)
           @error_handler_called_with.payload.should =~ /death/
         end
       end
