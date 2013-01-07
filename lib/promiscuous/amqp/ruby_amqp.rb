@@ -66,7 +66,7 @@ module Promiscuous::AMQP::RubyAMQP
     queue = self.channel.queue(queue_name, Promiscuous::Config.queue_options)
     bindings.each do |binding|
       queue.bind(exchange(options[:exchange_name]), :routing_key => binding)
-      Promiscuous.info "[bind] #{queue_name} -> #{binding}"
+      Promiscuous.debug "[bind] #{queue_name} -> #{binding}"
     end
     block.call(queue) if block
   end
@@ -78,7 +78,7 @@ module Promiscuous::AMQP::RubyAMQP
       raise Promiscuous::Error::Connection.new 'Not connected'
     end
 
-    Promiscuous.info "[publish] #{info_msg}"
+    Promiscuous.debug "[publish] #{info_msg}"
     exchange(options[:exchange_name]).
       publish(options[:payload], :routing_key => options[:key], :persistent => true)
   end

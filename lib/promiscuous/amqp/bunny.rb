@@ -16,7 +16,7 @@ module Promiscuous::AMQP:: Bunny
   end
 
   def self.publish(options={})
-    Promiscuous.info "[publish] (#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
+    Promiscuous.debug "[publish] (#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
     exchange(options[:exchange_name]).
       publish(options[:payload], :key => options[:key], :persistent => true)
   end
