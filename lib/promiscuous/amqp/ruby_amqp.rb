@@ -9,12 +9,13 @@ module Promiscuous::AMQP::RubyAMQP
       raise "Please use amqp://user:password@host:port/vhost" if uri.scheme != 'amqp'
 
       {
-        :host   => uri.host,
-        :port   => uri.port,
-        :scheme => uri.scheme,
-        :user   => uri.user,
-        :pass   => uri.password,
-        :vhost  => uri.path.empty? ? "/" : uri.path,
+        :host      => uri.host,
+        :port      => uri.port,
+        :scheme    => uri.scheme,
+        :user      => uri.user,
+        :pass      => uri.password,
+        :vhost     => uri.path.empty? ? "/" : uri.path,
+        :heartbeat => Promiscuous::Config.heartbeat
       }
     end
 
