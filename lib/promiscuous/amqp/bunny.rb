@@ -3,7 +3,7 @@ module Promiscuous::AMQP:: Bunny
 
   def self.connect
     require 'bunny'
-    self.connection = ::Bunny.new(Promiscuous::Config.server_uri)
+    self.connection = ::Bunny.new(Promiscuous::Config.server_uri, { :heartbeat => Promiscuous::Config.heartbeat })
     self.connection.start
   end
 
