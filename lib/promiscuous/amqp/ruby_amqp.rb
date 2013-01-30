@@ -27,7 +27,7 @@ module Promiscuous::AMQP::RubyAMQP
         Promiscuous.warn "[connection] Lost connection. Reconnecting..."
         conn.periodically_reconnect(2)
 
-        exception = Promiscuous::Error::Connection.new 'Lost connection'
+        exception = Promiscuous::Error::Connection.new(:amqp, 'Lost connection')
         Promiscuous::Worker.stop # TODO XXX This doesn't belong here. hooks ?
         Promiscuous::Config.error_notifier.try(:call, exception)
       end
@@ -76,7 +76,7 @@ module Promiscuous::AMQP::RubyAMQP
     info_msg = "(#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
 
     unless channel.connection.connected?
-      raise Promiscuous::Error::Connection.new 'Not connected'
+      raise Promiscuous::Error::Connection.new(:amqp, 'Not connected')
     end
 
     Promiscuous.debug "[publish] #{info_msg}".light_magenta

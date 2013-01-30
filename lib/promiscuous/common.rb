@@ -1,4 +1,4 @@
 module Promiscuous::Common
   extend Promiscuous::Autoload
-  autoload :Options, :Lint, :ClassHelpers, :Worker
+  autoload :Options, :Lint, :ClassHelpers
 end

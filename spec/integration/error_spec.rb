@@ -49,19 +49,6 @@ describe Promiscuous do
           Promiscuous::AMQP.unstub(:disconnect)
         end
       end
-
-      context 'when using bareback mode' do
-        before { Promiscuous::Worker.workers.each { |w| w.options[:bareback] = true } }
-
-        it 'continues processing messages' do
-          pub = PublisherModel.create
-          pub.update_attributes!(:field_1 => 'death')
-          eventually { @error_notifier_called_with.should be_a(Exception) }
-
-          pub.update_attributes!(:field_1 => 'another_update')
-          eventually { SubscriberModel.find(pub.id).field_1.should == 'another_update' }
-        end
-      end
     end
   end
 

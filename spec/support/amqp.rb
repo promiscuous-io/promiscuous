@@ -5,7 +5,7 @@ module AMQPHelper
       config.queue_options = {:auto_delete => true}
       config.error_notifier = options[:error_notifier] if options[:error_notifier]
     end
-    Promiscuous::Redis.flushdb # not the ideal place to put it, deal with it.
+    Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
 
     config_logger(options)
 

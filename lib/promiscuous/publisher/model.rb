@@ -11,8 +11,12 @@ module Promiscuous::Publisher::Model
     options[:operation]
   end
 
+  def version
+    {:global => @global_version}
+  end
+
   def payload
-    super.merge(:id => instance.id, :operation => operation, :global_version => @global_version)
+    super.merge(:id => instance.id, :operation => operation, :version => version)
   end
 
   def include_attributes?
@@ -22,13 +26,13 @@ module Promiscuous::Publisher::Model
   def with_lock(&block)
     return yield if operation == :create
 
-    key = instance.id.to_s
+    key = Promiscuous::Redis.pub_key(instance.id)
     ::RedisLock.new(Promiscuous::Redis, key).retry(50.times).every(0.2).lock_for_update(&block)
   end
 
   def commit_db(&block)
     with_lock do
-      @global_version = Promiscuous::Redis.incr('promiscuous:global_version')
+      @global_version = Promiscuous::Redis.incr(Promiscuous::Redis.pub_key('global'))
       yield
     end
   end
