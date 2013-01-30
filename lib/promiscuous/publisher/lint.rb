@@ -12,7 +12,7 @@ module Promiscuous::Publisher::Lint
 
   def self.lint(class_bindings={})
     if class_bindings.empty?
-      class_bindings = Promiscuous::Publisher::Mongoid::Defer.klasses.values.reduce({}) do |res, klass|
+      class_bindings = Promiscuous::Publisher::Model.klasses.reduce({}) do |res, klass|
         res[klass] = klass.promiscuous_publisher.to
         res
       end

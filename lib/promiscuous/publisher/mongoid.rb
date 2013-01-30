@@ -1,6 +1,6 @@
 class Promiscuous::Publisher::Mongoid < Promiscuous::Publisher::Base
   extend Promiscuous::Autoload
-  autoload :Embedded, :DeferEmbedded, :Defer, :EmbeddedMany
+  autoload :Embedded, :EmbeddedMany
 
   include Promiscuous::Publisher::Class
   include Promiscuous::Publisher::Attributes
@@ -11,20 +11,11 @@ class Promiscuous::Publisher::Mongoid < Promiscuous::Publisher::Base
     super
 
     if klass.embedded?
-      if mongoid3?
-        include Promiscuous::Publisher::Mongoid::DeferEmbedded
-      else
-        include Promiscuous::Publisher::Mongoid::Embedded
-      end
+      include Promiscuous::Publisher::Mongoid::Embedded
     else
       include Promiscuous::Publisher::Model
-      include Promiscuous::Publisher::Mongoid::Defer if mongoid3?
     end
 
     setup_class_binding
-  end
-
-  def self.mongoid3?
-    Gem.loaded_specs['mongoid'].version >= Gem::Version.new('3.0.0')
   end
 end

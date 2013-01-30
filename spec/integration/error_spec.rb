@@ -23,37 +23,6 @@ describe Promiscuous do
 
     before { Promiscuous::Worker.replicate }
 
-    if ORM.has(:pub_deferred_updates)
-      context 'on the publisher side' do
-        before do
-          # TODO Refactor with stubs(:publish)
-          Promiscuous::AMQP.module_eval do
-            class << self; alias old_publish publish; def publish(msg)
-              raise 'death' if msg[:payload] =~ /death/
-              old_publish(msg)
-            end; end
-          end
-        end
-
-        after do
-          Promiscuous::AMQP.module_eval do
-            class << self; alias publish old_publish; end
-          end
-        end
-
-        it 'calls the error_notifier with an exception' do
-          pub = PublisherModel.create
-          pub.update_attributes!(:field_1 => 'going through')
-          eventually { SubscriberModel.first.field_1.should == 'going through' }
-          pub.update_attributes!(:field_1 => 'death')
-          eventually do
-            @error_notifier_called_with.should be_a(Promiscuous::Error::Publisher)
-            @error_notifier_called_with.instance.should be_a(PublisherModel)
-          end
-        end
-      end
-    end
-
     context 'on the subscriber side' do
       before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /death/ } }
 

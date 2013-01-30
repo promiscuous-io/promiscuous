@@ -27,16 +27,6 @@ RSpec.configure do |config|
     Promiscuous::Worker.kill
     Promiscuous::AMQP.disconnect # This cleansup the queues since they have the auto-delete behavior
     Promiscuous::Subscriber::AMQP.subscribers.select! { |k| k =~ /__promiscuous__/ }
-    Promiscuous::Publisher::Mongoid::Defer.klasses.clear
+    Promiscuous::Publisher::Model.klasses.clear
   end
-end
-
-Promiscuous::Publisher::Worker.class_eval do
-  def self.poll_delay
-    0.1.second
-  end
-end
-
-Promiscuous::Publisher::Worker.class_eval do
-  def check_indexes; end
 end

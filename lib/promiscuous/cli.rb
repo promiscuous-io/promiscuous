@@ -39,20 +39,6 @@ class Promiscuous::CLI
     end
   end
 
-  def publish(options={})
-    replicate do
-      Promiscuous::Worker.replicate(options)
-      print_status "Replicating with #{Promiscuous::Publisher::Mongoid::Defer.klasses.count} publishers"
-    end
-  end
-
-  def subscribe(options={})
-    replicate do
-      Promiscuous::Worker.replicate(options)
-      print_status "Replicating with #{Promiscuous::Subscriber::AMQP.subscribers.count} subscribers"
-    end
-  end
-
   def publish_sync(options={})
     print_status "Replicating #{options[:criteria]}..."
     criteria = eval(options[:criteria])
@@ -66,6 +52,13 @@ class Promiscuous::CLI
     print_status "Done. You may switch your subscriber worker back to regular mode, and delete the sync queues"
   end
 
+  def subscribe(options={})
+    replicate do
+      Promiscuous::Worker.replicate
+      print_status "Replicating with #{Promiscuous::Subscriber::AMQP.subscribers.count} subscribers"
+    end
+  end
+
   def subscribe_sync(options={})
     replicate do
       # Create the regular queue if needed, so we don't lose messages.
@@ -74,7 +67,7 @@ class Promiscuous::CLI
       print_status "WARNING: --- SYNC MODE ----"
       print_status "WARNING: Make sure you are not running the regular subscriber worker (it's racy)"
       print_status "WARNING: --- SYNC MODE ----"
-      Promiscuous::Worker.replicate(options)
+      Promiscuous::Worker.replicate
       print_status "Replicating with #{Promiscuous::Subscriber::AMQP.subscribers.count} subscribers"
     end
   end
@@ -88,7 +81,7 @@ class Promiscuous::CLI
 
       opts.separator ""
       opts.separator "Actions:"
-      opts.separator "    publish"
+      opts.separator "    publish (sync only)"
       opts.separator "    subscribe"
       opts.separator ""
       opts.separator "Options:"

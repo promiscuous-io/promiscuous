@@ -3,11 +3,7 @@ module Promiscuous::Worker
   self.workers = []
 
   def self.replicate(options={})
-    options[:action] ||= [:publish, :subscribe]
-    actions = [options[:action]].flatten
-
-    self.workers <<  Promiscuous::Publisher::Worker.new(options).tap { |w| w.resume } if :publish.in? actions
-    self.workers << Promiscuous::Subscriber::Worker.new(options).tap { |w| w.resume } if :subscribe.in? actions
+    self.workers << Promiscuous::Subscriber::Worker.new(options).tap { |w| w.resume }
   end
 
   def self.kill

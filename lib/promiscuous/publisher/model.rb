@@ -1,6 +1,11 @@
+require 'set'
+
 module Promiscuous::Publisher::Model
   extend ActiveSupport::Concern
   include Promiscuous::Publisher::Envelope
+
+  mattr_accessor :klasses
+  self.klasses = Set.new
 
   def operation
     options[:operation]
@@ -30,10 +35,12 @@ module Promiscuous::Publisher::Model
         end
 
         def promiscuous_sync(options={})
-          options = options.merge({ :instance => self, :operation => :update, :defer => false })
+          options = options.merge({ :instance => self, :operation => :update })
           self.class.promiscuous_publisher.new(options).publish
           true
         end
+
+        Promiscuous::Publisher::Model.klasses << self
       end if klass
     end
   end

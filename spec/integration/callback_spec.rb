@@ -95,7 +95,7 @@ describe Promiscuous do
           end
         end
 
-        context 'when replacing', :pending => ORM.backend == :mongoid2 ? 'Mongoid is broken' : false do
+        context 'when replacing', :pending => 'Mongoid is broken' do
           it 'calls proper callbacks' do
             pub = PublisherModelEmbed.create(:model_embedded => { :embedded_field_1 => 'e1' })
             eventually { SubscriberModelEmbed.first.should_not == nil }
@@ -103,6 +103,7 @@ describe Promiscuous do
             SubscriberModelEmbedded.callbacks.clear
             pub.model_embedded = PublisherModelEmbedded.new
             pub_e = pub.model_embedded
+            binding.pry
             eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should =~ [:update, :save] }
           end
         end

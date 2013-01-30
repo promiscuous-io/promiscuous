@@ -9,7 +9,6 @@ module ORM
       :mongoid                 => [:mongoid2, :mongoid3],
       :polymorphic             => [:mongoid2, :mongoid3],
       :embedded_documents      => [:mongoid2, :mongoid3],
-      :pub_deferred_updates    => [:mongoid3],
       :many_embedded_documents => [:mongoid3],
       :versioning              => [:mongoid3],
       :find_and_modify         => [:mongoid3],
