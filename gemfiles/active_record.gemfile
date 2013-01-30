@@ -5,6 +5,7 @@ gem 'rake'
 gem 'rspec'
 gem 'mocha', :require => false
 gem 'pry'
+gem 'colorize'
 
 gem 'activerecord'
 gem 'sqlite3'

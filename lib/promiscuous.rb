@@ -13,6 +13,7 @@ module Promiscuous
       Config.configure(&block)
     end
 
+    require 'colorize'
     [:debug, :info, :error, :warn, :fatal].each do |level|
       define_method(level) do |msg|
         Promiscuous::Config.logger.__send__(level, "[promiscuous] #{msg}")

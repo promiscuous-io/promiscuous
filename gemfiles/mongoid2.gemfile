@@ -5,6 +5,7 @@ gem 'rake'
 gem 'rspec'
 gem 'mocha', :require => false
 gem 'pry'
+gem 'colorize'
 
 gem 'mongoid', '~> 2.4'
 gem 'bson_ext'

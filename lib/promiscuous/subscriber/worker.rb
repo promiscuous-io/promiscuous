@@ -25,7 +25,7 @@ class Promiscuous::Subscriber::Worker
     # Note: This code always runs on the root Fiber,
     # so ordering is always preserved
 
-    Promiscuous.debug "[receive] #{payload}"
+    Promiscuous.debug "[receive] #{payload}".light_cyan
     parsed_payload = JSON.parse(payload)
     queue = parsed_payload['__amqp__']
 
