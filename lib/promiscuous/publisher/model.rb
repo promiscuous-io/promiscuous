@@ -1,47 +1,64 @@
-require 'set'
+require 'crowdtap_redis_lock'
 
 module Promiscuous::Publisher::Model
   extend ActiveSupport::Concern
   include Promiscuous::Publisher::Envelope
 
   mattr_accessor :klasses
-  self.klasses = Set.new
+  self.klasses = []
 
   def operation
     options[:operation]
   end
 
   def payload
-    super.merge(:id => instance.id, :operation => operation)
+    super.merge(:id => instance.id, :operation => operation, :global_version => @global_version)
   end
 
   def include_attributes?
     operation != :destroy
   end
 
+  def with_lock(&block)
+    return yield if operation == :create
+
+    key = instance.id.to_s
+    ::RedisLock.new(Promiscuous::Redis, key).retry(50.times).every(0.2).lock_for_update(&block)
+  end
+
+  def commit_db(&block)
+    with_lock do
+      @global_version = Promiscuous::Redis.incr('promiscuous:global_version')
+      yield
+    end
+  end
+
+  module ModelInstanceMethods
+    extend ActiveSupport::Concern
+
+    def with_promiscuous(options={}, &block)
+      publisher = self.class.promiscuous_publisher.new(options.merge(:instance => self))
+      ret = publisher.commit_db(&block)
+      # FIXME if we die here, we are out of sync
+      publisher.publish
+      ret
+    end
+
+    included do
+      around_create  { |&block| with_promiscuous(:operation => :create,  &block) }
+      around_update  { |&block| with_promiscuous(:operation => :update,  &block) }
+      around_destroy { |&block| with_promiscuous(:operation => :destroy, &block) }
+    end
+  end
+
   module ClassMethods
     def setup_class_binding
       super
-      klass.class_eval do
-        cattr_accessor :publisher_operation_hooked
-        return if self.publisher_operation_hooked
-        self.publisher_operation_hooked = true
 
-        [:create, :update, :destroy].each do |operation|
-          __send__("after_#{operation}", "promiscuous_publish_#{operation}".to_sym)
-          define_method "promiscuous_publish_#{operation}" do
-            self.class.promiscuous_publisher.new(:instance => self, :operation => operation).publish
-          end
-        end
-
-        def promiscuous_sync(options={})
-          options = options.merge({ :instance => self, :operation => :update })
-          self.class.promiscuous_publisher.new(options).publish
-          true
-        end
-
-        Promiscuous::Publisher::Model.klasses << self
-      end if klass
+      if klass && !klass.include?(ModelInstanceMethods)
+        klass.__send__(:include, ModelInstanceMethods)
+        Promiscuous::Publisher::Model.klasses << klass
+      end
     end
   end
 end

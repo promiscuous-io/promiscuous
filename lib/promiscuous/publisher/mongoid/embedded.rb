@@ -12,10 +12,10 @@ module Promiscuous::Publisher::Mongoid::Embedded
   included do
     klass.class_eval do
       callback = proc do
-        if _parent.respond_to?(:promiscuous_publish_update)
+        if _parent.respond_to?(:with_promiscuous)
           _parent.save
-          _parent.reload # mongoid is not that smart, so we need to reload here.
-          _parent.promiscuous_publish_update
+          # XXX FIXME mongoid needs help, and we need to deal with that.
+          # We'll address that once we hook on moped
         end
       end
 

@@ -22,6 +22,8 @@ Gem::Specification.new do |s|
   s.add_dependency("amqp")
   s.add_dependency("em-synchrony")
   s.add_dependency("ruby-progressbar")
+  s.add_dependency("redis")
+  s.add_dependency("crowdtap_redis_lock")
 
   s.files        = Dir["lib/**/*"] + Dir["bin/**/*"] + ['README.md']
   s.require_path = 'lib'
