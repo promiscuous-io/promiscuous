@@ -54,6 +54,9 @@ class Promiscuous::Subscriber::Worker
     else
       yield
     end
+  ensure
+    if defined?(ActiveRecord)
+      ActiveRecord::Base.clear_active_connections!
+    end
   end
-
 end

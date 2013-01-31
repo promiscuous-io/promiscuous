@@ -1,11 +1,22 @@
 require 'active_record'
 
-ActiveRecord::Base.establish_connection(:adapter => "sqlite3", :database => ":memory:")
+if ENV['LOGGER_LEVEL']
+  ActiveRecord::Base.logger = Logger.new(STDERR)
+  ActiveRecord::Base.logger.level = ENV['LOGGER_LEVEL'].to_i
+end
+
+ActiveRecord::Base.establish_connection(
+  :adapter  => "postgresql",
+  :database => "promiscuous",
+  :username => "promiscuous",
+  :password => "promiscuous",
+  :encoding => "utf8"
+)
 
 class PromiscuousMigration < ActiveRecord::Migration
-  def self.up
+  def change
     [:publisher, :subscriber].each do |role|
-      create_table :"#{role}_models" do |t|
+      create_table :"#{role}_models", :force => true do |t|
         t.string :field_1
         t.string :field_2
         t.string :field_3

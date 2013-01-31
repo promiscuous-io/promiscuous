@@ -8,5 +8,5 @@ gem 'pry'
 gem 'colorize'
 
 gem 'activerecord'
-gem 'sqlite3'
+gem 'pg'
 gem 'database_cleaner'
