@@ -41,10 +41,8 @@ class Promiscuous::Subscriber::Worker::Message
   rescue Exception => e
     e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
 
-    # XXX we should not stop on the first error
     # and also stopping the worker is not very nice
-    retry_msg = worker.stop_for_a_while(e)
-    Promiscuous.warn "[receive] (#{retry_msg}) #{e} #{e.backtrace.join("\n")}"
+    Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"
 
     Promiscuous::Config.error_notifier.try(:call, e)
   end
