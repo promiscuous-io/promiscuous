@@ -26,7 +26,7 @@ describe Promiscuous do
     context 'when creating' do
       it 'calls proper callbacks' do
         pub = PublisherModel.create
-        eventually { SubscriberModel.callbacks[pub.id].should == [:create, :save] }
+        eventually { SubscriberModel.callbacks(:id => pub.id).should == [:create, :save] }
       end
     end
 
@@ -35,9 +35,9 @@ describe Promiscuous do
         pub = PublisherModel.create
         eventually { SubscriberModel.first.should_not == nil }
 
-        SubscriberModel.callbacks.clear
+        clear_callbacks
         pub.update_attributes(:field_1 => '1')
-        eventually { SubscriberModel.callbacks[pub.id].should == [:update, :save] }
+        eventually { SubscriberModel.callbacks(:id => pub.id).should == [:update, :save] }
       end
     end
 
@@ -46,9 +46,9 @@ describe Promiscuous do
         pub = PublisherModel.create
         eventually { SubscriberModel.first.should_not == nil }
 
-        SubscriberModel.callbacks.clear
+        clear_callbacks
         pub.destroy
-        eventually { SubscriberModel.callbacks[pub.id].should == [:destroy] }
+        eventually { SubscriberModel.callbacks(:id => pub.id).should == [:destroy] }
       end
     end
   end
@@ -91,7 +91,7 @@ describe Promiscuous do
           it 'calls proper callbacks' do
             pub = PublisherModelEmbed.create(:model_embedded => { :embedded_field_1 => 'e1' })
             pub_e = pub.model_embedded
-            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should =~ [:create, :save] }
+            eventually { SubscriberModelEmbedded.callbacks(:id => pub_e.id).should =~ [:create, :save] }
           end
         end
 
@@ -100,11 +100,10 @@ describe Promiscuous do
             pub = PublisherModelEmbed.create(:model_embedded => { :embedded_field_1 => 'e1' })
             eventually { SubscriberModelEmbed.first.should_not == nil }
 
-            SubscriberModelEmbedded.callbacks.clear
+            clear_callbacks
             pub.model_embedded = PublisherModelEmbedded.new
             pub_e = pub.model_embedded
-            binding.pry
-            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should =~ [:update, :save] }
+            eventually { SubscriberModelEmbedded.callbacks(:id => pub_e.id).should =~ [:update, :save] }
           end
         end
 
@@ -113,10 +112,10 @@ describe Promiscuous do
             pub = PublisherModelEmbed.create(:model_embedded => { :embedded_field_1 => 'e1' })
             eventually { SubscriberModelEmbed.first.should_not == nil }
 
-            SubscriberModelEmbedded.callbacks.clear
+            clear_callbacks
             pub_e = pub.model_embedded
             pub_e.update_attributes(:embedded_field_1 => 'updated')
-            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should =~ [:update, :save] }
+            eventually { SubscriberModelEmbedded.callbacks(:id => pub_e.id).should =~ [:update, :save] }
           end
         end
 
@@ -125,10 +124,10 @@ describe Promiscuous do
             pub = PublisherModelEmbed.create(:model_embedded => { :embedded_field_1 => 'e1' })
             eventually { SubscriberModelEmbed.first.should_not == nil }
 
-            SubscriberModelEmbedded.callbacks.clear
+            clear_callbacks
             pub.destroy
             pub_e = pub.model_embedded
-            eventually { SubscriberModelEmbedded.callbacks[pub_e.id].should == [:destroy] }
+            eventually { SubscriberModelEmbedded.callbacks(:id => pub_e.id).should == [:destroy] }
           end
         end
       end
@@ -171,7 +170,7 @@ describe Promiscuous do
         it 'calls proper callbacks' do
           pub = PublisherModelEmbedMany.create(:models_embedded => [{:embedded_field_1 => 'e1'}])
           pub_e1 = pub.models_embedded[0]
-          eventually { SubscriberModelEmbedded.callbacks[pub_e1.id].should =~ [:create, :save] }
+          eventually { SubscriberModelEmbedded.callbacks(:id => pub_e1.id).should =~ [:create, :save] }
         end
       end
 
@@ -179,10 +178,10 @@ describe Promiscuous do
         it 'calls proper callbacks' do
           pub = PublisherModelEmbedMany.create(:models_embedded => [{:embedded_field_1 => 'e1'}])
           eventually { SubscriberModelEmbedMany.first.should_not == nil }
-          SubscriberModelEmbedded.callbacks.clear
+          clear_callbacks
 
           pub_e2 = pub.models_embedded.create(:embedded_field_1 => 'e2')
-          eventually { SubscriberModelEmbedded.callbacks[pub_e2.id].should =~ [:create, :save] }
+          eventually { SubscriberModelEmbedded.callbacks(:id => pub_e2.id).should =~ [:create, :save] }
         end
       end
 
@@ -190,11 +189,11 @@ describe Promiscuous do
         it 'calls proper callbacks' do
           pub = PublisherModelEmbedMany.create(:models_embedded => [{:embedded_field_1 => 'e1'}])
           eventually { SubscriberModelEmbedMany.first.should_not == nil }
-          SubscriberModelEmbedded.callbacks.clear
+          clear_callbacks
 
           pub_e1 = pub.models_embedded[0]
           pub_e1.update_attributes(:embedded_field_1 => 'e1_updated')
-          eventually { SubscriberModelEmbedded.callbacks[pub_e1.id].should =~ [:update, :save] }
+          eventually { SubscriberModelEmbedded.callbacks(:id => pub_e1.id).should =~ [:update, :save] }
         end
       end
 
@@ -202,11 +201,11 @@ describe Promiscuous do
         it 'calls proper callbacks' do
           pub = PublisherModelEmbedMany.create(:models_embedded => [{:embedded_field_1 => 'e1'}])
           eventually { SubscriberModelEmbedMany.first.should_not == nil }
-          SubscriberModelEmbedded.callbacks.clear
+          clear_callbacks
 
           pub_e1 = pub.models_embedded[0]
           pub_e1.destroy
-          eventually { SubscriberModelEmbedded.callbacks[pub_e1.id].should == [:destroy] }
+          eventually { SubscriberModelEmbedded.callbacks(:id => pub_e1.id).should == [:destroy] }
         end
       end
 
@@ -214,7 +213,7 @@ describe Promiscuous do
           it 'calls proper callbacks' do
           pub = PublisherModelEmbedMany.create(:models_embedded => [{},{},{}])
           eventually { SubscriberModelEmbedMany.first.should_not == nil }
-          SubscriberModelEmbedded.callbacks.clear
+          clear_callbacks
 
           pub_e1 = pub.models_embedded[0]
           pub_e2 = pub.models_embedded[1]
@@ -227,10 +226,9 @@ describe Promiscuous do
           pub_e4 = pub.models_embedded.create
 
           eventually do
-            cb = SubscriberModelEmbedded.callbacks
-            cb[pub_e1.id].should =~ [:update, :save]
-            cb[pub_e2.id].should =~ [:destroy]
-            cb[pub_e4.id].should =~ [:create, :save]
+            SubscriberModelEmbedded.callbacks(:id => pub_e1.id).should =~ [:update, :save]
+            SubscriberModelEmbedded.callbacks(:id => pub_e2.id).should =~ [:destroy]
+            SubscriberModelEmbedded.callbacks(:id => pub_e4.id).should =~ [:create, :save]
           end
         end
       end
