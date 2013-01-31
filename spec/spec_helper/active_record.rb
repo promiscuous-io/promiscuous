@@ -31,6 +31,8 @@ class PromiscuousMigration < ActiveRecord::Migration
   migrate :up
 end
 
+DatabaseCleaner.strategy = :truncation
+
 RSpec.configure do |config|
   config.before(:each) do
     DatabaseCleaner.start
