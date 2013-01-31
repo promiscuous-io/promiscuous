@@ -18,18 +18,18 @@ class Promiscuous::Subscriber::Worker
   def resume
     @lock.synchronize do
       return unless self.stopped
+      self.stopped = false
       self.message_synchronizer.resume
       self.pump.resume
-      self.stopped = false
     end
   end
 
   def stop
     @lock.synchronize do
       return if self.stopped
-      self.stopped = true
       self.pump.stop
       self.message_synchronizer.stop
+      self.stopped = true
     end
   end
 

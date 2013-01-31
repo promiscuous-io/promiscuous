@@ -8,7 +8,7 @@ module Promiscuous::Redis
   end
 
   def self.new_connection
-    ::Redis.new(:url => Promiscuous::Config.redis_uri)
+    ::Redis.new(:url => Promiscuous::Config.redis_uri).tap { |r| r.client.connect }
   end
 
   def self.method_missing(name, *args, &block)
