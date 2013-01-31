@@ -20,7 +20,7 @@ module Promiscuous::AMQP::RubyAMQP
     end
 
     connection = ::AMQP.connect(amqp_options)
-    self.channel = ::AMQP::Channel.new(connection, :auto_recovery => true, :prefetch => 100)
+    self.channel = ::AMQP::Channel.new(connection, :auto_recovery => true, :prefetch => 1000)
 
     connection.on_tcp_connection_loss do |conn|
       unless conn.reconnecting?
@@ -80,8 +80,11 @@ module Promiscuous::AMQP::RubyAMQP
     end
 
     Promiscuous.debug "[publish] #{info_msg}".light_magenta
-    exchange(options[:exchange_name]).
-      publish(options[:payload], :routing_key => options[:key], :persistent => true)
+
+    EM.next_tick do
+      exchange(options[:exchange_name]).
+        publish(options[:payload], :routing_key => options[:key], :persistent => true)
+    end
   end
 
   def self.exchange(name)
