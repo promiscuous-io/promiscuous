@@ -1,49 +1,55 @@
-require 'thread'
-
 class Promiscuous::Subscriber::Worker::MessageSynchronizer
   class AbortThread < RuntimeError; end
 
-  attr_accessor :redis
+  attr_accessor :worker, :redis
 
-  def initialize
+  def initialize(worker)
+    self.worker = worker
     @subscriptions = {}
     @subscriptions_lock = Mutex.new
+    @state_lock = Mutex.new
   end
 
   def resume
-    self.redis = Promiscuous::Redis.new_connection
-    @thread = Thread.new { main_loop }
-  end
-
-  def redis_client
-    redis.client.instance_variable_get('@client')
-  end
-
-  def redis_client_call(*args)
-    redis_client.process([args])
+    @state_lock.synchronize do
+      self.redis = Promiscuous::Redis.new_connection
+      @thread = Thread.new { main_loop }
+    end
   end
 
   def stop
     if Thread.current != @thread
       @thread.raise AbortThread
       @thread.join
-      @thread = nil
     end
-    self.redis = nil
-    @subscriptions = {}
+
+    @state_lock.synchronize do
+      self.redis.client.connection.disconnect
+      self.redis = nil
+      @thread = nil
+      @subscriptions = {}
+    end
+  end
+
+  def stopped?
+    @thread.nil?
   end
 
   def main_loop
-    redis.subscribe('dummy') do |on|
-      on.subscribe do |subscription, num_subscriptions|
-        find_subscription(subscription).finalize_subscription unless subscription == 'dummy'
-      end
+    redis.client.without_socket_timeout do
+      loop do
+        reply = redis.client.read
 
-      on.message do |subscription, message|
-        find_subscription(subscription).maybe_perform_callbacks(message)
-      end
+        raise reply if reply.is_a?(Redis::CommandError)
+        type, subscription, arg = reply
 
-      on.unsubscribe do |subscription, num_subscriptions|
+        case type
+        when 'subscribe'
+          find_subscription(subscription).finalize_subscription unless subscription == 'dummy'
+        when 'unsubscribe'
+        when 'message'
+          find_subscription(subscription).maybe_perform_callbacks(arg)
+        end
       end
     end
   rescue AbortThread
@@ -65,7 +71,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
   def on_version(key, version, &callback)
     cb = Subscription::Callback.new(version, callback)
-    get_subscription(key).subscribe.add_callback(version, cb)
+    @state_lock.synchronize do
+      return if stopped?
+      get_subscription(key).subscribe.add_callback(version, cb)
+    end
     cb.maybe_perform(Promiscuous::Redis.get(key))
   end
 
@@ -96,7 +105,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     def subscribe
       @callbacks_lock.synchronize do
-        parent.redis_client_call(:subscribe, key)
+        parent.redis.client.process([[:subscribe, key]])
         @subscribed_to_redis.wait(@callbacks_lock)
       end
       self
