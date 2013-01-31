@@ -24,6 +24,8 @@ Gem::Specification.new do |s|
   s.add_dependency("ruby-progressbar")
   s.add_dependency("redis")
   s.add_dependency("crowdtap_redis_lock")
+  s.add_dependency("celluloid")
+  s.add_dependency("celluloid-io")
 
   s.files        = Dir["lib/**/*"] + Dir["bin/**/*"] + ['README.md']
   s.require_path = 'lib'

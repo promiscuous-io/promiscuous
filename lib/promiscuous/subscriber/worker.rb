@@ -9,28 +9,23 @@ class Promiscuous::Subscriber::Worker
     self.options = options
     self.stopped = true
 
-    @lock = Mutex.new
-
-    self.message_synchronizer = MessageSynchronizer.new(self)
     self.pump = Pump.new(self)
   end
 
   def resume
-    @lock.synchronize do
-      return unless self.stopped
-      self.stopped = false
-      self.message_synchronizer.resume
-      self.pump.resume
-    end
+    return unless self.stopped
+    self.stopped = false
+    self.message_synchronizer = MessageSynchronizer.new(self)
+    self.message_synchronizer.resume
+    self.pump.resume
   end
 
   def stop
-    @lock.synchronize do
-      return if self.stopped
-      self.pump.stop
-      self.message_synchronizer.stop
-      self.stopped = true
-    end
+    return if self.stopped
+    self.pump.stop
+    self.message_synchronizer.stop
+    self.message_synchronizer = nil
+    self.stopped = true
   end
 
   def stop_for_a_while(reason)
