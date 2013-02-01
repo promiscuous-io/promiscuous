@@ -32,6 +32,8 @@ module Promiscuous::Publisher::Model::Mongoid
     def commit(&block)
       return block.call if klass.nil?
       instance = fetch
+      self.selector = {:id => instance.id}
+
       return block.call unless instance.class.respond_to?(:promiscuous_publisher)
 
       publisher = instance.class.promiscuous_publisher
