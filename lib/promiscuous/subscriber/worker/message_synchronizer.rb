@@ -56,10 +56,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   # extra care needs to be taken to avoid processing the message twice (see
   # perform()).
   def process_when_ready(msg)
-    return msg.process unless msg.has_version?
+    return worker.runners.process!(msg) unless msg.has_version?
 
     on_version Promiscuous::Redis.sub_key('global'), msg.version[:global] do
-      msg.process
+      worker.runners.process!(msg)
     end
   end
 

@@ -1,8 +1,8 @@
 class Promiscuous::Subscriber::Worker
   extend Promiscuous::Autoload
-  autoload :Message, :Pump, :MessageSynchronizer
+  autoload :Message, :Pump, :MessageSynchronizer, :Runner
 
-  attr_accessor :options, :stopped, :pump, :message_synchronizer
+  attr_accessor :options, :stopped, :pump, :message_synchronizer, :runners
   alias_method :stopped?, :stopped
 
   def initialize(options={})
@@ -15,6 +15,7 @@ class Promiscuous::Subscriber::Worker
   def resume
     return unless self.stopped
     self.stopped = false
+    self.runners = Runner.pool
     self.message_synchronizer = MessageSynchronizer.new(self)
     self.message_synchronizer.resume
     self.pump.resume
@@ -25,6 +26,8 @@ class Promiscuous::Subscriber::Worker
     self.pump.stop
     self.message_synchronizer.stop rescue Celluloid::Task::TerminatedError
     self.message_synchronizer = nil
+    self.runners.terminate
+    self.runners = nil
     self.stopped = true
   end
 
