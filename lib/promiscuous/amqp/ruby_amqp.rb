@@ -79,7 +79,7 @@ module Promiscuous::AMQP::RubyAMQP
       raise Promiscuous::Error::Connection.new(:amqp, 'Not connected')
     end
 
-    Promiscuous.debug "[publish] #{info_msg}".light_magenta
+    Promiscuous.debug "[publish] #{info_msg}"
 
     EM.next_tick do
       exchange(options[:exchange_name]).

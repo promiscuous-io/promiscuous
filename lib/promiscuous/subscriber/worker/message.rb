@@ -32,7 +32,7 @@ class Promiscuous::Subscriber::Worker::Message
   def process
     return if worker.stopped?
 
-    Promiscuous.debug "[receive] #{payload}".light_cyan
+    Promiscuous.debug "[receive] #{payload}"
 
     worker.unit_of_work(queue_name) { Promiscuous::Subscriber.process(parsed_payload) }
 
