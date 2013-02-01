@@ -23,23 +23,10 @@ class Promiscuous::Subscriber::Worker
   def stop
     return if self.stopped
     self.pump.stop
-    self.message_synchronizer.stop
+    self.message_synchronizer.stop rescue Celluloid::Task::TerminatedError
     self.message_synchronizer = nil
     self.stopped = true
   end
-
-  def stop_for_a_while(reason)
-    stop
-    #self.retry_timeout = self.retry_timeout * 2
-
-    #if reason.inner.is_a? Promiscuous::Error::Connection
-      #"will retry when the #{reason.which} connection comes back"
-    #else
-      #EM::Timer.new(self.retry_timeout) { resume }
-      #"retrying in #{self.retry_timeout}s"
-    #end
-  end
-
 
   def unit_of_work(type)
     # type is used by the new relic agent, by monkey patching.
