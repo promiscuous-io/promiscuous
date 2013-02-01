@@ -66,7 +66,7 @@ module Promiscuous::Publisher::Model
       begin
         @new_instance = fetch
       rescue Exception => e
-        raise_out_of_sync(e)
+        raise_out_of_sync(e, payload.to_json)
       end
     end
 

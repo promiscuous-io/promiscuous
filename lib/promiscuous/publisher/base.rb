@@ -17,7 +17,7 @@ class Promiscuous::Publisher::Base
     self.published = true
   end
 
-  def raise_out_of_sync(exception)
-    raise Promiscuous::Error::Publisher.new(exception, :instance => instance, :out_of_sync => true)
+  def raise_out_of_sync(exception, payload)
+    raise Promiscuous::Error::Publisher.new(exception, :instance => instance, :out_of_sync => true, :payload => payload)
   end
 end
