@@ -61,6 +61,8 @@ module Promiscuous::Publisher::Model::Mongoid
     Moped::Query.class_eval do
       alias_method :update_orig, :update
       def update(change, flags=nil)
+        raise "No multi updates with promiscuous" if flags && flags.include?(:multi)
+
         Promiscuous::Publisher::Model::Mongoid::Commit.new(
           :collection => collection.name,
           :selector   => selector,
