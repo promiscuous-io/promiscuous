@@ -3,7 +3,6 @@ script: bundle exec rspec spec
 rvm:
   - 1.9.3
 gemfile:
-  - gemfiles/mongoid2.gemfile
   - gemfiles/mongoid3.gemfile
   - gemfiles/active_record.gemfile
 services:

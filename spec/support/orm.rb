@@ -6,9 +6,9 @@ module ORM
   def self.has(feature)
     {
       :active_record           => [:active_record],
-      :mongoid                 => [:mongoid2, :mongoid3],
-      :polymorphic             => [:mongoid2, :mongoid3],
-      :embedded_documents      => [:mongoid2, :mongoid3],
+      :mongoid                 => [:mongoid3],
+      :polymorphic             => [:mongoid3],
+      :embedded_documents      => [:mongoid3],
       :many_embedded_documents => [:mongoid3],
       :versioning              => [:mongoid3],
       :find_and_modify         => [:mongoid3],
