@@ -11,6 +11,8 @@ class Promiscuous::Subscriber::Worker
   def initialize(options={})
     Celluloid.exception_handler { |e| Promiscuous::Config.error_notifier.try(:call, e) }
 
+    options[:personality] = 'new'
+
     self.options = options
     self.stopped = true
 
