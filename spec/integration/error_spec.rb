@@ -34,21 +34,6 @@ describe Promiscuous do
           @error_notifier_called_with.payload.should =~ /death/
         end
       end
-
-      context 'when using regular mode' do
-        it 'stops processing messages' do
-          Promiscuous::AMQP.stubs(:disconnect)
-
-          pub = PublisherModel.create
-          pub.update_attributes!(:field_1 => 'death')
-          eventually { @error_notifier_called_with.should be_a(Exception) }
-
-          pub.update_attributes!(:field_1 => 'another_update')
-          eventually { SubscriberModel.find(pub.id).field_1.should_not == 'another_update' }
-
-          Promiscuous::AMQP.unstub(:disconnect)
-        end
-      end
     end
   end
 

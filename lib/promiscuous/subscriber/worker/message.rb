@@ -40,10 +40,7 @@ class Promiscuous::Subscriber::Worker::Message
     metadata.ack
   rescue Exception => e
     e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
-
-    # and also stopping the worker is not very nice
     Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"
-
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 end
