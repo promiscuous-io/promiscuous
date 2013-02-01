@@ -37,8 +37,8 @@ class Promiscuous::Subscriber::Worker::Pump
     exchange_name = Promiscuous::AMQP::EXCHANGE
 
     if worker.options[:personality]
-      queue_name    += ".#{options[:personality]}"
-      exchange_name += ".#{options[:personality]}"
+      queue_name    += ".#{worker.options[:personality]}"
+      exchange_name += ".#{worker.options[:personality]}"
     end
 
     bindings = Promiscuous::Subscriber::AMQP.subscribers.keys
