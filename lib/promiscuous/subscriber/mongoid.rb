@@ -1,6 +1,6 @@
 class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
   extend Promiscuous::Autoload
-  autoload :Embedded, :Versioning
+  autoload :Embedded
 
   include Promiscuous::Subscriber::Class
   include Promiscuous::Subscriber::Attributes
@@ -20,7 +20,6 @@ class Promiscuous::Subscriber::Mongoid < Promiscuous::Subscriber::Base
     else
       include Promiscuous::Subscriber::Model
       include Promiscuous::Subscriber::Upsert
-      include Promiscuous::Subscriber::Mongoid::Versioning
     end
 
     setup_class_binding
