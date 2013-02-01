@@ -14,7 +14,7 @@ class Promiscuous::Publisher::Mongoid < Promiscuous::Publisher::Base
       include Promiscuous::Publisher::Mongoid::Embedded
     else
       include Promiscuous::Publisher::Model
-      include Promiscuous::Publisher::Model::Generic
+      include Promiscuous::Publisher::Model::Mongoid
     end
 
     setup_class_binding

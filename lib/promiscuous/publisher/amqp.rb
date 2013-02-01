@@ -7,7 +7,7 @@ module Promiscuous::Publisher::AMQP
     exchange_name += ".#{options[:personality]}" if options[:personality]
     Promiscuous::AMQP.publish(:exchange_name => exchange_name, :key => to, :payload => payload.to_json)
   rescue Exception => e
-    raise Promiscuous::Error::Publisher.new(e, :instance => instance, :out_of_sync => true)
+    raise_out_of_sync(e)
   end
 
   def payload

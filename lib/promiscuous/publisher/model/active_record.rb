@@ -1,15 +1,12 @@
-module Promiscuous::Publisher::Model::Generic
+module Promiscuous::Publisher::Model::ActiveRecord
   extend ActiveSupport::Concern
 
   module ModelInstanceMethods
     extend ActiveSupport::Concern
 
     def with_promiscuous(options={}, &block)
-      publisher = self.class.promiscuous_publisher.new(options.merge(:instance => self))
-      ret = publisher.commit_db(&block)
-      # FIXME if we die here, we are out of sync
-      publisher.publish
-      ret
+      fetch_proc = proc { self.class.find(self.id) }
+      self.class.promiscuous_publisher.new(options.merge(:instance => self, :fetch_proc => fetch_proc)).commit(&block)
     end
 
     included do
@@ -22,11 +19,7 @@ module Promiscuous::Publisher::Model::Generic
   module ClassMethods
     def setup_class_binding
       super
-
-      if klass && !klass.include?(ModelInstanceMethods)
-        klass.__send__(:include, ModelInstanceMethods)
-        Promiscuous::Publisher::Model.klasses << klass
-      end
+      klass.__send__(:include, ModelInstanceMethods) if klass
     end
   end
 end

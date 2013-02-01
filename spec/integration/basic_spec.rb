@@ -66,7 +66,7 @@ describe Promiscuous do
     end
 
     if ORM.has(:find_and_modify)
-      it 'replicate', :pending => true do
+      it 'replicate' do
         pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
         PublisherModel.find_and_modify('$set' => { :field_1 => '1_updated', :field_2 => '2_updated'})
         pub.reload

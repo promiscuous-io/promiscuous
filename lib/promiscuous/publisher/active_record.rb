@@ -3,5 +3,5 @@ class Promiscuous::Publisher::ActiveRecord < Promiscuous::Publisher::Base
   include Promiscuous::Publisher::Attributes
   include Promiscuous::Publisher::AMQP
   include Promiscuous::Publisher::Model
-  include Promiscuous::Publisher::Model::Generic
+  include Promiscuous::Publisher::Model::ActiveRecord
 end
