@@ -8,7 +8,7 @@ module Promiscuous::Redis
   end
 
   def self.new_connection
-    ::Redis.new(:url => Promiscuous::Config.redis_uri).tap { |r| r.client.connect }
+    ::Redis.new(:url => Promiscuous::Config.redis_url).tap { |r| r.client.connect }
   end
 
   def self.new_celluloid_connection

@@ -4,17 +4,17 @@ module Promiscuous::AMQP::RubyAMQP
   def self.connect
     require 'amqp'
 
-    amqp_options = if Promiscuous::Config.server_uri
-      uri = URI.parse(Promiscuous::Config.server_uri)
-      raise "Please use amqp://user:password@host:port/vhost" if uri.scheme != 'amqp'
+    amqp_options = if Promiscuous::Config.amqp_url
+      url = URI.parse(Promiscuous::Config.amqp_url)
+      raise "Please use amqp://user:password@host:port/vhost" if url.scheme != 'amqp'
 
       {
-        :host      => uri.host,
-        :port      => uri.port,
-        :scheme    => uri.scheme,
-        :user      => uri.user,
-        :pass      => uri.password,
-        :vhost     => uri.path.empty? ? "/" : uri.path,
+        :host      => url.host,
+        :port      => url.port,
+        :scheme    => url.scheme,
+        :user      => url.user,
+        :pass      => url.password,
+        :vhost     => url.path.empty? ? "/" : url.path,
         :heartbeat => Promiscuous::Config.heartbeat
       }
     end
