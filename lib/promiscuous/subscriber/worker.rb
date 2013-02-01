@@ -38,7 +38,7 @@ class Promiscuous::Subscriber::Worker
     self.stopped = true
   end
 
-  def unit_of_work(type)
+  def unit_of_work(type, &block)
     # type is used by the new relic agent, by monkey patching.
     # middleware?
     if defined?(Mongoid)
