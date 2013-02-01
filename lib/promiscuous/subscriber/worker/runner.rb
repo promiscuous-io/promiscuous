@@ -1,5 +1,3 @@
-require 'celluloid'
-
 class Promiscuous::Subscriber::Worker::Runner
   include Celluloid
 

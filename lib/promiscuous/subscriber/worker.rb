@@ -1,4 +1,7 @@
 class Promiscuous::Subscriber::Worker
+  require 'celluloid'
+  require 'celluloid/io'
+
   extend Promiscuous::Autoload
   autoload :Message, :Pump, :MessageSynchronizer, :Runner
 
@@ -6,6 +9,8 @@ class Promiscuous::Subscriber::Worker
   alias_method :stopped?, :stopped
 
   def initialize(options={})
+    Celluloid.exception_handler { |e| Promiscuous::Config.error_notifier.try(:call, e) }
+
     self.options = options
     self.stopped = true
 

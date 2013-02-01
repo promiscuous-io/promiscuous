@@ -1,6 +1,3 @@
-require 'celluloid'
-require 'celluloid/io'
-
 class Promiscuous::Subscriber::Worker::MessageSynchronizer
   include Celluloid::IO
 
