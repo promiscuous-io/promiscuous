@@ -9,3 +9,6 @@ gemfile:
 services:
   - mongodb
   - rabbitmq
+  - redis-server
+before_script:
+  - psql -c 'create database promiscuous;' -U postgres

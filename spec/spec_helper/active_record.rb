@@ -8,8 +8,8 @@ end
 ActiveRecord::Base.establish_connection(
   :adapter  => "postgresql",
   :database => "promiscuous",
-  :username => "promiscuous",
-  :password => "promiscuous",
+  :username => ENV["TRAVIS"] ? "postgres" : "promiscuous",
+  :password => ENV["TRAVIS"] ?        nil : "promiscuous",
   :encoding => "utf8"
 )
 
