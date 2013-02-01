@@ -39,5 +39,21 @@ describe Promiscuous do
         end
       end
     end
+
+    context 'when the publisher fails' do
+      it 'replicates' do
+        pub1 = PublisherModel.create(:field_1 => '1')
+        expect do
+          PublisherModel.create({:id => pub1.id, :field_1 => '2'}, :without_protection => true)
+        end.to raise_error
+        pub3 = PublisherModel.create(:field_1 => '3')
+
+        eventually do
+          SubscriberModel.where(:id => pub1.id).first.should_not == nil
+          SubscriberModel.where(:id => pub3.id).first.should_not == nil
+        end
+      end
+    end
+
   end
 end

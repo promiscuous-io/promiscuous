@@ -18,8 +18,8 @@ module Promiscuous::Publisher::Model::Mongoid
     def fetch
       case operation
       when :create  then klass.new(document, :without_protection => true)
-      when :update  then klass.where(selector).first
-      when :destroy then klass.where(selector).first
+      when :update  then klass.with(:consistency => :strong).where(selector).first
+      when :destroy then klass.with(:consistency => :strong).where(selector).first
 
       end.tap do |doc|
         if doc.nil?

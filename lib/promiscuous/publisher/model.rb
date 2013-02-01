@@ -63,7 +63,6 @@ module Promiscuous::Publisher::Model
         exception = e
       end
 
-
       begin
         @new_instance = fetch
       rescue Exception => e
