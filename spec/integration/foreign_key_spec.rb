@@ -67,7 +67,7 @@ describe Promiscuous do
 
       eventually { SubscriberModel.first.should_not == nil }
 
-      SubscriberModel.delete_all
+      SubscriberModel.first.destroy
       use_real_amqp(:logger_level => Logger::FATAL)
       pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 

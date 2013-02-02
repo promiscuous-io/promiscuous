@@ -20,7 +20,6 @@ module Promiscuous::Publisher::Model::Mongoid
       when :create  then klass.new(document, :without_protection => true)
       when :update  then klass.with(:consistency => :strong).where(selector).first
       when :destroy then klass.with(:consistency => :strong).where(selector).first
-
       end.tap do |doc|
         if doc.nil?
           inner = Mongoid::Errors::DocumentNotFound.new(klass, selector)
@@ -94,6 +93,11 @@ module Promiscuous::Publisher::Model::Mongoid
         ).commit do
           remove_orig
         end
+      end
+
+      alias_method :remove_all_orig, :remove_all
+      def remove_all
+        raise "No multi deletes with promiscuous"
       end
     end
   end

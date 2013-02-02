@@ -29,7 +29,7 @@ describe Promiscuous do
 
       eventually { SubscriberModel.first.should_not == nil }
 
-      SubscriberModel.delete_all
+      SubscriberModel.first.destroy
       pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
       eventually do
@@ -47,7 +47,7 @@ describe Promiscuous do
       pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       eventually { SubscriberModel.first.should_not == nil }
 
-      SubscriberModel.delete_all
+      SubscriberModel.first.destroy
 
       pub2 = PublisherModel.create(:field_1 => 'a', :field_2 => 'b', :field_3 => 'c')
       pub1.destroy

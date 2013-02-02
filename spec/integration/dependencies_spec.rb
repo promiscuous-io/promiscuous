@@ -22,6 +22,20 @@ describe Promiscuous do
 
   before { Promiscuous::Worker.replicate }
 
+  if ORM.has(:mongoid)
+    context 'when doing multi updates' do
+      it 'fails immediately' do
+        expect { PublisherModel.update_all(:field_1 => '1') }.to raise_error
+      end
+    end
+
+    context 'when doing multi delete' do
+      it 'fails immediately' do
+        expect { PublisherModel.delete_all(:field_1 => '1') }.to raise_error
+      end
+    end
+  end
+
   context 'with total ordering' do
     context 'when the messages arrive out of order' do
       it 'replicates' do
