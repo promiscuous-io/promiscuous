@@ -39,6 +39,7 @@ module Promiscuous::Publisher::Model
   end
 
   def with_lock(&block)
+    return yield if Promiscuous::Config.backend == :null
     return yield if operation == :create
 
     key = Promiscuous::Redis.pub_key(instance.id)

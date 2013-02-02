@@ -8,10 +8,14 @@ module Promiscuous::Redis
   end
 
   def self.new_connection
+    return Null.new if Promiscuous::Config.backend == :null
+
     ::Redis.new(:url => Promiscuous::Config.redis_url).tap { |r| r.client.connect }
   end
 
   def self.new_celluloid_connection
+    return Null.new if Promiscuous::Config.backend == :null
+
     new_connection.tap do |redis|
       redis.client.connection.instance_eval do
         @sock = Celluloid::IO::TCPSocket.from_ruby_socket(@sock)
@@ -38,5 +42,11 @@ module Promiscuous::Redis
 
   def self.sub_key(str)
     "subscribers:#{Promiscuous::Config.app}:#{str}"
+  end
+
+  class Null
+    def method_missing(name, *args, &block)
+      0
+    end
   end
 end

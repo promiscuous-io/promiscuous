@@ -2,7 +2,8 @@ module Promiscuous::Config
   mattr_accessor :app, :logger, :error_notifier, :backend, :amqp_url, :redis_url, :queue_options, :heartbeat
 
   def self.backend=(value)
-    @@backend = "Promiscuous::AMQP::#{value.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize unless value.nil?
+    @@backend = value
+    Promiscuous::AMQP.backend = value unless value.nil?
   end
 
   def self.configure(&block)
