@@ -6,6 +6,7 @@ module Promiscuous::AMQP::Null
   end
 
   def self.connected?
+    true
   end
 
   def self.publish(options={})

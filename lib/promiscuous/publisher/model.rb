@@ -53,6 +53,10 @@ module Promiscuous::Publisher::Model
     ret = nil
     exception = nil
 
+    unless Promiscuous::AMQP.connected?
+      raise Promiscuous::Error::Connection.new(:amqp, 'Not connected')
+    end
+
     with_lock do
       @global_version = Promiscuous::Redis.incr(Promiscuous::Redis.pub_key('global'))
       begin
