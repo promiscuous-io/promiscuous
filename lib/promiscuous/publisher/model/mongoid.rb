@@ -11,7 +11,7 @@ module Promiscuous::Publisher::Model::Mongoid
     end
 
     def klass
-      @klass ||= (document['_type'].try(:constantize) if document) ||
+      @klass ||= document.try(:[], '_type').try(:constantize) ||
                  collection.singularize.camelize.constantize
     end
 
@@ -29,7 +29,6 @@ module Promiscuous::Publisher::Model::Mongoid
     end
 
     def commit(&block)
-      return block.call if klass.nil?
       instance = fetch
       self.selector = {:id => instance.id}
 
