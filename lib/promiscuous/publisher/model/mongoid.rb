@@ -21,17 +21,17 @@ module Promiscuous::Publisher::Model::Mongoid
       when :create  then klass.new(document, :without_protection => true)
       when :update  then klass.with(:consistency => :strong).where(selector).first
       when :destroy then klass.with(:consistency => :strong).where(selector).first
-      end.tap do |doc|
-        if doc.nil?
-          inner = Mongoid::Errors::DocumentNotFound.new(klass, selector)
-          raise Promiscuous::Error::Publisher.new(inner)
-        end
       end
     end
 
     def commit(&block)
       return block.call unless klass
+
+      # We bypass the call if instance == nil, the destroy or the update would
+      # have had no effect
       instance = fetch
+      return if instance.nil?
+
       return block.call unless instance.class.respond_to?(:promiscuous_publisher)
 
       self.selector = {:id => instance.id}

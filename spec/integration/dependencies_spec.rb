@@ -23,6 +23,24 @@ describe Promiscuous do
   before { Promiscuous::Worker.replicate }
 
   if ORM.has(:mongoid)
+    context 'when doing a blank update' do
+      it 'passes through' do
+        pub1 = PublisherModel.create(:field_1 => '1')
+        eventually { SubscriberModel.first.should_not == nil }
+        Mongoid.purge!
+        expect { pub1.update_attributes(:field_1 => '2') }.to_not raise_error
+      end
+    end
+
+    context 'when doing a blank destroy' do
+      it 'passes through' do
+        pub1 = PublisherModel.create(:field_1 => '1')
+        eventually { SubscriberModel.first.should_not == nil }
+        Mongoid.purge!
+        expect { pub1.destroy }.to_not raise_error
+      end
+    end
+
     context 'when doing multi updates' do
       it 'fails immediately' do
         expect { PublisherModel.update_all(:field_1 => '1') }.to raise_error
