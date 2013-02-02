@@ -20,7 +20,7 @@ describe Promiscuous::Subscriber::Worker, '.subscribe' do
   let(:sub_worker) { Promiscuous::Subscriber::Worker.new }
 
   it 'subscribes to the correct queue' do
-    queue_name = 'test_subscriber.promiscuous.new'
+    queue_name = 'test_subscriber.promiscuous'
     sub_worker.pump.queue_bindings[:queue_name].should == queue_name
   end
 end

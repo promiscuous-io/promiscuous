@@ -4,7 +4,6 @@ module Promiscuous::Publisher::AMQP
 
   def publish
     exchange_name = Promiscuous::AMQP::EXCHANGE
-    options[:personality] = 'new'
     exchange_name += ".#{options[:personality]}" if options[:personality]
     Promiscuous::AMQP.publish(:exchange_name => exchange_name, :key => to, :payload => payload.to_json)
   rescue Exception => e
