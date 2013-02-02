@@ -63,7 +63,9 @@ module Promiscuous::Publisher::Model::Mongoid
     Moped::Query.class_eval do
       alias_method :update_orig, :update
       def update(change, flags=nil)
-        raise "No multi updates with promiscuous" if flags && flags.include?(:multi)
+        if flags && flags.include?(:multi)
+          raise "Promiscuous: Do not use multi updates, update each instance separately"
+        end
 
         Promiscuous::Publisher::Model::Mongoid::Commit.new(
           :collection => collection.name,
@@ -98,7 +100,7 @@ module Promiscuous::Publisher::Model::Mongoid
 
       alias_method :remove_all_orig, :remove_all
       def remove_all
-        raise "No multi deletes with promiscuous"
+        raise "Promiscuous: Do not use delete_all, use destroy_all"
       end
     end
   end
