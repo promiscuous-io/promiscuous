@@ -13,6 +13,7 @@ module Promiscuous::Publisher::Model::Mongoid
     def klass
       @klass ||= document.try(:[], '_type').try(:constantize) ||
                  collection.singularize.camelize.constantize
+    rescue NameError
     end
 
     def fetch
@@ -29,10 +30,11 @@ module Promiscuous::Publisher::Model::Mongoid
     end
 
     def commit(&block)
+      return block.call unless klass
       instance = fetch
-      self.selector = {:id => instance.id}
-
       return block.call unless instance.class.respond_to?(:promiscuous_publisher)
+
+      self.selector = {:id => instance.id}
 
       publisher = instance.class.promiscuous_publisher
       publisher.new(:operation  => operation,
