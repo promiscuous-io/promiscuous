@@ -3,7 +3,7 @@ module Promiscuous::Worker
   self.workers = []
 
   def self.replicate(options={})
-    self.workers << Promiscuous::Subscriber::Worker.new(options).tap { |w| w.resume }
+    self.workers << Promiscuous::Subscriber::Worker.new(options).tap { |w| w.start }
   end
 
   def self.kill
@@ -16,7 +16,7 @@ module Promiscuous::Worker
     workers.each(&:stop)
   end
 
-  def self.resume
-    workers.each(&:resume)
+  def self.start
+    workers.each(&:start)
   end
 end

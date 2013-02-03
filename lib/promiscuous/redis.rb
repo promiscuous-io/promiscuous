@@ -10,7 +10,10 @@ module Promiscuous::Redis
   def self.new_connection
     return Null.new if Promiscuous::Config.backend == :null
 
-    ::Redis.new(:url => Promiscuous::Config.redis_url).tap { |r| r.client.connect }
+    redis = ::Redis.new(:url => Promiscuous::Config.redis_url,
+                        :tcp_keepalive => 60)
+    redis.client.connect
+    redis
   end
 
   def self.new_celluloid_connection

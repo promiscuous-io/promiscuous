@@ -5,7 +5,7 @@ class Promiscuous::Subscriber::Worker::Pump
     self.worker = worker
   end
 
-  def resume
+  def start
     if @queue
       # XXX TODO we should not access to the channel like this.
       # The abstraction is leaking.
@@ -22,11 +22,12 @@ class Promiscuous::Subscriber::Worker::Pump
   end
 
   def stop
-    # we should tell amqp that we want to stop using the queue
+    @queue.unsubscribe if @queue
+    @queue = nil
   end
 
   def process_payload(metadata, payload)
-    return if worker.stopped?
+    return unless @queue
 
     msg = Promiscuous::Subscriber::Worker::Message.new(worker, metadata, payload)
     worker.message_synchronizer.process_when_ready(msg)

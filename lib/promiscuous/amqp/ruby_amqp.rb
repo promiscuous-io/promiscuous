@@ -24,24 +24,28 @@ module Promiscuous::AMQP::RubyAMQP
 
     connection.on_tcp_connection_loss do |conn|
       unless conn.reconnecting?
-        Promiscuous.warn "[connection] Lost connection. Reconnecting..."
-        conn.periodically_reconnect(2)
+        e = Promiscuous::AMQP.lost_connection_exception
+        Promiscuous.warn "[amqp] #{e}. Reconnecting..."
+        Promiscuous::Config.error_notifier.try(:call, e)
 
-        exception = Promiscuous::Error::Connection.new(:amqp, 'Lost connection')
-        Promiscuous::Worker.stop # TODO XXX This doesn't belong here. hooks ?
-        Promiscuous::Config.error_notifier.try(:call, exception)
+        worker = Promiscuous::Worker.workers.first
+        worker.message_synchronizer.disconnect if worker
+
+        conn.periodically_reconnect(2.seconds)
       end
     end
 
     connection.on_recovery do |conn|
-      Promiscuous.warn "[connection] Reconnected"
-      Promiscuous::Worker.resume # TODO XXX This doesn't belong here. hooks ?
+      Promiscuous.warn "[amqp] Reconnected"
+
+      worker = Promiscuous::Worker.workers.first
+      worker.message_synchronizer.reconnect if worker
     end
 
     connection.on_error do |conn, conn_close|
       # No need to handle CONNECTION_FORCED since on_tcp_connection_loss takes
       # care of it.
-      Promiscuous.warn "[connection] #{conn_close.reply_text}"
+      Promiscuous.warn "[amqp] #{conn_close.reply_text}"
     end
   end
 
@@ -74,11 +78,6 @@ module Promiscuous::AMQP::RubyAMQP
 
   def self.publish(options={})
     info_msg = "(#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
-
-    unless channel.connection.connected?
-      raise Promiscuous::Error::Connection.new(:amqp, 'Not connected')
-    end
-
     Promiscuous.debug "[publish] #{info_msg}"
 
     EM.next_tick do

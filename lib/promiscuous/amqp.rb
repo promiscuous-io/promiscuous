@@ -11,6 +11,19 @@ module Promiscuous::AMQP
       @backend = "Promiscuous::AMQP::#{value.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize unless value.nil?
     end
 
-    delegate :connect, :disconnect, :connected?, :publish, :open_queue, :to => :backend
+    def lost_connection_exception
+      Promiscuous::Error::Connection.new(:service => :amqp)
+    end
+
+    def ensure_connected
+      raise lost_connection_exception unless connected?
+    end
+
+    def publish(options={})
+      ensure_connected
+      backend.publish(options)
+    end
+
+    delegate :connect, :disconnect, :connected?, :open_queue, :to => :backend
   end
 end

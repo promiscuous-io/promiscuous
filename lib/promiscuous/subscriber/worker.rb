@@ -17,13 +17,13 @@ class Promiscuous::Subscriber::Worker
     self.pump = Pump.new(self)
   end
 
-  def resume
+  def start
     return unless self.stopped
     self.stopped = false
     self.runners = Runner.pool
     self.message_synchronizer = MessageSynchronizer.new(self)
-    self.message_synchronizer.resume
-    self.pump.resume
+    self.message_synchronizer.start
+    self.pump.start
   end
 
   def stop

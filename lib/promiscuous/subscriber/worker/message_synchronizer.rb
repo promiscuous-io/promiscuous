@@ -5,11 +5,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
   def initialize(worker)
     self.worker = worker
-    @subscriptions = {}
   end
 
-  def resume
-    self.redis = Promiscuous::Redis.new_celluloid_connection
+  def start
+    connect
     main_loop!
   end
 
@@ -18,13 +17,51 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def finalize
+    disconnect
+  end
+
+  def connect
+    @subscriptions = {}
+    self.redis = Promiscuous::Redis.new_celluloid_connection
+  end
+
+  def rescue_connection
+    disconnect
+    e = Promiscuous::Error::Connection.new(:service => :redis)
+
+    Promiscuous.warn "[redis] #{e}. Reconnecting..."
+    Promiscuous::Config.error_notifier.try(:call, e)
+
+    worker.pump.stop
+    reconnect_later
+  end
+
+  def disconnect
     self.redis.client.connection.disconnect if self.redis
   rescue
+  ensure
+    self.redis = nil
+  end
+
+  def reconnect
+    @reconnect_timer = nil
+    self.connect
+    main_loop!
+  rescue
+    reconnect_later
+  else
+    Promiscuous.warn "[redis] Reconnected"
+    worker.pump.start
+  end
+
+  def reconnect_later
+    @reconnect_timer = after(2.seconds) { reconnect } unless @reconnect_timer
   end
 
   def main_loop
+    redis_client = self.redis.client
     loop do
-      reply = redis.client.read
+      reply = redis_client.read
       raise reply if reply.is_a?(Redis::CommandError)
       type, subscription, arg = reply
 
@@ -36,11 +73,19 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
         find_subscription(subscription).maybe_perform_callbacks(arg)
       end
     end
+  rescue EOFError
+    # Unwanted disconnection
+    rescue_connection
+  rescue IOError => e
+    unless redis_client == self.redis.client
+      # We were told to disconnect
+    else
+      raise e
+    end
   rescue Celluloid::Task::TerminatedError
   rescue Exception => e
     Promiscuous.warn "[redis] #{e} #{e.backtrace.join("\n")}"
 
-    e = Promiscuous::Error::Connection.new(:redis, 'Lost connection')
     Promiscuous::Worker.stop
     Promiscuous::Config.error_notifier.try(:call, e)
   end
@@ -53,6 +98,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   # extra care needs to be taken to avoid processing the message twice (see
   # perform()).
   def process_when_ready(msg)
+    # Dropped messages will be redelivered as we reconnect
+    # when calling worker.pump.start
+    return unless self.redis
+
     return worker.runners.process!(msg) unless msg.has_version?
 
     on_version Promiscuous::Redis.sub_key('global'), msg.version[:global] do
@@ -67,13 +116,11 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     cb.maybe_perform(Promiscuous::Redis.get(key))
   end
 
-  # state_lock must be taken before calling find_subscription()
   def find_subscription(key)
     raise "Fatal error (redis sub)" unless @subscriptions[key]
     @subscriptions[key]
   end
 
-  # state_lock must be taken before calling find_subscription()
   def get_subscription(key)
     @subscriptions[key] ||= Subscription.new(self, key)
   end
@@ -90,7 +137,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       @callbacks = {}
     end
 
-    # subscribe() is called with the state_lock of the parent held
     def subscribe
       request_subscription
 
@@ -102,8 +148,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     end
 
     def request_subscription
-      # We will not send two subscription requests, since we are holding
-      # the state_lock of the parent.
       return if @subscription_requested
       parent.redis.client.process([[:subscribe, key]])
       @subscription_requested = true
