@@ -40,6 +40,8 @@ module Promiscuous::AMQP::RubyAMQP
 
       worker = Promiscuous::Worker.workers.first
       worker.message_synchronizer.reconnect if worker
+
+      Promiscuous::AMQP::RubyAMQP.channel.recover
     end
 
     connection.on_error do |conn, conn_close|

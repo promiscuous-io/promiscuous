@@ -37,15 +37,28 @@ class Promiscuous::Subscriber::Worker::Message
     end
   end
 
-  def process
+  def ack
+    EM.next_tick do
+      begin
+        metadata.ack
+      rescue
+        # We don't care if we fail, the message will be redelivered at some point
+      end
+    end
+  end
+
+  def process(current_version)
     return if worker.stopped?
 
-    Promiscuous.debug "[receive] #{payload}"
+    if !has_global_version? || current_version + 1 == self.global_version
+      Promiscuous.debug "[receive] #{payload}"
+      worker.unit_of_work(queue_name) { Promiscuous::Subscriber.process(parsed_payload) }
+      update_dependencies
+    else
+      Promiscuous.debug "[receive] (skipped, already processed) #{payload}"
+    end
 
-    worker.unit_of_work(queue_name) { Promiscuous::Subscriber.process(parsed_payload) }
-
-    update_dependencies
-    EM.next_tick { metadata.ack }
+    ack
   rescue Exception => e
     e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
     Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"

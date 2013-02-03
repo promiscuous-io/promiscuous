@@ -1,4 +1,5 @@
 class Promiscuous::Subscriber::Worker::Pump
+  # TODO Make this celluloid happy
   attr_accessor :worker
 
   def initialize(worker)
@@ -6,29 +7,23 @@ class Promiscuous::Subscriber::Worker::Pump
   end
 
   def start
-    if @queue
-      # XXX TODO we should not access to the channel like this.
-      # The abstraction is leaking.
-      # Actually, we actually want one channel per worker.
-
-      # The following tells rabbitmq to resend the unacked messages
-      Promiscuous::AMQP::RubyAMQP.channel.recover
-    else
-      Promiscuous::AMQP.open_queue(queue_bindings) do |queue|
-        @queue = queue
-        @queue.subscribe({:ack => true}, &method(:process_payload))
+    return if @queue
+    Promiscuous::AMQP.open_queue(queue_bindings) do |queue|
+      @queue = queue
+      @queue.subscribe :ack => true do |metadata, payload|
+        # we drop the payload if we switched to another queue,
+        # duplicate messages could hurt us.
+        process_payload(metadata, payload) if queue == @queue
       end
     end
   end
 
   def stop
-    @queue.unsubscribe if @queue
-    @queue = nil
+    queue, @queue = @queue, nil
+    queue.unsubscribe if queue rescue nil
   end
 
   def process_payload(metadata, payload)
-    return unless @queue
-
     msg = Promiscuous::Subscriber::Worker::Message.new(worker, metadata, payload)
     worker.message_synchronizer.process_when_ready(msg)
   end

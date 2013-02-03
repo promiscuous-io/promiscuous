@@ -25,6 +25,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     self.redis = Promiscuous::Redis.new_celluloid_connection
   end
 
+  def connected?
+    !!self.redis
+  end
+
   def rescue_connection
     disconnect
     e = Promiscuous::Redis.lost_connection_exception
@@ -32,30 +36,34 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Promiscuous.warn "[redis] #{e}. Reconnecting..."
     Promiscuous::Config.error_notifier.try(:call, e)
 
-    worker.pump.stop
+    EM.next_tick { worker.pump.stop }
     reconnect_later
   end
 
   def disconnect
-    self.redis.client.connection.disconnect if self.redis
+    self.redis.client.connection.disconnect if connected?
   rescue
   ensure
     self.redis = nil
   end
 
   def reconnect
+    @reconnect_timer.try(:reset)
     @reconnect_timer = nil
-    self.connect
-    main_loop!
+
+    unless connected?
+      self.connect
+      main_loop!
+
+      Promiscuous.warn "[redis] Reconnected"
+      EM.next_tick { worker.pump.start }
+    end
   rescue
     reconnect_later
-  else
-    Promiscuous.warn "[redis] Reconnected"
-    worker.pump.start
   end
 
   def reconnect_later
-    @reconnect_timer = after(2.seconds) { reconnect } unless @reconnect_timer
+    @reconnect_timer ||= after(2.seconds) { reconnect }
   end
 
   def main_loop
@@ -102,10 +110,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     # when calling worker.pump.start
     return unless self.redis
 
-    return worker.runners.process!(msg) unless msg.has_global_version?
+    return worker.runners.process!(msg, 0) unless msg.has_global_version?
 
-    on_version Promiscuous::Redis.sub_key('global'), msg.global_version do
-      worker.runners.process!(msg)
+    on_version Promiscuous::Redis.sub_key('global'), msg.global_version do |current_version|
+      worker.runners.process!(msg, current_version)
     end
   end
 
@@ -113,7 +121,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     return unless @subscriptions
     cb = Subscription::Callback.new(version, callback)
     get_subscription(key).subscribe.add_callback(version, cb)
-    cb.maybe_perform(Promiscuous::Redis.get(key))
+    cb.current_version = Promiscuous::Redis.get(key)
   end
 
   def find_subscription(key)
@@ -174,7 +182,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     def maybe_perform_callbacks(current_version)
       @callbacks.values.each do |cb|
-        cb.maybe_perform(current_version)
+        cb.current_version = current_version
       end
     end
 
@@ -189,23 +197,32 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       attr_accessor :subscription, :version, :callback, :token
 
       def initialize(version, callback)
+        @current_version = 0
         self.version = version
         self.callback = callback
         @token = self.class.get_next_token
       end
 
-      def can_perform?(current_version)
-        current_version.to_i + 1 == self.version
+      def current_version=(value)
+        @current_version = value.to_i
+        maybe_perform
+        value
+      end
+
+      private
+
+      def can_perform?
+        @current_version + 1 >= self.version
       end
 
       def perform
         # removing the callback can happen only once, ensuring that the
         # callback is called at most once.
-        callback.call if subscription.remove_callback(@token)
+        callback.call(@current_version) if subscription.remove_callback(@token)
       end
 
-      def maybe_perform(current_version)
-        perform if can_perform?(current_version)
+      def maybe_perform
+        perform if can_perform?
       end
     end
   end
