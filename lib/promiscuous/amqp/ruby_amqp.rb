@@ -79,9 +79,6 @@ module Promiscuous::AMQP::RubyAMQP
   end
 
   def self.publish(options={})
-    info_msg = "(#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
-    Promiscuous.debug "[publish] #{info_msg}"
-
     EM.next_tick do
       exchange(options[:exchange_name]).
         publish(options[:payload], :routing_key => options[:key], :persistent => true)

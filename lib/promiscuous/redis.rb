@@ -7,6 +7,11 @@ module Promiscuous::Redis
     self.master = new_connection
   end
 
+  def self.disconnect
+    self.master.client.disconnect
+    self.master = nil
+  end
+
   def self.new_connection
     return Null.new if Promiscuous::Config.backend == :null
 

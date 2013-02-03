@@ -29,10 +29,14 @@ class Promiscuous::Subscriber::Worker
   def stop
     return if self.stopped
     self.pump.stop
-    self.message_synchronizer.stop rescue Celluloid::Task::TerminatedError
-    self.message_synchronizer = nil
-    self.runners.terminate
-    self.runners = nil
+    if self.message_synchronizer
+      self.message_synchronizer.stop rescue Celluloid::Task::TerminatedError
+      self.message_synchronizer = nil
+    end
+    if self.runners
+      self.runners.terminate
+      self.runners = nil
+    end
     self.stopped = true
     # TODO wait for the runners to finish
   end
