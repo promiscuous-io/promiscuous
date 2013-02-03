@@ -4,11 +4,12 @@ module Promiscuous::Redis
   mattr_accessor :master
 
   def self.connect
+    disconnect
     self.master = new_connection
   end
 
   def self.disconnect
-    self.master.client.disconnect
+    self.master.client.disconnect if self.master
     self.master = nil
   end
 
@@ -63,6 +64,10 @@ module Promiscuous::Redis
   end
 
   class Null
+    def client
+      return self.class.new
+    end
+
     def method_missing(name, *args, &block)
       0
     end

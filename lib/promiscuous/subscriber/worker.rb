@@ -38,7 +38,9 @@ class Promiscuous::Subscriber::Worker
       self.runners = nil
     end
     self.stopped = true
+
     # TODO wait for the runners to finish
+    sleep 1
   end
 
   def unit_of_work(type, &block)

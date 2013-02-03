@@ -25,7 +25,7 @@ RSpec.configure do |config|
 
   config.after do
     Promiscuous::Worker.kill
-    Promiscuous::AMQP.disconnect # This cleansup the queues since they have the auto-delete behavior
+    Promiscuous.disconnect # This cleansup the queues since they have the auto-delete behavior
     Promiscuous::Subscriber::AMQP.subscribers.select! { |k| k =~ /__promiscuous__/ }
     Promiscuous::Publisher::Model.klasses.clear
   end

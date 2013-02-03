@@ -16,7 +16,6 @@ module Promiscuous::Config
     self.queue_options ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.heartbeat ||= 60
 
-    Promiscuous::AMQP.connect
-    Promiscuous::Redis.connect
+    Promiscuous.connect
   end
 end

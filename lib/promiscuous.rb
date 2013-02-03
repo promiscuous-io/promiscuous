@@ -26,6 +26,16 @@ module Promiscuous
       desc.each { |klass| klass.setup_class_binding }
     end
 
+    def connect
+      AMQP.connect
+      Redis.connect
+    end
+
+    def disconnect
+      AMQP.disconnect
+      Redis.disconnect
+    end
+
     def healthy?
       AMQP.ensure_connected
       Redis.ensure_connected

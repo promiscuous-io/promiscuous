@@ -12,9 +12,9 @@ class Promiscuous::CLI
   end
 
   def force_backend(backend)
-    Promiscuous::AMQP.disconnect
+    Promiscuous.disconnect
     Promiscuous::Config.backend = backend
-    Promiscuous::AMQP.connect
+    Promiscuous.connect
   end
 
   def trap_signals
