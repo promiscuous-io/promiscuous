@@ -25,5 +25,14 @@ module Promiscuous
       desc.reject! { |klass| klass.name =~ /^Promiscuous::/ }
       desc.each { |klass| klass.setup_class_binding }
     end
+
+    def healthy?
+      AMQP.ensure_connected
+      Redis.ensure_connected
+    rescue
+      false
+    else
+      true
+    end
   end
 end

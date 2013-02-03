@@ -35,6 +35,16 @@ module Promiscuous::Redis
     end
   end
 
+  def self.lost_connection_exception
+    Promiscuous::Error::Connection.new(:service => :redis)
+  end
+
+  def self.ensure_connected
+    Promiscuous::Redis.master.ping
+  rescue
+    raise lost_connection_exception
+  end
+
   def self.method_missing(name, *args, &block)
     self.master.__send__(name, *args, &block)
   end

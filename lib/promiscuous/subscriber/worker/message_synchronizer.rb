@@ -27,7 +27,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
   def rescue_connection
     disconnect
-    e = Promiscuous::Error::Connection.new(:service => :redis)
+    e = Promiscuous::Redis.lost_connection_exception
 
     Promiscuous.warn "[redis] #{e}. Reconnecting..."
     Promiscuous::Config.error_notifier.try(:call, e)
