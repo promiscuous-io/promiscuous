@@ -43,7 +43,8 @@ module Promiscuous::Publisher::Model
     return yield if operation == :create
 
     key = Promiscuous::Redis.pub_key(instance.id)
-    ::RedisLock.new(Promiscuous::Redis, key).retry(50.times).every(0.2).lock_for_update(&block)
+    # We'll block for 60 seconds before raising an exception
+    ::RedisLock.new(Promiscuous::Redis, key).retry(300).every(0.2).lock_for_update(&block)
   end
 
   def instance
