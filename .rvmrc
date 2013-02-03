@@ -1,2 +1,1 @@
 rvm use 1.9.3-p327@promiscuous
-export TIMEOUT=0.5
