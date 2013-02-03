@@ -16,16 +16,18 @@ Gem::Specification.new do |s|
 
   s.executables   = ['promiscuous']
 
-  s.add_dependency("activesupport")
-  s.add_dependency("activemodel")
-  s.add_dependency("bunny")
-  s.add_dependency("amqp")
-  s.add_dependency("em-synchrony")
-  s.add_dependency("ruby-progressbar")
-  s.add_dependency("redis")
-  s.add_dependency("crowdtap_redis_lock")
-  s.add_dependency("celluloid")
-  s.add_dependency("celluloid-io")
+  s.add_dependency "activesupport",       ">= 3.0.0"
+  s.add_dependency "activemodel",         ">= 3.0.0"
+  s.add_dependency "bunny",               "~> 0.8.0"
+  s.add_dependency "amqp",                "~> 0.9.8"
+  s.add_dependency "em-synchrony",        "~> 1.0.3"
+  s.add_dependency "ruby-progressbar",    "~> 1.0.2"
+  # We wish to have redis 3.0.2, but one of our plugin in crowdtap (vanity)
+  # requires redis =2.2.2
+  s.add_dependency "redis"
+  s.add_dependency "crowdtap_redis_lock", "~> 0.1.2"
+  s.add_dependency "celluloid",           "~> 0.12.4"
+  s.add_dependency "celluloid-io",        "~> 0.12.1"
 
   s.files        = Dir["lib/**/*"] + Dir["bin/**/*"] + ['README.md']
   s.require_path = 'lib'
