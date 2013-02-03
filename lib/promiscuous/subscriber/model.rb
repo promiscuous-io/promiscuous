@@ -93,6 +93,7 @@ module Promiscuous::Subscriber::Model
       when :create  then instance.save!
       when :update  then instance.save!
       when :destroy then instance.destroy
+      when :dummy   then nil
       end
     end
   end

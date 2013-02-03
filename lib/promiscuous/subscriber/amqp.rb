@@ -7,10 +7,8 @@ module Promiscuous::Subscriber::AMQP
 
   def self.subscriber_from(payload)
     if key = payload.is_a?(Hash) ? payload['__amqp__'] : nil
-      unless self.subscribers.has_key?(key)
-        raise "Unknown binding: '#{key}'"
-      end
-      self.subscribers[key]
+      sub = self.subscribers[key]
+      sub ||= Promiscuous::Subscriber::Dummy
     end
   end
 

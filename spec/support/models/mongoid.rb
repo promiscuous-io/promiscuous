@@ -84,6 +84,14 @@ module ModelsHelper
       field :publisher_id, :type => BSON::ObjectId
     end
 
+    define_constant('SubscriberModelOther') do
+      include Mongoid::Document
+
+      field :field_1
+      field :field_2
+      field :field_3
+    end
+
     define_constant('SubscriberModelChild', SubscriberModel) do
       field :child_field_1
       field :child_field_2

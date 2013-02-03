@@ -15,8 +15,9 @@ ActiveRecord::Base.establish_connection(
 
 class PromiscuousMigration < ActiveRecord::Migration
   def change
-    [:publisher, :subscriber].each do |role|
-      create_table :"#{role}_models", :force => true do |t|
+    [:publisher_models, :publisher_model_others,
+     :subscriber_models, :subscriber_model_others].each do |table|
+      create_table table, :force => true do |t|
         t.string :field_1
         t.string :field_2
         t.string :field_3

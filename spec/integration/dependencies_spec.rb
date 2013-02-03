@@ -90,6 +90,26 @@ describe Promiscuous do
       end
     end
 
+    context 'when subscribing to a subset of models' do
+      before do
+        define_constant('PublisherOther', ORM::PublisherBase) do
+          publish :to => 'crowdtap/publisher_model_other',
+                  :class => :PublisherModelOther,
+                  :attributes => [:field_1, :field_2, :field_3]
+        end
+      end
+
+      it 'replicates' do
+        PublisherModel.create
+        PublisherModelOther.create
+        PublisherModel.create
+
+        eventually do
+          SubscriberModel.num_saves.should == 2
+        end
+      end
+    end
+
     context 'when the publisher fails' do
       it 'replicates' do
         pub1 = PublisherModel.create(:field_1 => '1')
@@ -103,6 +123,5 @@ describe Promiscuous do
         end
       end
     end
-
   end
 end

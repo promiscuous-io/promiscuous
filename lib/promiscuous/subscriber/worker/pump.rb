@@ -37,7 +37,8 @@ class Promiscuous::Subscriber::Worker::Pump
       exchange_name += ".#{worker.options[:personality]}"
     end
 
-    bindings = Promiscuous::Subscriber::AMQP.subscribers.keys
+    # We need to subscribe to everything to keep up with the version tracking
+    bindings = ['*']
     {:exchange_name => exchange_name, :queue_name => queue_name, :bindings => bindings}
   end
 end

@@ -1,7 +1,7 @@
 module Promiscuous::Subscriber
   extend Promiscuous::Autoload
   autoload :ActiveRecord, :AMQP, :Attributes, :Base, :Class, :Envelope, :Error,
-           :Lint, :Model, :Mongoid, :Polymorphic, :Upsert, :Observer, :Worker
+           :Lint, :Model, :Mongoid, :Polymorphic, :Upsert, :Observer, :Worker, :Dummy
 
   def self.lint(*args)
     Lint.lint(*args)
