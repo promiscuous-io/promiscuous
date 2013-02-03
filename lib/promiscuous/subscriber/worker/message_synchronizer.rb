@@ -110,10 +110,12 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     # when calling worker.pump.start
     return unless self.redis
 
-    return worker.runners.process!(msg, 0) unless msg.has_global_version?
+    return worker.runners.process!(msg) unless msg.has_dependencies?
 
-    on_version Promiscuous::Redis.sub_key('global'), msg.global_version do |current_version|
-      worker.runners.process!(msg, current_version)
+    # The message synchronizer only takes care of happens before (>=) dependencies.
+    # The message will handle the skip logic in case of duplicates.
+    on_version Promiscuous::Redis.sub_key('global'), msg.global_version do
+      worker.runners.process!(msg)
     end
   end
 
@@ -218,7 +220,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       def perform
         # removing the callback can happen only once, ensuring that the
         # callback is called at most once.
-        callback.call(@current_version) if subscription.remove_callback(@token)
+        callback.call if subscription.remove_callback(@token)
       end
 
       def maybe_perform

@@ -23,18 +23,8 @@ class Promiscuous::Subscriber::Worker::Message
     version.try(:[], :global)
   end
 
-  def has_global_version?
+  def has_dependencies?
     !!global_version
-  end
-
-  def update_dependencies
-    if has_global_version?
-      global_key = Promiscuous::Redis.sub_key('global')
-      # Note that we do not use incr to avoid out of sync versions
-      # The message sychnronizer enforces the global version with ==
-      Promiscuous::Redis.set(global_key, global_version)
-      Promiscuous::Redis.publish(global_key, global_version)
-    end
   end
 
   def ack
@@ -47,15 +37,12 @@ class Promiscuous::Subscriber::Worker::Message
     end
   end
 
-  def process(current_version)
+  def process
     return if worker.stopped?
 
-    if !has_global_version? || current_version + 1 == self.global_version
-      Promiscuous.debug "[receive] #{payload}"
-      worker.unit_of_work(queue_name) { Promiscuous::Subscriber.process(parsed_payload) }
-      update_dependencies
-    else
-      Promiscuous.debug "[receive] (skipped, already processed) #{payload}"
+    Promiscuous.debug "[receive] #{payload}"
+    worker.unit_of_work(queue_name) do
+      Promiscuous::Subscriber.process(parsed_payload, :message => self)
     end
 
     ack

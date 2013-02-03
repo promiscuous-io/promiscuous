@@ -22,20 +22,16 @@ module Promiscuous::Publisher::Model
     end
   end
 
-  def version
-    {:global => @global_version}
-  end
-
   def payload
-    if @dummy_commit
-      {:version => version, :operation => :dummy}
-    else
-      super.merge(:id => instance.id, :operation => operation, :version => version)
-    end
+    super.merge(:id => instance.id, :operation => operation, :version => version)
   end
 
   def include_attributes?
-    operation != :destroy
+    !operation.in? [:destroy, :dummy]
+  end
+
+  def instance
+    @new_instance || super
   end
 
   def with_lock(&block)
@@ -47,8 +43,12 @@ module Promiscuous::Publisher::Model
     ::RedisLock.new(Promiscuous::Redis, key).retry(300).every(0.2).lock_for_update(&block)
   end
 
-  def instance
-    @new_instance || super
+  def version
+    {:global => @global_version}
+  end
+
+  def update_dependencies
+    @global_version = Promiscuous::Redis.incr(Promiscuous::Redis.pub_key('global'))
   end
 
   def commit
@@ -58,12 +58,13 @@ module Promiscuous::Publisher::Model
     Promiscuous::AMQP.ensure_connected
 
     with_lock do
-      @global_version = Promiscuous::Redis.incr(Promiscuous::Redis.pub_key('global'))
+      update_dependencies
       begin
         ret = yield
       rescue Exception => e
-        # save it for later
-        @dummy_commit = true
+        # we must publish something so the subscriber can sync
+        # with the updated dependencies
+        options[:operation] = :dummy
         exception = e
       end
 
@@ -74,7 +75,6 @@ module Promiscuous::Publisher::Model
       end
     end
 
-    # We always need to publish so that the subscriber can keep up
     publish
 
     raise exception if exception

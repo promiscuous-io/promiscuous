@@ -4,19 +4,16 @@ class Promiscuous::Subscriber::Observer < Promiscuous::Subscriber::Base
   include Promiscuous::Subscriber::Polymorphic
   include Promiscuous::Subscriber::AMQP
   include Promiscuous::Subscriber::Envelope
+  include Promiscuous::Subscriber::Model
 
   def fetch
     klass.new.tap { |o| o.id = id if o.respond_to?(:id=) }
   end
 
-  def process
-    super
-    instance.run_callbacks operation
-  end
-
-  # XXX destroy callbacks will not set attributes (they are not sent)
-  def process_attributes?
-    operation != :destroy
+  def commit
+    with_dependencies do
+      instance.run_callbacks operation unless operation == :dummy
+    end
   end
 
   def self.subscribe(options)

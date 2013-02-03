@@ -72,6 +72,24 @@ describe Promiscuous do
       end
     end
 
+    context 'when the messages are duplicated' do
+      it 'does not replicate the duplicates' do
+        Publisher.any_instance.stubs(:version).returns(
+          {:global => 1}, {:global => 2}, {:global => 1}, {:global => 3}
+        )
+
+        pub = PublisherModel.create
+        pub.update_attributes(:field_1 => '1')
+        pub.update_attributes(:field_1 => '2')
+        pub.update_attributes(:field_1 => '3')
+
+        eventually do
+          SubscriberModel.first.field_1.should == '3'
+          SubscriberModel.num_saves.should == 3
+        end
+      end
+    end
+
     context 'when the publisher fails' do
       it 'replicates' do
         pub1 = PublisherModel.create(:field_1 => '1')
@@ -81,8 +99,7 @@ describe Promiscuous do
         pub3 = PublisherModel.create(:field_1 => '3')
 
         eventually do
-          SubscriberModel.where(:id => pub1.id).first.should_not == nil
-          SubscriberModel.where(:id => pub3.id).first.should_not == nil
+          SubscriberModel.count.should == 2
         end
       end
     end
