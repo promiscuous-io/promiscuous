@@ -15,18 +15,26 @@ class Promiscuous::Subscriber::Worker::Message
     parsed_payload['__amqp__']
   end
 
-  def has_version?
-    !!version
-  end
-
   def version
     @version ||= parsed_payload['version'].try(:symbolize_keys)
   end
 
+  def global_version
+    version.try(:[], :global)
+  end
+
+  def has_global_version?
+    !!global_version
+  end
+
   def update_dependencies
-    global_key = Promiscuous::Redis.sub_key('global')
-    global_version = Promiscuous::Redis.incr global_key
-    Promiscuous::Redis.publish(global_key, global_version)
+    if has_global_version?
+      global_key = Promiscuous::Redis.sub_key('global')
+      # Note that we do not use incr to avoid out of sync versions
+      # The message sychnronizer enforces the global version with ==
+      Promiscuous::Redis.set(global_key, global_version)
+      Promiscuous::Redis.publish(global_key, global_version)
+    end
   end
 
   def process
@@ -37,7 +45,7 @@ class Promiscuous::Subscriber::Worker::Message
     worker.unit_of_work(queue_name) { Promiscuous::Subscriber.process(parsed_payload) }
 
     update_dependencies
-    metadata.ack
+    EM.next_tick { metadata.ack }
   rescue Exception => e
     e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
     Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"

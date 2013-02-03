@@ -102,9 +102,9 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     # when calling worker.pump.start
     return unless self.redis
 
-    return worker.runners.process!(msg) unless msg.has_version?
+    return worker.runners.process!(msg) unless msg.has_global_version?
 
-    on_version Promiscuous::Redis.sub_key('global'), msg.version[:global] do
+    on_version Promiscuous::Redis.sub_key('global'), msg.global_version do
       worker.runners.process!(msg)
     end
   end
@@ -195,7 +195,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       end
 
       def can_perform?(current_version)
-        current_version.to_i + 1 >= self.version
+        current_version.to_i + 1 == self.version
       end
 
       def perform
