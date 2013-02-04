@@ -52,7 +52,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       main_loop!
 
       Promiscuous.warn "[redis] Reconnected"
-      # TODO restart the pump
+      EM.next_tick { Promiscuous::AMQP::RubyAMQP.channel.recover }
     end
   rescue
     reconnect_later

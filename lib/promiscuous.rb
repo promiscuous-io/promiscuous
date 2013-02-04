@@ -45,4 +45,6 @@ module Promiscuous
       true
     end
   end
+
+  at_exit { self.disconnect }
 end
