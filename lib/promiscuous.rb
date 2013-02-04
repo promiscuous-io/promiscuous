@@ -46,5 +46,5 @@ module Promiscuous
     end
   end
 
-  at_exit { self.disconnect }
+  at_exit { self.disconnect rescue nil }
 end
