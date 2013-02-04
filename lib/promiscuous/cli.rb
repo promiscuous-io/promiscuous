@@ -103,7 +103,7 @@ class Promiscuous::CLI
   def run
     options = parse_args(ARGV)
     load_app(options)
-    maybe_warn_bareback(options)
+    maybe_run_bareback(options)
 
     case options[:action]
     when :publish then publish(options)
@@ -111,8 +111,9 @@ class Promiscuous::CLI
     end
   end
 
-  def maybe_warn_bareback(options)
+  def maybe_run_bareback(options)
     if options[:bareback]
+      Promiscuous::Config.bareback = true
       print_status "WARNING: --- BAREBACK MODE ----"
       print_status "WARNING: You are replicating without protection, you can get corrupted in no time"
       print_status "WARNING: --- BAREBACK MODE ----"

@@ -23,6 +23,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def has_dependencies?
+    return false if Promiscuous::Config.bareback
     !!global_version
   end
 

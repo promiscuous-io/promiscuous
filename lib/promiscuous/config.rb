@@ -1,5 +1,5 @@
 module Promiscuous::Config
-  mattr_accessor :app, :logger, :error_notifier, :backend, :amqp_url, :redis_url, :queue_options, :heartbeat
+  mattr_accessor :app, :logger, :error_notifier, :backend, :amqp_url, :redis_url, :queue_options, :heartbeat, :bareback
 
   def self.backend=(value)
     @@backend = value
