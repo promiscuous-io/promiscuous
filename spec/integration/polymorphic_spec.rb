@@ -3,7 +3,7 @@ require 'spec_helper'
 if ORM.has(:polymorphic)
   describe Promiscuous do
     before { load_models }
-    before { use_real_amqp }
+    before { use_real_backend }
 
     context 'when not collapsing the polymorhic hierarchy' do
       before do
@@ -32,7 +32,7 @@ if ORM.has(:polymorphic)
         end
       end
 
-      before { Promiscuous::Worker.replicate }
+      before { run_subscriber_worker! }
 
       context 'when creating' do
         it 'replicates the parent' do
@@ -140,7 +140,7 @@ if ORM.has(:polymorphic)
         end
       end
 
-      before { Promiscuous::Worker.replicate }
+      before { run_subscriber_worker! }
 
       it 'doesn\'t replicate child fields' do
         SubscriberModelChild.class_eval { field :child_field_1, :default => "default" }
@@ -182,7 +182,7 @@ if ORM.has(:polymorphic)
         end
       end
 
-      before { Promiscuous::Worker.replicate }
+      before { run_subscriber_worker! }
 
       context 'when creating' do
         it 'replicates both child models' do

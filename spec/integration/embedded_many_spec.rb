@@ -3,7 +3,7 @@ require 'spec_helper'
 if ORM.has(:many_embedded_documents)
   describe Promiscuous do
     before { load_models }
-    before { use_real_amqp }
+    before { use_real_backend }
 
     before do
       define_constant('PublisherEmbedMany', ORM::PublisherBase) do
@@ -31,7 +31,7 @@ if ORM.has(:many_embedded_documents)
       end
     end
 
-    before { Promiscuous::Worker.replicate }
+    before { run_subscriber_worker! }
 
     context 'when creating' do
       context 'when the parent does not exist yet' do

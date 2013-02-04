@@ -1,19 +1,3 @@
-require 'eventmachine'
-require 'em-synchrony'
-
-RSpec::Core::Example.class_eval do
-  alias run_without_em run
-
-  def run(example_group_instance, reporter)
-    ret = nil
-    EM.synchrony do
-      ret = run_without_em example_group_instance, reporter
-      EM.stop
-    end
-    ret
-  end
-end
-
 module AsyncHelper
   def eventually(options = {})
     timeout = options[:timeout] || ENV['TIMEOUT'].try(:to_f) || 2
@@ -26,7 +10,7 @@ module AsyncHelper
       end
       return if error.nil?
       raise error if Time.now >= time_limit
-      EM::Synchrony.sleep interval
+      sleep interval
     end
   end
 end

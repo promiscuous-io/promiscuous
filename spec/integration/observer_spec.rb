@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models; load_observers }
-  before { use_real_amqp }
+  before { use_real_backend }
 
   before do
     define_constant(:Publisher, ORM::PublisherBase) do
@@ -25,7 +25,7 @@ describe Promiscuous do
     end
   end
 
-  before { Promiscuous::Worker.replicate }
+  before { run_subscriber_worker! }
 
   context 'when creating' do
     it 'triggers the create callbacks' do

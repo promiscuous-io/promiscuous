@@ -1,41 +1,70 @@
-class Promiscuous::Subscriber::Worker::Pump
-  # TODO Make this celluloid happy
-  attr_accessor :worker
+require 'eventmachine'
 
-  def initialize(worker)
-    self.worker = worker
+class Promiscuous::Subscriber::Worker::Pump
+  include Celluloid
+
+  def initialize
+    # signals do not work when initializing with Celluloid
+    # I wish ruby had semaphores, it would make much more sense.
+    @initialize_mutex = Mutex.new
+    @initialization_done = ConditionVariable.new
+
+    @em_thread = Thread.new { EM.run { start } }
+
+    # The event machine thread will unlock us
+    wait_for_initialization
+    raise @exception if @exception
   end
 
-  def start
-    return if @queue
-    Promiscuous::AMQP.open_queue(queue_bindings) do |queue|
-      @queue = queue
-      @queue.subscribe :ack => true do |metadata, payload|
-        # we drop the payload if we switched to another queue,
-        # duplicate messages could hurt us.
-        process_payload(metadata, payload) if queue == @queue
-      end
+  def wait_for_initialization
+    @initialize_mutex.synchronize do
+      @initialization_done.wait(@initialize_mutex)
     end
   end
 
-  def stop
-    queue, @queue = @queue, nil
-    queue.unsubscribe if queue rescue nil
+  def finalize_initialization
+    @initialize_mutex.synchronize do
+      @initialization_done.signal
+    end
+  end
+
+  def finalize
+    @dont_reconnect = true
+    EM.next_tick do
+      Promiscuous::AMQP.disconnect
+      EM.stop
+    end
+    @em_thread.join
+  rescue
+    # Let amqp die like a pro
+  end
+
+  def force_use_ruby_amqp
+    Promiscuous::AMQP.disconnect
+    Promiscuous::Config.backend = :rubyamqp
+    Promiscuous::AMQP.connect
+  end
+
+  def start
+    force_use_ruby_amqp
+    Promiscuous::AMQP.open_queue(queue_bindings) do |queue|
+      queue.subscribe :ack => true do |metadata, payload|
+        process_payload(metadata, payload)
+      end
+    end
+  rescue Exception => @exception
+  ensure
+    finalize_initialization
   end
 
   def process_payload(metadata, payload)
-    msg = Promiscuous::Subscriber::Worker::Message.new(worker, metadata, payload)
-    worker.message_synchronizer.process_when_ready(msg)
+    msg = Promiscuous::Subscriber::Worker::Message.new(metadata, payload)
+    Celluloid::Actor[:message_synchronizer].process_when_ready(msg)
   end
 
   def queue_bindings
     queue_name = "#{Promiscuous::Config.app}.promiscuous"
     exchange_name = Promiscuous::AMQP::EXCHANGE
-
-    if worker.options[:personality]
-      queue_name    += ".#{worker.options[:personality]}"
-      exchange_name += ".#{worker.options[:personality]}"
-    end
 
     # We need to subscribe to everything to keep up with the version tracking
     bindings = ['*']

@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models }
-  before { use_real_amqp }
+  before { use_real_backend }
 
   context "when using a vanilla model" do
     before { record_callbacks(SubscriberModel) }
@@ -21,7 +21,7 @@ describe Promiscuous do
       end
     end
 
-    before { Promiscuous::Worker.replicate }
+    before { run_subscriber_worker! }
 
     context 'when creating' do
       it 'calls proper callbacks' do
@@ -85,7 +85,7 @@ describe Promiscuous do
           end
         end
 
-        before { Promiscuous::Worker.replicate }
+        before { run_subscriber_worker! }
 
         context 'when creating' do
           it 'calls proper callbacks' do
@@ -164,7 +164,7 @@ describe Promiscuous do
         end
       end
 
-      before { Promiscuous::Worker.replicate }
+      before { run_subscriber_worker! }
 
       context 'when creating' do
         it 'calls proper callbacks' do

@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models }
-  before { use_real_amqp }
+  before { use_real_backend }
 
   before do
     define_constant('Publisher', ORM::PublisherBase) do
@@ -20,7 +20,7 @@ describe Promiscuous do
     end
   end
 
-  before { Promiscuous::Worker.replicate }
+  before { run_subscriber_worker! }
 
   context 'when creating' do
     it 'replicates' do
@@ -68,7 +68,7 @@ describe Promiscuous do
       eventually { SubscriberModel.first.should_not == nil }
 
       SubscriberModel.first.destroy
-      use_real_amqp(:logger_level => Logger::FATAL)
+      config_logger(:logger_level => Logger::FATAL)
       pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
       eventually do

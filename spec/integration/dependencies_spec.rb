@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models }
-  before { use_real_amqp }
+  before { use_real_backend }
 
   before do
     define_constant('Publisher', ORM::PublisherBase) do
@@ -20,7 +20,7 @@ describe Promiscuous do
 
   before { record_callbacks(SubscriberModel) }
 
-  before { Promiscuous::Worker.replicate }
+  before { run_subscriber_worker! }
 
   if ORM.has(:mongoid)
     context 'when doing a blank update' do
@@ -82,6 +82,8 @@ describe Promiscuous do
         pub.update_attributes(:field_1 => '1')
         pub.update_attributes(:field_1 => '2')
         pub.update_attributes(:field_1 => '3')
+
+        sleep 0.5 # Avoid killing runners too soon
 
         eventually do
           SubscriberModel.first.field_1.should == '3'

@@ -20,7 +20,6 @@ Gem::Specification.new do |s|
   s.add_dependency "activemodel",         ">= 3.0.0"
   s.add_dependency "bunny",               "~> 0.8.0"
   s.add_dependency "amqp",                "~> 0.9.8"
-  s.add_dependency "em-synchrony",        "~> 1.0.3"
   s.add_dependency "ruby-progressbar",    "~> 1.0.2"
   # We wish to have redis 3.0.2, but one of our plugin in crowdtap (vanity)
   # requires redis =2.2.2

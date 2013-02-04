@@ -4,7 +4,7 @@ describe Promiscuous do
   before { load_models }
 
   let!(:error_notifier) { proc { |exception| @error_notifier_called_with = exception } }
-  before { use_real_amqp(:error_notifier => error_notifier, :logger_level => Logger::FATAL) }
+  before { use_real_backend(:error_notifier => error_notifier, :logger_level => Logger::FATAL) }
 
   context 'when replicating the update of a model that fails' do
     before do
@@ -21,7 +21,7 @@ describe Promiscuous do
       end
     end
 
-    before { Promiscuous::Worker.replicate }
+    before { run_subscriber_worker! }
 
     context 'on the subscriber side' do
       before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /death/ } }
@@ -52,7 +52,7 @@ describe Promiscuous do
       end
     end
 
-    before { Promiscuous::Worker.replicate }
+    before { run_subscriber_worker! }
 
     it 'calls the error_notifier with an exception' do
       PublisherModel.create
@@ -82,7 +82,7 @@ describe Promiscuous do
         end
       end
 
-      before { Promiscuous::Worker.replicate }
+      before { run_subscriber_worker! }
 
       it 'calls the error_notifier with an exception' do
         pub = PublisherModelEmbed.create(:field_1 => '1',

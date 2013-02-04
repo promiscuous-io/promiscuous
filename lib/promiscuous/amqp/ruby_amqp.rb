@@ -27,20 +27,12 @@ module Promiscuous::AMQP::RubyAMQP
         e = Promiscuous::AMQP.lost_connection_exception
         Promiscuous.warn "[amqp] #{e}. Reconnecting..."
         Promiscuous::Config.error_notifier.try(:call, e)
-
-        worker = Promiscuous::Worker.workers.first
-        worker.message_synchronizer.disconnect if worker
-
         conn.periodically_reconnect(2.seconds)
       end
     end
 
     connection.on_recovery do |conn|
       Promiscuous.warn "[amqp] Reconnected"
-
-      worker = Promiscuous::Worker.workers.first
-      worker.message_synchronizer.reconnect if worker
-
       Promiscuous::AMQP::RubyAMQP.channel.recover
     end
 

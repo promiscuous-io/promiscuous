@@ -1,13 +1,9 @@
 class Promiscuous::Subscriber::Worker::MessageSynchronizer
   include Celluloid::IO
 
-  attr_accessor :worker, :redis
+  attr_accessor :redis
 
-  def initialize(worker)
-    self.worker = worker
-  end
-
-  def start
+  def initialize
     connect
     main_loop!
   end
@@ -36,7 +32,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Promiscuous.warn "[redis] #{e}. Reconnecting..."
     Promiscuous::Config.error_notifier.try(:call, e)
 
-    EM.next_tick { worker.pump.stop }
+    # TODO stop the pump to unack all messages
     reconnect_later
   end
 
@@ -56,7 +52,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       main_loop!
 
       Promiscuous.warn "[redis] Reconnected"
-      EM.next_tick { worker.pump.start }
+      # TODO restart the pump
     end
   rescue
     reconnect_later
@@ -94,7 +90,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   rescue Exception => e
     Promiscuous.warn "[redis] #{e} #{e.backtrace.join("\n")}"
 
-    Promiscuous::Worker.stop
+    #Promiscuous::Worker.stop TODO
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 
@@ -110,13 +106,17 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     # when calling worker.pump.start
     return unless self.redis
 
-    return worker.runners.process!(msg) unless msg.has_dependencies?
+    return process_message!(msg) unless msg.has_dependencies?
 
     # The message synchronizer only takes care of happens before (>=) dependencies.
     # The message will handle the skip logic in case of duplicates.
     on_version Promiscuous::Redis.sub_key('global'), msg.global_version do
-      worker.runners.process!(msg)
+      process_message!(msg)
     end
+  end
+
+  def process_message!(msg)
+    Celluloid::Actor[:runners].process!(msg)
   end
 
   def on_version(key, version, &callback)

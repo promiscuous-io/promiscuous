@@ -1,5 +1,5 @@
-module AMQPHelper
-  def use_real_amqp(options={})
+module BackendHelper
+  def use_real_backend(options={})
     Promiscuous.configure do |config|
       config.app = options[:app] || 'test_subscriber'
       config.queue_options = {:auto_delete => true}
@@ -8,13 +8,15 @@ module AMQPHelper
     Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
 
     config_logger(options)
-
-    # Let amqp connect first before we do anything.
-    # Otherwise, Promiscuous::AMQP::RubyAMQP.publish will fail with connection lost.
-    EM::Synchrony.sleep 0.1
   end
 
-  def use_null_amqp(options={})
+  def run_subscriber_worker!
+    @worker.terminate if @worker
+    @worker = Promiscuous::Subscriber::Worker.run!
+    sleep 0.1 # let amqp connect, otherwise it can say "Connection Lost" when trying to publish
+  end
+
+  def use_null_backend(options={})
     Promiscuous.configure do |config|
       config.backend = :null
       config.app = options[:app] || 'test_publisher'
@@ -25,5 +27,12 @@ module AMQPHelper
   def config_logger(options={})
     Promiscuous::Config.logger.level = ENV["LOGGER_LEVEL"].to_i if ENV["LOGGER_LEVEL"]
     Promiscuous::Config.logger.level = options[:logger_level] if options[:logger_level]
+  end
+end
+
+RSpec.configure do |config|
+  config.after do
+    @worker.terminate if @worker
+    @worker = nil
   end
 end

@@ -17,15 +17,13 @@ RSpec.configure do |config|
   config.color_enabled = true
 
   config.include AsyncHelper
-  config.include AMQPHelper
+  config.include BackendHelper
   config.include ModelsHelper
   config.include ObserversHelper
   config.include EphemeralsHelper
   config.include CallbacksHelper
 
   config.after do
-    Promiscuous::Worker.kill
-    Promiscuous.disconnect # This cleansup the queues since they have the auto-delete behavior
     Promiscuous::Subscriber::AMQP.subscribers.select! { |k| k =~ /__promiscuous__/ }
     Promiscuous::Publisher::Model.klasses.clear
   end

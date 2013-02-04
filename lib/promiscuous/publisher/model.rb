@@ -60,7 +60,7 @@ module Promiscuous::Publisher::Model
     with_lock do
       update_dependencies
       begin
-        ret = yield
+        ret = yield if block_given?
       rescue Exception => e
         # we must publish something so the subscriber can sync
         # with the updated dependencies
@@ -81,11 +81,10 @@ module Promiscuous::Publisher::Model
     ret
   end
 
-
   module ClassMethods
     def setup_class_binding
       super
-      Promiscuous::Publisher::Model.klasses << klass
+      Promiscuous::Publisher::Model.klasses << klass if klass
     end
   end
 end

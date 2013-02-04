@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models }
-  before { use_real_amqp(:logger_level => Logger::FATAL) }
+  before { use_real_backend(:logger_level => Logger::FATAL) }
 
   before do
     define_constant('Publisher', ORM::PublisherBase) do
@@ -18,7 +18,7 @@ describe Promiscuous do
     end
   end
 
-  before { Promiscuous::Worker.replicate }
+  before { run_subscriber_worker! }
 
   context 'when updating' do
     it 'replicates' do

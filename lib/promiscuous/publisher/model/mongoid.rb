@@ -43,6 +43,27 @@ module Promiscuous::Publisher::Model::Mongoid
     end
   end
 
+  module ModelInstanceMethods
+    extend ActiveSupport::Concern
+
+    def promiscuous_sync
+      publisher = self.class.promiscuous_publisher
+
+      fetch_proc = proc { self.class.with(:consistency => :strong).where(atomic_selector).first }
+
+      publisher.new(:operation  => :update,
+                    :instance   => self,
+                    :fetch_proc => fetch_proc).commit
+    end
+  end
+
+  module ClassMethods
+    def setup_class_binding
+      super
+      klass.__send__(:include, ModelInstanceMethods) if klass
+    end
+  end
+
   def self.hook_mongoid
     Moped::Collection.class_eval do
       alias_method :insert_orig, :insert
