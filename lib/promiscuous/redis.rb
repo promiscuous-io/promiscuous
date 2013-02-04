@@ -16,8 +16,16 @@ module Promiscuous::Redis
   def self.new_connection
     return Null.new if Promiscuous::Config.backend == :null
 
-    redis = ::Redis.new(:url => Promiscuous::Config.redis_url,
-                        :tcp_keepalive => 60)
+    redis_url = Promiscuous::Config.redis_url || 'redis://localhost/'
+    url = URI.parse(redis_url)
+    raise "Please use redis://:password@host:port/db" if url.scheme != 'redis'
+
+    redis_options = { :host          => url.host,
+                      :port          => url.port,
+                      :password      => url.password,
+                      :db            => url.path.empty? ? nil : url.path,
+                      :tcp_keepalive => 60}
+    redis = ::Redis.new(redis_options)
     redis.client.connect
     redis
   end
