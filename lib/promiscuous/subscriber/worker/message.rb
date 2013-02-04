@@ -15,6 +15,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def version
+    return nil unless parsed_payload['version'].is_a? Hash # TODO remove once migrated
     @version ||= parsed_payload['version'].try(:symbolize_keys)
   end
 
