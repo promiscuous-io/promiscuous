@@ -2,7 +2,7 @@
 
 begin
   require 'promiscuous'
-  Promiscuous::CLI.new.run
+  Promiscuous::CLI.new.boot
 rescue => e
   $stderr.puts "#{e.class}: #{e.message}"
   $stderr.puts '-' * 80
