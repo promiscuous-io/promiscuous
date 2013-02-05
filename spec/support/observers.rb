@@ -1,7 +1,6 @@
 module ObserversHelper
   def load_observers
     define_constant(:ModelObserver, Promiscuous::Observer) do
-      attr_accessor :id
       attr_accessor :field_1
       attr_accessor :field_2
       attr_accessor :field_3
