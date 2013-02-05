@@ -17,6 +17,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def connect
+    @queued_messages = 0
     @subscriptions = {}
     self.redis = Promiscuous::Redis.new_celluloid_connection
   end
@@ -106,6 +107,8 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     # when calling worker.pump.start
     return unless self.redis
 
+    bump_message_counter!
+
     return process_message!(msg) unless msg.has_dependencies?
 
     # The message synchronizer only takes care of happens before (>=) dependencies.
@@ -115,7 +118,76 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     end
   end
 
+  def bump_message_counter!
+    @queued_messages += 1
+    maybe_recover
+  end
+
+  def maybe_recover
+    recovery_timeout = Promiscuous::Config.recovery_timeout
+    return unless recovery_timeout
+
+    reset_recovery_timer
+    if should_recover?
+      # We've reached the amount of messages the amqp queue is willing to give us.
+      # We also know that we are not processing messages (@queued_messages is
+      # decremented before we send the message to the runners).
+
+      Promiscuous.warn "[receive] Recovering in #{recovery_timeout} seconds..."
+      @recover_timer = after(recovery_timeout) { reset_recovery_timer; recover }
+    end
+  end
+
+  def reset_recovery_timer
+    @recover_timer.try(:reset)
+    @recover_timer = nil
+  end
+
+  def should_recover?
+    @queued_messages == Promiscuous::Config.prefetch
+  end
+
+  def recover
+    return unless should_recover?
+
+    global_key = Promiscuous::Redis.sub_key('global')
+    current_version = Promiscuous::Redis.get(global_key).to_i
+
+    global_callbacks = get_subscription(global_key).callbacks
+    expected_next_msg_version = global_callbacks.values.map(&:version).min
+    version_to_allow_progress = expected_next_msg_version - 1
+
+    num_messages_to_skip = version_to_allow_progress - current_version
+
+    if num_messages_to_skip > 0
+      recovery_msg = "Recovering. Moving current version from #{current_version} " +
+                     "to #{version_to_allow_progress}. " +
+                     "Skipping #{num_messages_to_skip} messages..."
+    else
+      recovery_msg = "Not recovering. current version is #{current_version}, " +
+                     "while we just need #{version_to_allow_progress}. " +
+                     "Offset is #{num_messages_to_skip} message."
+    end
+
+    e = Promiscuous::Error::Recover.new(recovery_msg)
+    if current_version > 0
+      Promiscuous.error "[receive] #{e}"
+      Promiscuous::Config.error_notifier.try(:call, e)
+    else
+      Promiscuous.info "[receive] #{e}"
+      # Initial sync, nothing to worry about
+    end
+
+    if num_messages_to_skip > 0
+      Promiscuous::Redis.set(global_key, version_to_allow_progress)
+      Promiscuous::Redis.publish(global_key, version_to_allow_progress)
+    end
+  ensure
+    reset_recovery_timer
+  end
+
   def process_message!(msg)
+    @queued_messages -= 1
     Celluloid::Actor[:runners].process!(msg)
   end
 
@@ -136,7 +208,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   class Subscription
-    attr_accessor :parent, :key
+    attr_accessor :parent, :key, :callbacks
 
     def initialize(parent, key)
       self.parent = parent

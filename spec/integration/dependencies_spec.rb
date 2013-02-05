@@ -125,5 +125,32 @@ describe Promiscuous do
         end
       end
     end
+
+    context 'when the worker is blocking in recovery mode' do
+      before do
+        config_logger(:logger_level => Logger::FATAL)
+        Promiscuous::Config.prefetch = 3
+        Promiscuous::Config.recovery_timeout = 0.1
+      end
+
+      it 'recovers' do
+        Publisher.any_instance.stubs(:version).returns(
+          {:global => 10}, {:global => 11}, {:global => 12}
+        )
+
+        pub = PublisherModel.create(:field_1 => '1')
+        pub.update_attributes(:field_1 => '2')
+        pub.update_attributes(:field_1 => '3')
+
+        eventually do
+          SubscriberModel.first.field_1.should == '3'
+        end
+      end
+
+      after do
+        Promiscuous::Config.prefetch = 1000
+        Promiscuous::Config.recovery_timeout = nil
+      end
+    end
   end
 end

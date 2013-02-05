@@ -51,11 +51,20 @@ class Promiscuous::CLI
       opts.separator "Options:"
 
       opts.on "-b", "--bareback", "Bareback mode aka no dependencies. Use with extreme caution" do
-        options[:bareback] = true
+        Promiscuous::Config.bareback = true
       end
 
-      opts.on "-r", "--require FILE", "File to require to load your app. Don't worry about it with rails" do |file|
+      opts.on "-l", "--require FILE", "File to require to load your app. Don't worry about it with rails" do |file|
         options[:require] = file
+      end
+
+      opts.on "-r", "--recovery [TIMEOUT]", "Run in recovery mode. Defaults to 10 seconds before recovering" do |timeout|
+        Promiscuous::Config.recovery_timeout = (timeout || 10).to_i
+      end
+
+      opts.on "-p", "--prefetch [NUM]", "Number of messages to prefetch" do |prefetch|
+        exit 1 if prefetch.to_i == 0
+        Promiscuous::Config.prefetch = prefetch.to_i
       end
 
       opts.on("-h", "--help", "Show this message") do
@@ -106,7 +115,7 @@ class Promiscuous::CLI
   def boot
     self.options = parse_args(ARGV)
     load_app
-    maybe_run_bareback
+    show_bareback_warnings
     run
   end
 
@@ -117,9 +126,8 @@ class Promiscuous::CLI
     end
   end
 
-  def maybe_run_bareback
-    if options[:bareback]
-      Promiscuous::Config.bareback = true
+  def show_bareback_warnings
+    if Promiscuous::Config.bareback == true
       print_status "WARNING: --- BAREBACK MODE ----"
       print_status "WARNING: You are replicating without protection, you can get out of sync in no time"
       print_status "WARNING: --- BAREBACK MODE ----"

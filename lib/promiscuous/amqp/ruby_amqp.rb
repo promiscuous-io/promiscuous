@@ -20,7 +20,9 @@ module Promiscuous::AMQP::RubyAMQP
     end
 
     connection = ::AMQP.connect(amqp_options)
-    self.channel = ::AMQP::Channel.new(connection, :auto_recovery => true, :prefetch => 1000)
+    self.channel = ::AMQP::Channel.new(connection,
+                                       :auto_recovery => true,
+                                       :prefetch => Promiscuous::Config.prefetch)
 
     connection.on_tcp_connection_loss do |conn|
       unless conn.reconnecting?
