@@ -1,7 +1,7 @@
 module Promiscuous::Config
   mattr_accessor :app, :logger, :error_notifier, :backend, :amqp_url,
                  :redis_url, :queue_options, :heartbeat, :bareback,
-                 :recovery_timeout, :prefetch
+                 :recovery, :prefetch
 
   def self.backend=(value)
     @@backend = value

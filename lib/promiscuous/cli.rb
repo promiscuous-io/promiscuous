@@ -58,8 +58,8 @@ class Promiscuous::CLI
         options[:require] = file
       end
 
-      opts.on "-r", "--recovery [TIMEOUT]", "Run in recovery mode. Defaults to 10 seconds before recovering" do |timeout|
-        Promiscuous::Config.recovery_timeout = (timeout || 10).to_i
+      opts.on "-r", "--recovery", "Run in recovery mode" do
+        Promiscuous::Config.recovery = true
       end
 
       opts.on "-p", "--prefetch [NUM]", "Number of messages to prefetch" do |prefetch|

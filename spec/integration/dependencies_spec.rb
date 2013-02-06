@@ -130,7 +130,7 @@ describe Promiscuous do
       before do
         config_logger(:logger_level => Logger::FATAL)
         Promiscuous::Config.prefetch = 3
-        Promiscuous::Config.recovery_timeout = 0.1
+        Promiscuous::Config.recovery = true
       end
 
       it 'recovers' do
@@ -145,11 +145,6 @@ describe Promiscuous do
         eventually do
           SubscriberModel.first.field_1.should == '3'
         end
-      end
-
-      after do
-        Promiscuous::Config.prefetch = 1000
-        Promiscuous::Config.recovery_timeout = nil
       end
     end
   end

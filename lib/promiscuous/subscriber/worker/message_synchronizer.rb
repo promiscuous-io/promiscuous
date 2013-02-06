@@ -124,32 +124,17 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def maybe_recover
-    recovery_timeout = Promiscuous::Config.recovery_timeout
-    return unless recovery_timeout
+    return unless Promiscuous::Config.recovery
 
-    reset_recovery_timer
-    if should_recover?
+    if @queued_messages == Promiscuous::Config.prefetch
       # We've reached the amount of messages the amqp queue is willing to give us.
       # We also know that we are not processing messages (@queued_messages is
       # decremented before we send the message to the runners).
-
-      Promiscuous.warn "[receive] Recovering in #{recovery_timeout} seconds..."
-      @recover_timer = after(recovery_timeout) { reset_recovery_timer; recover }
+      recover
     end
   end
 
-  def reset_recovery_timer
-    @recover_timer.try(:reset)
-    @recover_timer = nil
-  end
-
-  def should_recover?
-    @queued_messages == Promiscuous::Config.prefetch
-  end
-
   def recover
-    return unless should_recover?
-
     global_key = Promiscuous::Redis.sub_key('global')
     current_version = Promiscuous::Redis.get(global_key).to_i
 
@@ -182,8 +167,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       Promiscuous::Redis.set(global_key, version_to_allow_progress)
       Promiscuous::Redis.publish(global_key, version_to_allow_progress)
     end
-  ensure
-    reset_recovery_timer
   end
 
   def process_message!(msg)
