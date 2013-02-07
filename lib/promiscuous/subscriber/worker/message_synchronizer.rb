@@ -1,3 +1,6 @@
+module ::Containers; end
+require 'containers/priority_queue'
+
 class Promiscuous::Subscriber::Worker::MessageSynchronizer
   include Celluloid::IO
 
@@ -75,7 +78,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
         find_subscription(subscription).finalize_subscription
       when 'unsubscribe'
       when 'message'
-        find_subscription(subscription).maybe_perform_callbacks(arg)
+        find_subscription(subscription).signal_version(arg)
       end
     end
   rescue EOFError
@@ -138,10 +141,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     global_key = Promiscuous::Redis.sub_key('global')
     current_version = Promiscuous::Redis.get(global_key).to_i
 
-    global_callbacks = get_subscription(global_key).callbacks
-    expected_next_msg_version = global_callbacks.values.map(&:version).min
-    version_to_allow_progress = expected_next_msg_version - 1
-
+    version_to_allow_progress = get_subscription(global_key).callbacks.next.version - 1
     num_messages_to_skip = version_to_allow_progress - current_version
 
     if num_messages_to_skip > 0
@@ -176,9 +176,9 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
   def on_version(key, version, &callback)
     return unless @subscriptions
-    cb = Subscription::Callback.new(version, callback)
-    get_subscription(key).subscribe.add_callback(version, cb)
-    cb.current_version = Promiscuous::Redis.get(key)
+    sub = get_subscription(key).subscribe
+    sub.add_callback(Subscription::Callback.new(version, callback))
+    sub.signal_version(Promiscuous::Redis.get(key))
   end
 
   def find_subscription(key)
@@ -199,7 +199,8 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
       @subscription_requested = false
       @subscribed_to_redis = false
-      @callbacks = {}
+      # We use a priority queue that returns the smallest value first
+      @callbacks = Containers::PriorityQueue.new { |x, y| x < y }
     end
 
     def subscribe
@@ -227,59 +228,36 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       # TODO parent.redis_client_call(:unsubscribe, key)
     end
 
-    def add_callback(version, callback)
-      callback.subscription = self
-      @callbacks[callback.token] = callback
-    end
+    def signal_version(current_version)
+      current_version = current_version.to_i
+      loop do
+        next_cb = @callbacks.next
+        return unless next_cb && next_cb.can_perform?(current_version)
 
-    def remove_callback(token)
-      !!@callbacks.delete(token)
-      # TODO unsubscribe after a while?
-    end
-
-    def maybe_perform_callbacks(current_version)
-      @callbacks.values.each do |cb|
-        cb.current_version = current_version
+        @callbacks.pop
+        next_cb.perform
       end
+    end
+
+    def add_callback(callback)
+      callback.subscription = self
+      @callbacks.push(callback, callback.version)
     end
 
     class Callback
-      # Tokens are only used so that the callback can find and remove itself
-      # in the callback list.
-      @next_token = 0
-      def self.get_next_token
-        @next_token += 1
-      end
-
       attr_accessor :subscription, :version, :callback, :token
 
       def initialize(version, callback)
-        @current_version = 0
         self.version = version
         self.callback = callback
-        @token = self.class.get_next_token
       end
 
-      def current_version=(value)
-        @current_version = value.to_i
-        maybe_perform
-        value
-      end
-
-      private
-
-      def can_perform?
-        @current_version + 1 >= self.version
+      def can_perform?(current_version)
+        current_version + 1 >= self.version
       end
 
       def perform
-        # removing the callback can happen only once, ensuring that the
-        # callback is called at most once.
-        callback.call if subscription.remove_callback(@token)
-      end
-
-      def maybe_perform
-        perform if can_perform?
+        callback.call
       end
     end
   end
