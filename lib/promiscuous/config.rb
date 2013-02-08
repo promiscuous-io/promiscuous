@@ -15,6 +15,10 @@ module Promiscuous::Config
   def self.configure(&block)
     block.call(self)
 
+    self.app ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
+    unless self.app
+      raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
+    end
     self.backend ||= defined?(EventMachine) && EventMachine.reactor_running? ? :rubyamqp : :bunny
     self.logger ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.queue_options ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
