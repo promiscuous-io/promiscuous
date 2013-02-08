@@ -8,7 +8,9 @@ module Promiscuous::AMQP
     attr_accessor :backend
 
     def backend=(value)
-      @backend = "Promiscuous::AMQP::#{value.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize unless value.nil?
+      disconnect if @backend
+      @backend = value.nil? ? nil : "Promiscuous::AMQP::#{value.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize
+      connect if @backend
     end
 
     def lost_connection_exception

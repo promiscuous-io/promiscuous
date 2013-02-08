@@ -5,10 +5,11 @@ module Promiscuous::Config
 
   def self.backend=(value)
     @@backend = value
-    Promiscuous::AMQP.backend = value unless value.nil?
+    Promiscuous::AMQP.backend = value
   end
 
   def self.reset
+    Promiscuous::AMQP.backend = nil
     class_variables.each { |var| class_variable_set(var, nil) }
   end
 
@@ -19,12 +20,15 @@ module Promiscuous::Config
     unless self.app
       raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
     end
-    self.backend ||= defined?(EventMachine) && EventMachine.reactor_running? ? :rubyamqp : :bunny
+    self.backend ||= :rubyamqp # amqp connection is done in Promiscuous::AMQP
+    Promiscuous::Redis.connect
     self.logger ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.queue_options ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.heartbeat ||= 60
     self.prefetch ||= 1000
+  end
 
-    Promiscuous.connect
+  def self.configured?
+    self.app != nil
   end
 end

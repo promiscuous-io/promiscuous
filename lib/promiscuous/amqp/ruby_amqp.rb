@@ -1,8 +1,47 @@
+require 'eventmachine'
+require 'amqp'
+
 module Promiscuous::AMQP::RubyAMQP
-  mattr_accessor :channel
+  class Synchronizer
+    def initialize
+      @mutex = Mutex.new
+      @condition = ConditionVariable.new
+      @signaled = false
+    end
+
+    def wait
+      @mutex.synchronize do
+        loop do
+          return if @signaled
+          @condition.wait(@mutex)
+        end
+      end
+    end
+
+    def signal
+      @mutex.synchronize do
+        @signaled = true
+        @condition.signal
+      end
+    end
+  end
+
+  def self.maybe_start_event_machine
+    return if EM.reactor_running?
+
+    EM.error_handler { |e| Promiscuous::Config.error_notifier.try(:call, e) }
+    em_sync = Synchronizer.new
+    @event_machine_thread = Thread.new { EM.run { em_sync.signal } }
+    em_sync.wait
+  end
 
   def self.connect
-    require 'amqp'
+    return if @connection
+
+    @channels = {}
+    @exchanges = {}
+
+    maybe_start_event_machine
 
     amqp_options = if Promiscuous::Config.amqp_url
       url = URI.parse(Promiscuous::Config.amqp_url)
@@ -19,67 +58,83 @@ module Promiscuous::AMQP::RubyAMQP
       }
     end
 
-    connection = ::AMQP.connect(amqp_options)
-    self.channel = ::AMQP::Channel.new(connection,
-                                       :auto_recovery => true,
-                                       :prefetch => Promiscuous::Config.prefetch)
+    channel_sync = Synchronizer.new
+    ::AMQP.connect(amqp_options) do |connection|
+      @connection = connection
+      @connection.on_tcp_connection_loss do |conn|
+        unless conn.reconnecting?
+          e = Promiscuous::AMQP.lost_connection_exception
+          Promiscuous.warn "[amqp] #{e}. Reconnecting..."
+          Promiscuous::Config.error_notifier.try(:call, e)
+          conn.periodically_reconnect(2.seconds)
+        end
+      end
 
-    connection.on_tcp_connection_loss do |conn|
-      unless conn.reconnecting?
-        e = Promiscuous::AMQP.lost_connection_exception
-        Promiscuous.warn "[amqp] #{e}. Reconnecting..."
-        Promiscuous::Config.error_notifier.try(:call, e)
-        conn.periodically_reconnect(2.seconds)
+      @connection.on_recovery do |conn|
+        Promiscuous.warn "[amqp] Reconnected"
+        @channels.values.each(&:recover) if conn == @connection
+      end
+
+      @connection.on_error do |conn, conn_close|
+        # No need to handle CONNECTION_FORCED since on_tcp_connection_loss takes
+        # care of it.
+        Promiscuous.warn "[amqp] #{conn_close.reply_text}"
+      end
+
+      get_channel(:master) { channel_sync.signal }
+    end
+    channel_sync.wait
+  rescue Exception => e
+    self.disconnect
+    raise e
+  end
+
+  def self.get_channel(name, &block)
+    if @channels[name]
+      yield(@channels[name]) if block_given?
+      @channels[name]
+    else
+      options = {:auto_recovery => true, :prefetch => Promiscuous::Config.prefetch}
+      ::AMQP::Channel.new(@connection, options) do |channel|
+        @channels[name] = channel
+        get_exchange(name)
+        yield(channel) if block_given?
       end
     end
+  end
 
-    connection.on_recovery do |conn|
-      Promiscuous.warn "[amqp] Reconnected"
-      Promiscuous::AMQP::RubyAMQP.channel.recover
-    end
-
-    connection.on_error do |conn, conn_close|
-      # No need to handle CONNECTION_FORCED since on_tcp_connection_loss takes
-      # care of it.
-      Promiscuous.warn "[amqp] #{conn_close.reply_text}"
+  def self.close_channel(name, &block)
+    EM.next_tick do
+      channel = @channels.try(:delete, name)
+      if channel
+        channel.close(&block)
+      else
+        block.call if block
+      end
     end
   end
 
   def self.disconnect
-    if self.channel && self.channel.connection.connected?
-      self.channel.connection.close
-      self.channel.close
-    end
-    self.channel = nil
+    @connection.close { EM.stop if @event_machine_thread } if @connection
+    @event_machine_thread.join if @event_machine_thread
+    @event_machine_thread = nil
+    @connection = nil
+    @channels = nil
+    @exchanges = nil
   end
-
-  # Always disconnect when shutting down to avoid reconnection
-  EM.add_shutdown_hook { Promiscuous::AMQP::RubyAMQP.disconnect }
 
   def self.connected?
-    !!self.channel.try(:connection).try(:connected?)
-  end
-
-  def self.open_queue(options={}, &block)
-    queue_name = options[:queue_name]
-    bindings   = options[:bindings]
-
-    queue = self.channel.queue(queue_name, Promiscuous::Config.queue_options)
-    bindings.each do |binding|
-      queue.bind(exchange(options[:exchange_name]), :routing_key => binding)
-      Promiscuous.debug "[bind] #{queue_name} -> #{binding}"
-    end
-    block.call(queue) if block
+    @connection.connected? if @connection
   end
 
   def self.publish(options={})
     EM.next_tick do
-      exchange(options[:exchange_name]).
-        publish(options[:payload], :routing_key => options[:key], :persistent => true)
+      get_exchange(:master).publish(options[:payload], :routing_key => options[:key], :persistent  => true) do
+      end
     end
   end
 
-  def self.exchange(name)
-    channel.topic(name, :durable => true)
+  def self.get_exchange(name)
+    @exchanges[name] ||= get_channel(name).topic(Promiscuous::AMQP::EXCHANGE, :durable => true)
   end
 end
