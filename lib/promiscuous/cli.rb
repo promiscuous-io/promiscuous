@@ -13,14 +13,24 @@ class Promiscuous::CLI
         end
       end
     end
+
+    %w(SIGTERM SIGINT).each do |signal|
+      Signal.trap(signal) do
+        print_status "Exiting..."
+        @worker.terminate if @worker.try(:alive?)
+        @stop = true
+      end
+    end
   end
 
   def publish
     options[:criterias].map { |criteria| eval(criteria) }.each do |criteria|
+      break if @stop
       title = criteria.name
       title = "#{title}#{' ' * [0, 20 - title.size].max}"
       bar = ProgressBar.create(:format => '%t |%b>%i| %c/%C %e', :title => title, :total => criteria.count)
       criteria.each do |doc|
+        break if @stop
         doc.promiscuous_sync
         bar.increment
       end
@@ -29,10 +39,10 @@ class Promiscuous::CLI
 
   def subscribe
     Promiscuous::Loader.load_descriptors if defined?(Rails)
+    @worker = Promiscuous::Subscriber::Worker.run!
+    Celluloid::Actor[:pump].subscribe_sync.wait
     print_status "Replicating with #{Promiscuous::Subscriber::AMQP.subscribers.count} subscribers"
-    Promiscuous::Subscriber::Worker.run
-  rescue Interrupt
-    # SIGINT
+    sleep 1 until !@worker.alive?
   end
 
   def parse_args(args)
