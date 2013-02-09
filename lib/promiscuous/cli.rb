@@ -1,7 +1,7 @@
 class Promiscuous::CLI
   attr_accessor :options
 
-  def self.trap_signals
+  def trap_signals
     Signal.trap 'SIGUSR2' do
       Thread.list.each do |thread|
         print_status '-' * 80
@@ -14,7 +14,6 @@ class Promiscuous::CLI
       end
     end
   end
-  trap_signals
 
   def publish
     options[:criterias].map { |criteria| eval(criteria) }.each do |criteria|
@@ -120,6 +119,7 @@ class Promiscuous::CLI
   end
 
   def run
+    trap_signals
     case options[:action]
     when :publish then publish
     when :subscribe then subscribe
