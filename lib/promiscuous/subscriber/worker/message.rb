@@ -31,7 +31,7 @@ class Promiscuous::Subscriber::Worker::Message
   def ack
     EM.next_tick do
       begin
-        metadata.ack
+        metadata.ack if metadata.channel.open?
       rescue
         # We don't care if we fail, the message will be redelivered at some point
       end

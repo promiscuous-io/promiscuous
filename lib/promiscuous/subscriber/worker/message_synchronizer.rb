@@ -8,7 +8,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
   def initialize
     connect
-    main_loop!
+    async.main_loop
   end
 
   def stop
@@ -171,7 +171,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
   def process_message!(msg)
     @queued_messages -= 1
-    Celluloid::Actor[:runners].process!(msg)
+    Celluloid::Actor[:runners].async.process(msg)
   end
 
   def on_version(key, version, &callback)

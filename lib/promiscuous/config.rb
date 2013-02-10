@@ -16,16 +16,21 @@ module Promiscuous::Config
   def self.configure(&block)
     block.call(self)
 
-    self.app ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
+    self.app           ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
+    self.amqp_url      ||= 'amqp://guest:guest@localhost:5672'
+    self.redis_url     ||= 'redis://localhost/'
+    self.backend       ||= :rubyamqp
+    self.queue_options ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
+    self.heartbeat     ||= 60
+    self.prefetch      ||= 1000
+    self.logger        ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
+
     unless self.app
       raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
     end
-    self.backend ||= :rubyamqp # amqp connection is done in Promiscuous::AMQP
+
+    # amqp connection is done in when setting the backend
     Promiscuous::Redis.connect
-    self.logger ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
-    self.queue_options ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
-    self.heartbeat ||= 60
-    self.prefetch ||= 1000
   end
 
   def self.configured?
