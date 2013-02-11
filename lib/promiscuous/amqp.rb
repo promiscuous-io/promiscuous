@@ -23,7 +23,7 @@ module Promiscuous::AMQP
 
     def publish(options={})
       ensure_connected
-      Promiscuous.debug "[publish] (#{options[:exchange_name]}) #{options[:key]} -> #{options[:payload]}"
+      Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}"
       backend.publish(options)
     end
 

@@ -8,12 +8,6 @@ describe Promiscuous do
     before { record_callbacks(SubscriberModel) }
 
     before do
-      define_constant('Publisher', ORM::PublisherBase) do
-        publish :to => 'crowdtap/publisher_model',
-                :class => :PublisherModel,
-                :attributes => [:field_1, :field_2, :field_3]
-      end
-
       define_constant('Subscriber', ORM::SubscriberBase) do
         subscribe :from => 'crowdtap/publisher_model',
                   :class => :SubscriberModel,
@@ -60,18 +54,6 @@ describe Promiscuous do
         before { record_callbacks(SubscriberModelEmbedded) }
 
         before do
-          define_constant('PublisherEmbed', ORM::PublisherBase) do
-            publish :to => 'crowdtap/publisher_model_embed',
-                    :class => :PublisherModelEmbed,
-                    :attributes => [:field_1, :field_2, :field_3, :model_embedded]
-          end
-
-          define_constant('PublisherEmbedded', ORM::PublisherBase) do
-            publish :to => 'crowdtap/model_embedded',
-                    :class => :PublisherModelEmbedded,
-                    :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
-          end
-
           define_constant('SubscriberEmbed', ORM::SubscriberBase) do
             subscribe :from => 'crowdtap/publisher_model_embed',
                       :class => SubscriberModelEmbed,
@@ -139,18 +121,6 @@ describe Promiscuous do
       before { record_callbacks(SubscriberModelEmbedded) }
 
       before do
-        define_constant('PublisherEmbedMany', ORM::PublisherBase) do
-          publish :to => 'crowdtap/publisher_model_embed_many',
-            :class => :PublisherModelEmbedMany,
-            :attributes => [:field_1, :field_2, :field_3, :models_embedded]
-        end
-
-        define_constant('PublisherEmbedded', ORM::PublisherBase) do
-          publish :to => 'crowdtap/model_embedded',
-            :class => :PublisherModelEmbedded,
-            :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
-        end
-
         define_constant('SubscriberEmbedMany', ORM::SubscriberBase) do
           subscribe :from => 'crowdtap/publisher_model_embed_many',
             :class => SubscriberModelEmbedMany,

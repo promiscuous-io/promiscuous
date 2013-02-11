@@ -1,25 +1,12 @@
 module Promiscuous::Publisher::Model::ActiveRecord
   extend ActiveSupport::Concern
+  include Promiscuous::Publisher::Model
 
-  module ModelInstanceMethods
-    extend ActiveSupport::Concern
+  # TODO FIXME This needs some serious work. We need to hook deeper.
 
-    def with_promiscuous(options={}, &block)
-      fetch_proc = proc { self.class.find(self.id) }
-      self.class.promiscuous_publisher.new(options.merge(:instance => self, :fetch_proc => fetch_proc)).commit(&block)
-    end
-
-    included do
-      around_create  { |&block| with_promiscuous(:operation => :create,  &block) }
-      around_update  { |&block| with_promiscuous(:operation => :update,  &block) }
-      around_destroy { |&block| with_promiscuous(:operation => :destroy, &block) }
-    end
-  end
-
-  module ClassMethods
-    def setup_class_binding
-      super
-      klass.__send__(:include, ModelInstanceMethods) if klass
-    end
+  included do
+    around_create  { |&block| promiscuous_sync(:operation => :create,  &block) }
+    around_update  { |&block| promiscuous_sync(:operation => :update,  &block) }
+    around_destroy { |&block| promiscuous_sync(:operation => :destroy, &block) }
   end
 end

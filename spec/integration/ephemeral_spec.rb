@@ -5,12 +5,6 @@ describe Promiscuous do
   before { use_real_backend }
 
   before do
-    define_constant('Publisher', Promiscuous::Publisher::Ephemeral) do
-      publish :to => 'crowdtap/publisher_model',
-              :class => :ModelEphemeral,
-              :attributes => [:field_1, :field_2, :field_3]
-    end
-
     define_constant('Subscriber', ORM::SubscriberBase) do
       subscribe :from => 'crowdtap/publisher_model',
                 :class => :SubscriberModel,

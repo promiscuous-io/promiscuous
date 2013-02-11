@@ -1,12 +1,17 @@
 module ModelsHelper
   def load_models_active_record
-    define_constant('PublisherModel', ActiveRecord::Base) do
+    define_constant :PublisherModel, ActiveRecord::Base do
+      include Promiscuous::Publisher
+      publish :field_1, :field_2, :field_3, :to => 'crowdtap/publisher_model'
     end
 
-    define_constant('PublisherModelOther', ActiveRecord::Base) do
+    define_constant :PublisherModelOther, ActiveRecord::Base do
+      include Promiscuous::Publisher
+      publish :field_1, :field_2, :field_3, :to => 'crowdtap/publisher_model_other'
     end
 
-    define_constant('PublisherModelChild', PublisherModel) do
+    define_constant :PublisherModelChild, PublisherModel do
+      publish :child_field_1, :child_field_2, :child_field_3
     end
 
     define_constant('Scoped::ScopedPublisherModel', PublisherModel) do

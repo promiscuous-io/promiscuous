@@ -5,12 +5,6 @@ describe Promiscuous do
   before { use_real_backend }
 
   before do
-    define_constant('Publisher', ORM::PublisherBase) do
-      publish :to => 'crowdtap/publisher_model',
-              :class => :PublisherModel,
-              :attributes => [:field_1, :field_2, :field_3]
-    end
-
     define_constant('Subscriber', ORM::SubscriberBase) do
       subscribe :from => 'crowdtap/publisher_model',
                 :class => :SubscriberModel,
@@ -57,7 +51,7 @@ describe Promiscuous do
   context 'with total ordering' do
     context 'when the messages arrive out of order' do
       it 'replicates' do
-        Publisher.any_instance.stubs(:version).returns(
+        ORM::Operation.any_instance.stubs(:version).returns(
           {:global => 1}, {:global => 3}, {:global => 2}
         )
 
@@ -74,7 +68,7 @@ describe Promiscuous do
 
     context 'when the messages are duplicated' do
       it 'does not replicate the duplicates' do
-        Publisher.any_instance.stubs(:version).returns(
+        ORM::Operation.any_instance.stubs(:version).returns(
           {:global => 1}, {:global => 2}, {:global => 1}, {:global => 3}
         )
 
@@ -93,14 +87,6 @@ describe Promiscuous do
     end
 
     context 'when subscribing to a subset of models' do
-      before do
-        define_constant('PublisherOther', ORM::PublisherBase) do
-          publish :to => 'crowdtap/publisher_model_other',
-                  :class => :PublisherModelOther,
-                  :attributes => [:field_1, :field_2, :field_3]
-        end
-      end
-
       it 'replicates' do
         PublisherModel.create
         PublisherModelOther.create
@@ -134,7 +120,7 @@ describe Promiscuous do
       end
 
       it 'recovers' do
-        Publisher.any_instance.stubs(:version).returns(
+        ORM::Operation.any_instance.stubs(:version).returns(
           {:global => 10}, {:global => 11}, {:global => 12}
         )
 

@@ -16,11 +16,11 @@ module ORM
   end
 
   if has(:mongoid)
-    PublisherBase  = Promiscuous::Publisher::Mongoid
+    Operation = Promiscuous::Publisher::Model::Mongoid::Operation
     SubscriberBase = Promiscuous::Subscriber::Mongoid
     ID = :_id
   elsif has(:active_record)
-    PublisherBase  = Promiscuous::Publisher::ActiveRecord
+    Operation = Promiscuous::Publisher::Operation
     SubscriberBase = Promiscuous::Subscriber::ActiveRecord
     ID = :id
   end

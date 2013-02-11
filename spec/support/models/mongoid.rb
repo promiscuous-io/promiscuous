@@ -1,75 +1,101 @@
 module ModelsHelper
   def load_models_mongoid
-    define_constant('PublisherModel') do
+    define_constant :PublisherModel do
       include Mongoid::Document
+      include Promiscuous::Publisher
 
       field :field_1
       field :field_2
       field :field_3
+
+      publish :field_1, :field_2, :field_3, :to => 'crowdtap/publisher_model'
     end
 
-    define_constant('PublisherModelOther') do
+    define_constant :PublisherModelOther do
       include Mongoid::Document
+      include Promiscuous::Publisher
 
       field :field_1
       field :field_2
       field :field_3
+
+      publish :field_1, :field_2, :field_3, :to => 'crowdtap/publisher_model_other'
     end
 
-    define_constant('PublisherModelChild', PublisherModel) do
+    define_constant :PublisherModelChild, PublisherModel do
       field :child_field_1
       field :child_field_2
       field :child_field_3
+
+      publish :child_field_1, :child_field_2, :child_field_3
     end
 
-    define_constant('PublisherModelAnotherChild', PublisherModel) do
+    define_constant :PublisherModelAnotherChild, PublisherModel do
       field :another_child_field_1
       field :another_child_field_2
       field :another_child_field_3
+
+      publish :another_child_field_1, :another_child_field_2, :another_child_field_3
     end
 
-    define_constant('PublisherModelEmbedded') do
+    define_constant :PublisherModelEmbedded do
       include Mongoid::Document
+      include Promiscuous::Publisher
+
       embedded_in :publisher_model_embeds
 
       field :embedded_field_1
       field :embedded_field_2
       field :embedded_field_3
+
+      publish :to => 'crowdtap/model_embedded'
+      publish :embedded_field_1, :embedded_field_2, :embedded_field_3
     end
 
-    define_constant('PublisherModelEmbeddedChild', PublisherModelEmbedded) do
+    define_constant :PublisherModelEmbeddedChild, PublisherModelEmbedded do
       embedded_in :publisher_model_embeds
 
       field :child_embedded_field_1
       field :child_embedded_field_2
       field :child_embedded_field_3
+
+      publish :child_embedded_field_1, :child_embedded_field_2, :child_embedded_field_3
     end
 
-    define_constant('PublisherModelEmbed') do
+    define_constant :PublisherModelEmbed do
       include Mongoid::Document
+      include Promiscuous::Publisher
+
       embeds_one :model_embedded, :class_name => 'PublisherModelEmbedded'
 
       field :field_1
       field :field_2
       field :field_3
+
+      publish :to => 'crowdtap/publisher_model_embed'
+      publish :field_1, :field_2, :field_3, :model_embedded
     end
 
-    define_constant('PublisherModelEmbedChild', PublisherModelEmbed) do
+    define_constant :PublisherModelEmbedChild, PublisherModelEmbed do
       field :child_field_1
       field :child_field_2
       field :child_field_3
     end
 
-    define_constant('PublisherModelEmbedMany') do
+    define_constant :PublisherModelEmbedMany do
       include Mongoid::Document
+      include Promiscuous::Publisher
       embeds_many :models_embedded, :class_name => 'PublisherModelEmbedded'
 
       field :field_1
       field :field_2
       field :field_3
+
+      publish :to => 'crowdtap/publisher_model_embed_many'
+      publish :field_1, :field_2, :field_3, :models_embedded
     end
 
-    define_constant('Scoped::ScopedPublisherModel', PublisherModel) do
+    define_constant :'Scoped::ScopedPublisherModel', PublisherModel do
     end
 
     ##############################################

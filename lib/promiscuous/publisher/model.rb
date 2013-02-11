@@ -1,90 +1,67 @@
-require 'crowdtap_redis_lock'
-
 module Promiscuous::Publisher::Model
   extend Promiscuous::Autoload
-  autoload :ActiveRecord, :Mongoid
+  autoload :ActiveRecord, :Ephemeral, :Mock, :Mongoid
 
   extend ActiveSupport::Concern
-  include Promiscuous::Publisher::Envelope
 
-  mattr_accessor :klasses
-  self.klasses = []
-
-  def operation
-    options[:operation]
+  included do
+    class_attribute :publish_to
+    class << self; attr_accessor :published_fields; end
+    self.published_fields = []
   end
 
-  def fetch
-    case operation
-    when :create  then instance
-    when :update  then options[:fetch_proc].call
-    when :destroy then nil
-    end
+  def promiscuous_sync(options={}, &block)
+    options = options.dup
+    options[:instance] = self
+    options[:operation] ||= :update
+    Promiscuous::Publisher::Operation.new(options).commit(&block)
   end
 
-  def payload
-    super.merge(:id => instance.id, :operation => operation, :version => version)
+  def to_promiscuous(options={})
+    msg = {}
+    msg[:__amqp__]  = self.class.publish_to
+    msg[:type]      = self.class.name # for backward compatibility
+    msg[:ancestors] = self.class.ancestors.select { |a| a < Promiscuous::Publisher::Model }.map(&:name)
+    msg[:id]        = self.id.to_s
+    msg[:payload]   = self.__promiscuous_attributes if options[:operation].in?([nil, :create, :update])
+    msg[:operation] = options[:operation]           if options[:operation]
+    msg[:version]   = options[:version]             if options[:version]
+    msg
   end
 
-  def include_attributes?
-    !operation.in? [:destroy, :dummy]
+  def __promiscuous_attributes
+    Hash[self.class.published_fields.map { |field| [field, self.__promiscuous_attribute(field)] }]
   end
 
-  def instance
-    @new_instance || super
+  def __promiscuous_attribute(attr)
+    value = __send__(attr)
+    value = value.to_promiscuous if value.respond_to?(:to_promiscuous)
+    value
   end
 
-  def with_lock(&block)
-    return yield if Promiscuous::Config.backend == :null
-    return yield if operation == :create
-
-    key = Promiscuous::Redis.pub_key(instance.id)
-    # We'll block for 60 seconds before raising an exception
-    ::RedisLock.new(Promiscuous::Redis, key).retry(300).every(0.2).lock_for_update(&block)
-  end
-
-  def version
-    {:global => @global_version}
-  end
-
-  def update_dependencies
-    @global_version = Promiscuous::Redis.incr(Promiscuous::Redis.pub_key('global'))
-  end
-
-  def commit
-    ret = nil
-    exception = nil
-
-    Promiscuous::AMQP.ensure_connected
-
-    with_lock do
-      update_dependencies
-      begin
-        ret = yield if block_given?
-      rescue Exception => e
-        # we must publish something so the subscriber can sync
-        # with the updated dependencies
-        options[:operation] = :dummy
-        exception = e
-      end
-
-      begin
-        @new_instance = fetch
-      rescue Exception => e
-        raise_out_of_sync(e, payload.to_json)
-      end
-    end
-
-    publish
-
-    raise exception if exception
-    ret
+  def __promiscuous_publish(options={})
+    payload = self.to_promiscuous(options)
+    Promiscuous::AMQP.publish(:key => payload[:__amqp__], :payload => payload.to_json)
+  rescue Exception => e
+    raise Promiscuous::Error::Publisher.new(e, :instance => self, :payload => payload, :out_of_sync => true)
   end
 
   module ClassMethods
-    def setup_class_binding
+    def publish(*args)
+      options    = args.extract_options!
+      attributes = args
+
+      if self.publish_to && options[:to] && self.publish_to != options[:to]
+        raise 'versionned publishing is not supported yet'
+      end
+      self.publish_to ||= options[:to] || "#{Promiscuous::Config.app}/#{self.name.underscore}"
+
+      ([self] + descendants).each { |klass| klass.published_fields |= attributes }
+    end
+
+    def inherited(subclass)
       super
-      Promiscuous::Publisher::Model.klasses << klass if klass
+      subclass.published_fields = self.published_fields.dup
     end
   end
 end

@@ -1,13 +1,33 @@
 module Promiscuous::Publisher::Model::Mongoid
   extend ActiveSupport::Concern
+  include Promiscuous::Publisher::Model
 
-  class Commit
-    attr_accessor :collection, :selector, :document, :operation
+  def promiscuous_sync(options={}, &block)
+    raise "Use promiscuous_sync on the parent instance" if self.embedded?
+
+    options = options.dup
+    options[:operation]  ||= :update
+    options[:collection] = collection.name
+    options[:selector]   = atomic_selector
+    Promiscuous::Publisher::Model::Mongoid::Operation.new(options).commit(&block)
+  end
+
+  def __promiscuous_attribute(attr)
+    value = super
+    if value.is_a?(Array) && value.ancestors.any? { |a| a == Promiscuous::Publisher::Model }
+      value = { :__amqp__ => '__promiscuous__/embedded_many',
+                :payload  => value.map(&:to_promiscuous) }
+    end
+    value
+  end
+
+  class Operation < Promiscuous::Publisher::Operation
+    attr_accessor :collection, :selector, :document
     def initialize(options={})
+      super
       self.collection = options[:collection]
       self.selector   = options[:selector]
       self.document   = options[:document]
-      self.operation  = options[:operation]
     end
 
     def klass
@@ -16,51 +36,32 @@ module Promiscuous::Publisher::Model::Mongoid
     rescue NameError
     end
 
-    def fetch
-      case operation
-      when :create  then klass.new(document, :without_protection => true)
-      when :update  then klass.with(:consistency => :strong).where(selector).first
-      when :destroy then klass.with(:consistency => :strong).where(selector).first
+    def fetch_instance(id=nil)
+      return klass.find(id) if id
+
+      if operation == :create
+        # FIXME we need to call demongoize or something
+        klass.new(document, :without_protection => true)
+      else
+        # FIXME respect the original ordering
+        klass.with(:consistency => :strong).where(selector).first
       end
     end
 
-    def commit(&block)
-      return block.call unless klass
-
-      # We bypass the call if instance == nil, the destroy or the update would
-      # have had no effect
-      instance = fetch
-      return if instance.nil?
-
-      return block.call unless instance.class.respond_to?(:promiscuous_publisher)
-
-      self.selector = {:id => instance.id}
-
-      publisher = instance.class.promiscuous_publisher
-      publisher.new(:operation  => operation,
-                    :instance   => instance,
-                    :fetch_proc => method(:fetch)).commit(&block)
-    end
-  end
-
-  module ModelInstanceMethods
-    extend ActiveSupport::Concern
-
-    def promiscuous_sync
-      publisher = self.class.promiscuous_publisher
-
-      fetch_proc = proc { self.class.with(:consistency => :strong).where(atomic_selector).first }
-
-      publisher.new(:operation  => :update,
-                    :instance   => self,
-                    :fetch_proc => fetch_proc).commit
-    end
-  end
-
-  module ClassMethods
-    def setup_class_binding
+    def commit(&db_operation)
+      @instance = fetch_instance()
+      return yield unless @instance.is_a?(Promiscuous::Publisher::Model::Mongoid)
       super
-      klass.__send__(:include, ModelInstanceMethods) if klass
+    end
+  end
+
+  def self.check_mongoid_version
+    unless Gem.loaded_specs['mongoid'].version >= Gem::Version.new('3.0.19')
+      raise "mongoid > 3.0.19 please"
+    end
+
+    unless Gem.loaded_specs['moped'].version >= Gem::Version.new('1.3.2')
+      raise "moped > 1.3.2 please"
     end
   end
 
@@ -70,7 +71,7 @@ module Promiscuous::Publisher::Model::Mongoid
       def insert(documents, flags=nil)
         documents = [documents] unless documents.is_a?(Array)
         documents.each do |doc|
-          Promiscuous::Publisher::Model::Mongoid::Commit.new(
+          Promiscuous::Publisher::Model::Mongoid::Operation.new(
             :collection => self.name,
             :document   => doc,
             :operation  => :create
@@ -88,33 +89,36 @@ module Promiscuous::Publisher::Model::Mongoid
           raise "Promiscuous: Do not use multi updates, update each instance separately"
         end
 
-        Promiscuous::Publisher::Model::Mongoid::Commit.new(
+        Promiscuous::Publisher::Model::Mongoid::Operation.new(
           :collection => collection.name,
           :selector   => selector,
           :operation  => :update
-        ).commit do
+        ).commit do |id|
+          # TODO FIXME selector = {:id => id} if id
           update_orig(change, flags)
         end
       end
 
       alias_method :modify_orig, :modify
       def modify(change, options={})
-        Promiscuous::Publisher::Model::Mongoid::Commit.new(
+        Promiscuous::Publisher::Model::Mongoid::Operation.new(
           :collection => collection.name,
           :selector   => selector,
           :operation  => :update
-        ).commit do
+        ).commit do |id|
+          # TODO FIXME selector = {:id => id} if id
           modify_orig(change, options)
         end
       end
 
       alias_method :remove_orig, :remove
       def remove
-        Promiscuous::Publisher::Model::Mongoid::Commit.new(
+        Promiscuous::Publisher::Model::Mongoid::Operation.new(
           :collection => collection.name,
           :selector   => selector,
           :operation  => :destroy
-        ).commit do
+        ).commit do |id|
+          # TODO FIXME selector = {:id => id} if id
           remove_orig
         end
       end
@@ -125,5 +129,7 @@ module Promiscuous::Publisher::Model::Mongoid
       end
     end
   end
+
+  check_mongoid_version
   hook_mongoid
 end

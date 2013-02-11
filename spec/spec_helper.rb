@@ -25,6 +25,5 @@ RSpec.configure do |config|
 
   config.after do
     Promiscuous::Subscriber::AMQP.subscribers.select! { |k| k =~ /__promiscuous__/ }
-    Promiscuous::Publisher::Model.klasses.clear
   end
 end

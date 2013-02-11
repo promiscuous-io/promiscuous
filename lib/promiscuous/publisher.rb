@@ -1,9 +1,12 @@
 module Promiscuous::Publisher
   extend Promiscuous::Autoload
-  autoload :ActiveRecord, :AMQP, :Attributes, :Base, :Class, :Envelope, :Lint,
-           :Mock, :Model, :Mongoid, :Polymorphic, :Error, :Ephemeral
+  autoload :Model, :Operation
 
-  def self.lint(*args)
-    Lint.lint(*args)
+  extend ActiveSupport::Concern
+
+  included do
+    include Model::Mongoid      if defined?(Mongoid::Document)  && self < Mongoid::Document
+    include Model::ActiveRecord if defined?(ActiveRecord::Base) && self < ActiveRecord::Base
+    raise "What kind of model is this? try including Promiscuous::Publisher after all your includes" unless self < Model
   end
 end

@@ -7,17 +7,6 @@ if ORM.has(:polymorphic)
 
     context 'when not collapsing the polymorhic hierarchy' do
       before do
-        define_constant('Publisher', ORM::PublisherBase) do
-          publish :to => 'crowdtap/publisher_model',
-                  :class => :PublisherModel,
-                  :attributes => [:field_1, :field_2, :field_3]
-        end
-
-        define_constant('PublisherChild', Publisher) do
-          publish :class => :PublisherModelChild,
-                  :attributes => [:child_field_1]
-        end
-
         define_constant('Subscriber', ORM::SubscriberBase) do
           subscribe :from => 'crowdtap/publisher_model',
                     :from_type => :PublisherModel,
@@ -116,17 +105,6 @@ if ORM.has(:polymorphic)
 
     context 'when collapsing a polymorphic hierarchy' do
       before do
-        define_constant('Publisher', ORM::PublisherBase) do
-          publish :to => 'crowdtap/publisher_model',
-                  :class => :PublisherModel,
-                  :attributes => [:field_1, :field_2, :field_3]
-        end
-
-        define_constant('PublisherChild', Publisher) do
-          publish :class => :PublisherModelChild,
-                  :attributes => [:child_field_1]
-        end
-
         define_constant('Subscriber', ORM::SubscriberBase) do
           subscribe :from => 'crowdtap/publisher_model',
                     :from_type => :PublisherModel,
@@ -155,28 +133,33 @@ if ORM.has(:polymorphic)
 
     context 'when subscirbing to child classes individually' do
       before do
-        define_constant('PublisherChild', ORM::PublisherBase) do
-          publish :to => 'crowdtap/publisher_child_model',
-                  :class => :PublisherModelChild,
-                  :attributes => [:field_1, :child_field_1]
+        define_constant :PublisherModelHidden do
+          include Mongoid::Document
+          field :field_1
         end
 
-        define_constant('PublisherAnotherChild', ORM::PublisherBase) do
-          publish :to => 'crowdtap/publisher_another_child_model',
-                  :class => :PublisherModelAnotherChild,
-                  :attributes => [:field_1, :another_child_field_1]
+        define_constant :PublisherModelChildRoot, PublisherModelHidden do
+          include Promiscuous::Publisher
+          field :child_field_1
+          publish :field_1, :child_field_1, :to => 'crowdtap/publisher_child_model'
+        end
+
+        define_constant :PublisherModelAnotherChildRoot, PublisherModelHidden do
+          include Promiscuous::Publisher
+          field :another_child_field_1
+          publish :field_1, :another_child_field_1, :to => 'crowdtap/publisher_another_child_model'
         end
 
         define_constant('SubscriberChild', ORM::SubscriberBase) do
           subscribe :from => 'crowdtap/publisher_child_model',
-                    :from_type => :PublisherModelChild,
+                    :from_type => :PublisherModelChildRoot,
                     :class => :SubscriberModelChild,
                     :attributes => [:field_1, :child_field_1]
         end
 
         define_constant('SubscriberAnotherChild', ORM::SubscriberBase) do
           subscribe :from => 'crowdtap/publisher_another_child_model',
-                    :from_type => :PublisherModelAnotherChild,
+                    :from_type => :PublisherModelAnotherChildRoot,
                     :class => :SubscriberModelAnotherChild,
                     :attributes => [:field_1, :another_child_field_1]
         end
@@ -186,8 +169,8 @@ if ORM.has(:polymorphic)
 
       context 'when creating' do
         it 'replicates both child models' do
-          pub1 = PublisherModelChild.create(:field_1 => '1', :child_field_1 => '2')
-          pub2 = PublisherModelAnotherChild.create(:field_1 => '1', :another_child_field_1 => '2')
+          pub1 = PublisherModelChildRoot.create(:field_1 => '1', :child_field_1 => '2')
+          pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
 
           eventually do
             sub1 = SubscriberModelChild.find(pub1.id)
@@ -205,8 +188,8 @@ if ORM.has(:polymorphic)
 
       context 'when updating' do
         it 'replicates both child models' do
-          pub1 = PublisherModelChild.create(:field_1 => '1', :child_field_1 => '2')
-          pub2 = PublisherModelAnotherChild.create(:field_1 => '1', :another_child_field_1 => '2')
+          pub1 = PublisherModelChildRoot.create(:field_1 => '1', :child_field_1 => '2')
+          pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
 
           pub1.update_attributes(:field_1 => '1_updated', :child_field_1 => '2_updated')
           pub2.update_attributes(:field_1 => '1_updated', :another_child_field_1 => '2_updated')
@@ -227,8 +210,8 @@ if ORM.has(:polymorphic)
 
       context 'when destroying' do
         it 'replicates the parent' do
-          pub1 = PublisherModelChild.create(:field_1 => '1', :child_field_1 => '2')
-          pub2 = PublisherModelAnotherChild.create(:field_1 => '1', :another_child_field_1 => '2')
+          pub1 = PublisherModelChildRoot.create(:field_1 => '1', :child_field_1 => '2')
+          pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
 
           eventually do
             SubscriberModelChild.count.should == 1
