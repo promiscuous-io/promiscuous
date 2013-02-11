@@ -3,15 +3,6 @@ require 'spec_helper'
 describe Promiscuous do
   before { load_models }
   before { use_real_backend(:logger_level => Logger::FATAL) }
-
-  before do
-    define_constant('Subscriber', ORM::SubscriberBase) do
-      subscribe :from => 'crowdtap/publisher_model',
-                :class => SubscriberModel,
-                :attributes => [:field_1, :field_2, :field_3]
-    end
-  end
-
   before { run_subscriber_worker! }
 
   context 'when updating' do

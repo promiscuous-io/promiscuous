@@ -4,34 +4,6 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
   describe Promiscuous do
     before { load_models }
     before { use_real_backend }
-
-    before do
-      define_constant('SubscriberEmbed', ORM::SubscriberBase) do
-        subscribe :from => 'crowdtap/publisher_model_embed',
-                  :from_type => :PublisherModelEmbed,
-                  :class => :SubscriberModelEmbed,
-                  :attributes => [:field_1, :field_2, :field_3, :model_embedded]
-      end
-
-      define_constant('SubscriberEmbedChild', SubscriberEmbed) do
-        subscribe :from_type => :PublisherModelEmbedChild,
-                  :class => :SubscriberModelEmbedChild,
-                  :attributes => [:child_embedded_field_1]
-      end
-
-      define_constant('SubscriberEmbedded', ORM::SubscriberBase) do
-        subscribe :from => 'crowdtap/model_embedded',
-                  :from_type => :PublisherModelEmbedded,
-                  :class => :SubscriberModelEmbedded,
-                  :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
-      end
-
-      define_constant('SubscriberEmbeddedChild', SubscriberEmbedded) do
-        subscribe :from_type => :PublisherModelEmbeddedChild,
-                  :class => :SubscriberModelEmbeddedChild
-      end
-    end
-
     before { run_subscriber_worker! }
 
     context 'when creating' do

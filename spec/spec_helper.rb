@@ -24,6 +24,6 @@ RSpec.configure do |config|
   config.include CallbacksHelper
 
   config.after do
-    Promiscuous::Subscriber::AMQP.subscribers.select! { |k| k =~ /__promiscuous__/ }
+    Promiscuous::Subscriber::Model.mapping.select! { |k| k.to_s =~ /__promiscuous__/ }
   end
 end

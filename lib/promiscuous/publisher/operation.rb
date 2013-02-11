@@ -10,12 +10,12 @@ class Promiscuous::Publisher::Operation
     self.instance  = options[:instance]
   end
 
-  def klass
+  def model
     self.instance.try(:class)
   end
 
   def instance_key
-    "#{self.klass.name.underscore}:#{self.instance.id}"
+    "#{self.model.name.underscore}:#{self.instance.id}"
   end
 
   def with_instance_lock(&block)
@@ -40,7 +40,7 @@ class Promiscuous::Publisher::Operation
 
   # Overriden when using custom selectors
   def fetch_instance(id=nil)
-    id ? self.klass.find(id) : self.instance
+    id ? self.model.find(id) : self.instance
   end
 
   def commit(&db_operation)
@@ -54,6 +54,7 @@ class Promiscuous::Publisher::Operation
       Promiscuous::AMQP.ensure_connected
 
       with_instance_lock do
+        # FIXME This race detection mechanism is not tested
         old_instance, self.instance = self.instance, fetch_instance()
         raise TryAgain if old_instance.id != self.instance.id
 

@@ -4,15 +4,7 @@ describe Promiscuous do
   before { load_models }
   before { use_real_backend }
 
-  before do
-    define_constant('Subscriber', ORM::SubscriberBase) do
-      subscribe :from => 'crowdtap/publisher_model',
-                :class => :SubscriberModel,
-                :attributes => [:field_1, :field_2, :field_3],
-                :foreign_key => :publisher_id
-
-    end
-  end
+  before { SubscriberModel.class_eval { subscribe :foreign_key => :publisher_id } }
 
   before { run_subscriber_worker! }
 

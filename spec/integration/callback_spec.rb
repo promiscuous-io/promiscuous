@@ -6,15 +6,6 @@ describe Promiscuous do
 
   context "when using a vanilla model" do
     before { record_callbacks(SubscriberModel) }
-
-    before do
-      define_constant('Subscriber', ORM::SubscriberBase) do
-        subscribe :from => 'crowdtap/publisher_model',
-                  :class => :SubscriberModel,
-                  :attributes => [:field_1, :field_2, :field_3]
-      end
-    end
-
     before { run_subscriber_worker! }
 
     context 'when creating' do
@@ -52,21 +43,6 @@ describe Promiscuous do
       context 'when using one embedded document' do
         before { record_callbacks(PublisherModelEmbedded) }
         before { record_callbacks(SubscriberModelEmbedded) }
-
-        before do
-          define_constant('SubscriberEmbed', ORM::SubscriberBase) do
-            subscribe :from => 'crowdtap/publisher_model_embed',
-                      :class => SubscriberModelEmbed,
-                      :attributes => [:field_1, :field_2, :field_3, :model_embedded]
-          end
-
-          define_constant('SubscriberEmbedded', ORM::SubscriberBase) do
-            subscribe :from => 'crowdtap/model_embedded',
-                      :class => SubscriberModelEmbedded,
-                      :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
-          end
-        end
-
         before { run_subscriber_worker! }
 
         context 'when creating' do
@@ -119,21 +95,6 @@ describe Promiscuous do
   if ORM.has(:many_embedded_documents)
     context 'when using many embedded documents' do
       before { record_callbacks(SubscriberModelEmbedded) }
-
-      before do
-        define_constant('SubscriberEmbedMany', ORM::SubscriberBase) do
-          subscribe :from => 'crowdtap/publisher_model_embed_many',
-            :class => SubscriberModelEmbedMany,
-            :attributes => [:field_1, :field_2, :field_3, :models_embedded]
-        end
-
-        define_constant('SubscriberEmbedded', ORM::SubscriberBase) do
-          subscribe :from => 'crowdtap/model_embedded',
-            :class => SubscriberModelEmbedded,
-            :attributes => [:embedded_field_1, :embedded_field_2, :embedded_field_3]
-        end
-      end
-
       before { run_subscriber_worker! }
 
       context 'when creating' do

@@ -3,6 +3,8 @@ class Promiscuous::Publisher::Model::Mock
   include Promiscuous::Publisher::Model::Ephemeral
 
   def promiscuous_sync(options={}, &block)
-    Promiscuous::Subscriber.process(JSON.parse(to_promiscuous(options).to_json))
+    parsed_payload = JSON.parse(to_promiscuous(options).to_json)
+    payload = Promiscuous::Subscriber::Payload.new(parsed_payload)
+    Promiscuous::Subscriber::Operation.new(payload).commit
   end
 end

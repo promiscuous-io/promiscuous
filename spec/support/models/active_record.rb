@@ -20,12 +20,18 @@ module ModelsHelper
     ##############################################
 
     define_constant('SubscriberModel', ActiveRecord::Base) do
+      include Promiscuous::Subscriber
+      subscribe :field_1, :field_2, :field_3, :from => 'crowdtap/publisher_model'
     end
 
     define_constant('SubscriberModelOther', ActiveRecord::Base) do
+      include Promiscuous::Subscriber
+      subscribe :field_1, :field_2, :field_3, :from => 'crowdtap/publisher_model_other'
     end
 
     define_constant('SubscriberModelChild', SubscriberModel) do
+      subscribe :as => :SubscriberModelChild
+      subscribe :child_field_1, :child_field_2, :child_field_3
     end
 
     define_constant('Scoped::ScopedSubscriberModel', SubscriberModel) do

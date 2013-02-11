@@ -1,27 +1,16 @@
 module Promiscuous::Subscriber
   extend Promiscuous::Autoload
-  autoload :ActiveRecord, :AMQP, :Attributes, :Base, :Class, :Envelope, :Error,
-           :Lint, :Model, :Mongoid, :Polymorphic, :Upsert, :Observer, :Worker, :Dummy
+  autoload :Worker, :Payload, :Model, :Operation
 
-  def self.lint(*args)
-    Lint.lint(*args)
-  end
+  extend ActiveSupport::Concern
 
-  def self.subscriber_class_for(payload)
-    sub = AMQP.subscriber_from(payload)
-    if sub && defined?(Polymorphic) && sub.include?(Polymorphic)
-      sub = sub.polymorphic_subscriber_from(payload)
+  included do
+    if defined?(Mongoid::Document) && self < Mongoid::Document
+      include Promiscuous::Subscriber::Model::Mongoid
+    elsif defined?(ActiveRecord::Base) && self < ActiveRecord::Base
+      include Promiscuous::Subscriber::Model::ActiveRecord
+    else
+      raise "What kind of model is this? try including Promiscuous::Subscriber after all your includes"
     end
-    sub || Base
-  end
-
-  def self.subscriber_for(payload, options={})
-    self.subscriber_class_for(payload).new(options.merge(:payload => payload))
-  end
-
-  def self.process(payload, options={})
-    sub = self.subscriber_for(payload, options)
-    sub.process
-    sub.instance
   end
 end

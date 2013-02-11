@@ -6,21 +6,6 @@ if ORM.has(:polymorphic)
     before { use_real_backend }
 
     context 'when not collapsing the polymorhic hierarchy' do
-      before do
-        define_constant('Subscriber', ORM::SubscriberBase) do
-          subscribe :from => 'crowdtap/publisher_model',
-                    :from_type => :PublisherModel,
-                    :class => :SubscriberModel,
-                    :attributes => [:field_1, :field_2, :field_3]
-        end
-
-        define_constant('SubscriberChild', Subscriber) do
-          subscribe :from_type => :PublisherModelChild,
-                    :class => :SubscriberModelChild,
-                    :attributes => [:child_field_1]
-        end
-      end
-
       before { run_subscriber_worker! }
 
       context 'when creating' do
@@ -103,21 +88,7 @@ if ORM.has(:polymorphic)
       end
     end
 
-    context 'when collapsing a polymorphic hierarchy' do
-      before do
-        define_constant('Subscriber', ORM::SubscriberBase) do
-          subscribe :from => 'crowdtap/publisher_model',
-                    :from_type => :PublisherModel,
-                    :class => :SubscriberModelChild,
-                    :attributes => [:field_1, :field_2, :field_3]
-        end
-
-        define_constant('SubscriberChild', Subscriber) do
-          subscribe :from_type => :PublisherModelChild,
-                    :attributes => [:child_field_1]
-        end
-      end
-
+    context 'when collapsing a polymorphic hierarchy', :pending => true do
       before { run_subscriber_worker! }
 
       it 'doesn\'t replicate child fields' do
@@ -150,18 +121,25 @@ if ORM.has(:polymorphic)
           publish :field_1, :another_child_field_1, :to => 'crowdtap/publisher_another_child_model'
         end
 
-        define_constant('SubscriberChild', ORM::SubscriberBase) do
-          subscribe :from => 'crowdtap/publisher_child_model',
-                    :from_type => :PublisherModelChildRoot,
-                    :class => :SubscriberModelChild,
-                    :attributes => [:field_1, :child_field_1]
+        define_constant :SubscriberModelHidden do
+          include Mongoid::Document
+          field :field_1
         end
 
-        define_constant('SubscriberAnotherChild', ORM::SubscriberBase) do
-          subscribe :from => 'crowdtap/publisher_another_child_model',
-                    :from_type => :PublisherModelAnotherChildRoot,
-                    :class => :SubscriberModelAnotherChild,
-                    :attributes => [:field_1, :another_child_field_1]
+        define_constant :SubscriberModelChildRoot, SubscriberModelHidden do
+          include Promiscuous::Subscriber
+          field :child_field_1
+          subscribe :from => 'crowdtap/publisher_child_model'
+          subscribe :as   =>  :PublisherModelChildRoot
+          subscribe :field_1, :child_field_1
+        end
+
+        define_constant :SubscriberModelAnotherChildRoot, SubscriberModelHidden do
+          include Promiscuous::Subscriber
+          field :another_child_field_1
+          subscribe :from => 'crowdtap/publisher_another_child_model'
+          subscribe :as   =>  :PublisherModelAnotherChildRoot
+          subscribe :field_1, :another_child_field_1
         end
       end
 
@@ -173,12 +151,12 @@ if ORM.has(:polymorphic)
           pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
 
           eventually do
-            sub1 = SubscriberModelChild.find(pub1.id)
+            sub1 = SubscriberModelChildRoot.find(pub1.id)
             sub1.id.should == pub1.id
             sub1.field_1.should == pub1.field_1
             sub1.child_field_1.should == pub1.child_field_1
 
-            sub2 = SubscriberModelAnotherChild.find(pub2.id)
+            sub2 = SubscriberModelAnotherChildRoot.find(pub2.id)
             sub2.id.should == pub2.id
             sub2.field_1.should == pub2.field_1
             sub2.another_child_field_1.should == pub2.another_child_field_1
@@ -195,12 +173,12 @@ if ORM.has(:polymorphic)
           pub2.update_attributes(:field_1 => '1_updated', :another_child_field_1 => '2_updated')
 
           eventually do
-            sub1 = SubscriberModelChild.find(pub1.id)
+            sub1 = SubscriberModelChildRoot.find(pub1.id)
             sub1.id.should == pub1.id
             sub1.field_1.should == pub1.field_1
             sub1.child_field_1.should == pub1.child_field_1
 
-            sub2 = SubscriberModelAnotherChild.find(pub2.id)
+            sub2 = SubscriberModelAnotherChildRoot.find(pub2.id)
             sub2.id.should == pub2.id
             sub2.field_1.should == pub2.field_1
             sub2.another_child_field_1.should == pub2.another_child_field_1
@@ -214,14 +192,14 @@ if ORM.has(:polymorphic)
           pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
 
           eventually do
-            SubscriberModelChild.count.should == 1
-            SubscriberModelAnotherChild.count.should == 1
+            SubscriberModelChildRoot.count.should == 1
+            SubscriberModelAnotherChildRoot.count.should == 1
           end
           pub1.destroy
           pub2.destroy
           eventually do
-            SubscriberModelChild.count.should == 0
-            SubscriberModelAnotherChild.count.should == 0
+            SubscriberModelChildRoot.count.should == 0
+            SubscriberModelAnotherChildRoot.count.should == 0
           end
         end
       end

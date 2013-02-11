@@ -7,14 +7,6 @@ describe Promiscuous do
   before { use_real_backend(:error_notifier => error_notifier, :logger_level => Logger::FATAL) }
 
   context 'when replicating the update of a model that fails' do
-    before do
-      define_constant('Subscriber', ORM::SubscriberBase) do
-        subscribe :from => 'crowdtap/publisher_model',
-                  :class => SubscriberModel,
-                  :attributes => [:field_1, :field_2, :field_3]
-      end
-    end
-
     before { run_subscriber_worker! }
 
     context 'on the subscriber side' do
@@ -32,14 +24,7 @@ describe Promiscuous do
   end
 
   context 'when subscribing to non published fields' do
-    before do
-      define_constant('Subscriber', ORM::SubscriberBase) do
-        subscribe :from => 'crowdtap/publisher_model',
-                  :class => SubscriberModel,
-                  :attributes => [:hello]
-      end
-    end
-
+    before { SubscriberModel.class_eval { subscribe :hello } }
     before { run_subscriber_worker! }
 
     it 'calls the error_notifier with an exception' do
@@ -49,15 +34,7 @@ describe Promiscuous do
   end
 
   if ORM.has(:embedded_documents)
-    context 'when the subscriber is missing' do
-      before do
-        define_constant('SubscriberEmbed', ORM::SubscriberBase) do
-          subscribe :from => 'crowdtap/publisher_model_embed',
-                    :class => SubscriberModelEmbed,
-                    :attributes => [:field_1, :field_2, :field_3, :model_embedded]
-        end
-      end
-
+    context 'when the subscriber is missing', :pending => true do
       before { run_subscriber_worker! }
 
       it 'calls the error_notifier with an exception' do

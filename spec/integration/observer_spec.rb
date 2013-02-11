@@ -5,12 +5,6 @@ describe Promiscuous do
   before { use_real_backend }
 
   before do
-    define_constant(:Subscriber, Promiscuous::Subscriber::Observer) do
-      subscribe :from => 'crowdtap/publisher_model',
-                :class => :ModelObserver,
-                :attributes => [:field_1, :field_2, :field_3]
-    end
-
     ModelObserver.class_eval do
       [:create, :update, :destroy].each do |cb|
         cattr_accessor "#{cb}_instance"

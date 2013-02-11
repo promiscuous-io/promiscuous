@@ -6,8 +6,8 @@ module Promiscuous::Publisher::Model
 
   included do
     class_attribute :publish_to
-    class << self; attr_accessor :published_fields; end
-    self.published_fields = []
+    class << self; attr_accessor :published_attrs; end
+    self.published_attrs = []
   end
 
   def promiscuous_sync(options={}, &block)
@@ -30,7 +30,7 @@ module Promiscuous::Publisher::Model
   end
 
   def __promiscuous_attributes
-    Hash[self.class.published_fields.map { |field| [field, self.__promiscuous_attribute(field)] }]
+    Hash[self.class.published_attrs.map { |attr| [attr, self.__promiscuous_attribute(attr)] }]
   end
 
   def __promiscuous_attribute(attr)
@@ -51,17 +51,19 @@ module Promiscuous::Publisher::Model
       options    = args.extract_options!
       attributes = args
 
+      # TODO reject invalid options
+
       if self.publish_to && options[:to] && self.publish_to != options[:to]
         raise 'versionned publishing is not supported yet'
       end
       self.publish_to ||= options[:to] || "#{Promiscuous::Config.app}/#{self.name.underscore}"
 
-      ([self] + descendants).each { |klass| klass.published_fields |= attributes }
+      ([self] + descendants).each { |klass| klass.published_attrs |= attributes }
     end
 
     def inherited(subclass)
       super
-      subclass.published_fields = self.published_fields.dup
+      subclass.published_attrs = self.published_attrs.dup
     end
   end
 end

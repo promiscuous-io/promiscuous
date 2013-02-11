@@ -30,21 +30,21 @@ module Promiscuous::Publisher::Model::Mongoid
       self.document   = options[:document]
     end
 
-    def klass
-      @klass ||= document.try(:[], '_type').try(:constantize) ||
+    def model
+      @model ||= document.try(:[], '_type').try(:constantize) ||
                  collection.singularize.camelize.constantize
     rescue NameError
     end
 
     def fetch_instance(id=nil)
-      return klass.find(id) if id
+      return model.find(id) if id
 
       if operation == :create
         # FIXME we need to call demongoize or something
-        klass.new(document, :without_protection => true)
+        model.new(document, :without_protection => true)
       else
         # FIXME respect the original ordering
-        klass.with(:consistency => :strong).where(selector).first
+        model.with(:consistency => :strong).where(selector).first
       end
     end
 

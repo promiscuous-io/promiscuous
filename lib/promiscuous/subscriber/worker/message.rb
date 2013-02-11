@@ -57,7 +57,8 @@ class Promiscuous::Subscriber::Worker::Message
 
     Promiscuous.debug "[receive] #{payload}"
     unit_of_work(queue_name) do
-      Promiscuous::Subscriber.process(parsed_payload, :message => self)
+      payload = Promiscuous::Subscriber::Payload.new(parsed_payload, self)
+      Promiscuous::Subscriber::Operation.new(payload).commit
     end
 
     ack
