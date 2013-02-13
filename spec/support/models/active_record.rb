@@ -17,6 +17,10 @@ module ModelsHelper
     define_constant('Scoped::ScopedPublisherModel', PublisherModel) do
     end
 
+    define_constant :PublisherDslModel, ActiveRecord::Base do
+      include Promiscuous::Publisher
+    end
+
     ##############################################
 
     define_constant('SubscriberModel', ActiveRecord::Base) do
@@ -35,6 +39,10 @@ module ModelsHelper
     end
 
     define_constant('Scoped::ScopedSubscriberModel', SubscriberModel) do
+    end
+
+    define_constant :SubscriberDslModel, ActiveRecord::Base do
+      include Promiscuous::Subscriber
     end
   end
 end

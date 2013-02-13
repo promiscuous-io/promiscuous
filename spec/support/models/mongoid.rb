@@ -92,6 +92,14 @@ module ModelsHelper
     define_constant :'Scoped::ScopedPublisherModel', PublisherModel do
     end
 
+    define_constant :PublisherDslModel do
+      include Mongoid::Document
+      include Promiscuous::Publisher
+
+      field :field_1
+      field :field_2
+    end
+
     ##############################################
 
     define_constant('SubscriberModel') do
@@ -188,6 +196,16 @@ module ModelsHelper
     end
 
     define_constant('Scoped::ScopedSubscriberModel', SubscriberModel) do
+    end
+
+    define_constant('SubscriberDslModel') do
+      include Mongoid::Document
+      include Promiscuous::Subscriber
+
+      field :field_1
+      field :field_2
+      field :publisher_id, :type => BSON::ObjectId
+
     end
   end
 end
