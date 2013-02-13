@@ -4,36 +4,25 @@ module Promiscuous::DSL
   end
 
   def publish(models, options, &block)
-    publisher_definition = PublisherDefinition.new(models, options)
+    publisher_definition = Definition.new(:publish, models, options)
     publisher_definition.instance_eval(&block)
   end
 
   def subscribe(models, options, &block)
-    subscriber_definition = SubscriberDefinition.new(models, options)
+    subscriber_definition = Definition.new(:subscribe, models, options)
     subscriber_definition.instance_eval(&block)
   end
 
-  class PublisherDefinition
-    def initialize(models, options)
+  class Definition
+    def initialize(mode, models, options)
+      @mode = mode
       @models = models
       @options = options
     end
 
     def attributes(*fields)
       model_class = @models.to_s.singularize.classify.constantize
-      model_class.publish *fields, @options
-    end
-  end
-
-  class SubscriberDefinition
-    def initialize(models, options)
-      @models = models
-      @options = options
-    end
-
-    def attributes(*fields)
-      model_class = @models.to_s.singularize.classify.constantize
-      model_class.subscribe *fields, @options
+      model_class.__send__(@mode, *fields, @options)
     end
   end
 end
