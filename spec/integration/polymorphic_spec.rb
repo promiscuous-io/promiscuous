@@ -88,16 +88,59 @@ if ORM.has(:polymorphic)
       end
     end
 
-    context 'when collapsing a polymorphic hierarchy', :pending => true do
+    context 'when collapsing a polymorphic hierarchy' do
+      before do
+        define_constant :Publisher1 do
+          include Mongoid::Document
+          include Promiscuous::Publisher
+          field :field_1
+          publish :field_1, :to => 'crowdtap/publisher'
+        end
+
+        define_constant :Publisher2, Publisher1 do
+          field :field_2
+          publish :field_2
+        end
+
+        define_constant :Publisher3, Publisher2 do
+          field :field_3
+          publish :field_3
+        end
+
+        define_constant :Subscriber1 do
+          include Mongoid::Document
+          include Promiscuous::Subscriber
+          field :field_1
+          subscribe :as => :Publisher1, :from => 'crowdtap/publisher'
+          subscribe :field_1
+        end
+
+        define_constant :Subscriber2, Subscriber1 do
+          field :field_2
+          subscribe :as => :Publisher2
+          subscribe :field_2
+        end
+      end
+
       before { run_subscriber_worker! }
 
-      it 'doesn\'t replicate child fields' do
-        SubscriberModelChild.class_eval { field :child_field_1, :default => "default" }
-        pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      it 'replicates' do
+        pub1 = Publisher1.create(:field_1 => '11')
+        pub2 = Publisher2.create(:field_1 => '21', :field_2 => '22')
+        pub3 = Publisher3.create(:field_1 => '31', :field_2 => '32', :field_3 => '33')
 
         eventually do
-          sub = SubscriberModelChild.find(pub.id)
-          sub.child_field_1.should == 'default'
+          Subscriber1.find(pub1.id).tap do |sub1|
+            sub1.field_1.should == '11'
+          end
+          Subscriber2.find(pub2.id).tap do |sub2|
+            sub2.field_1.should == '21'
+            sub2.field_2.should == '22'
+          end
+          Subscriber2.find(pub3.id).tap do |sub3|
+            sub3.field_1.should == '31'
+            sub3.field_2.should == '32'
+          end
         end
       end
     end
