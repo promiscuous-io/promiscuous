@@ -6,7 +6,9 @@ module Promiscuous
 
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
-           :CLI, :Error, :Loader, :AMQP, :Redis, :Config
+           :CLI, :Error, :Loader, :AMQP, :Redis, :Config, :DSL
+
+  extend Promiscuous::DSL
 
   class << self
     def configure(&block)
