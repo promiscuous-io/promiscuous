@@ -204,6 +204,8 @@ module ModelsHelper
 
       field :field_1
       field :field_2
+      field :publisher_id, :type => BSON::ObjectId
+
     end
   end
 end
