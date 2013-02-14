@@ -19,8 +19,11 @@ Table of Content
    [Foreign Keys](#foreign-keys)  
    [Namespace Mapping](#namespace-mapping)  
    [Promiscuous DSL](#promiscuous-dsl)  
-   [Subscriber CLI Options](#subscriber-cli-options)  
    [How it really works](#how-it-really-works)  
+
+* **Configuration**  
+   [Configuration Options](#configuration-options)  
+   [Subscriber CLI Options](#subscriber-cli-options)  
 
 * **Testing**  
    [Unit Testing](#unit-testing)  
@@ -28,7 +31,6 @@ Table of Content
    [Gemify your apps](#gemify-your-apps)  
 
 * **Going to Production**  
-   [Configuration Options](#configuration-options)  
    [Initial sync](#initial-sync)  
    [Error Handling](#error-handling)  
    [Monitoring](#monitoring)  
@@ -384,25 +386,6 @@ end
 In some ways, the configuration file is the analogous of the
 `./config/routes.rb` file when comparing promiscuous and rails controllers.
 
-Subscriber CLI Options
-----------------------
-
-The subscriber worker accepts a few arguments. The most important ones are:
-
-* `--prefetch [NUM]` sets the maximum number of messages RabbitMQ is willing to
-  sends to the worker without having them acked. If this value is too low, the
-  worker can deadlock because of out of order messages.
-* `--recovery`. Turns on recovery mode. When the worker has received all
-  prefetchable messages and the message processing cannot go further,
-  Promiscuous kicks the recovery mechanism which updates unresolved dependencies,
-  effectively skipping messages.
-  A warning message will be logged in this situation.
-* `--bareback`. Turns on bareback mode. Promiscuous will run without enforcing
-  any message ordering, and swallow all exceptions thrown. Do not use it.
-
-In development mode, using `bundle exec promiscuous subscribe --prefetch 5
---recovery` is recommended to avoid deadlocks due to database reset.
-
 How it really works
 -------------------
 
@@ -502,6 +485,52 @@ The corresponding code can be found in:
 [subscriber/worker/message_synchronizer.rb](blob/master/lib/promiscuous/subscriber/worker/message_synchronizer.rb),
 [subscriber/worker/operation.rb](blob/master/lib/promiscuous/subscriber/worker/operation.rb).
 
+Configuration
+=============
+
+---
+
+Configuration Options
+---------------------
+
+If you use Promiscuous in production, you will most likely need to tweak the
+configuration options. We recommend using an initializer file:
+
+```ruby
+# config/initializers/promiscuous.rb
+Promiscuous.configure do |config|
+  # All the settings are optional. The given values are the defaults.
+  # config.app            = 'inferred_from_the_rails_app_name'
+  # config.amqp_url       = 'amqp://guest:guest@localhost:5672'
+  # config.redis_url      = 'redis://localhost/'
+  # config.backend        = :rubyamqp
+  # config.logger         = Rails.logger
+  # config.error_notifier = proc { |exception| nil }
+end
+```
+
+You may set the backend to :null when running your test suite to use
+Promiscuous in pretend mode.
+
+Subscriber CLI Options
+----------------------
+
+The subscriber worker accepts a few arguments. The most important ones are:
+
+* `--prefetch [NUM]` sets the maximum number of messages RabbitMQ is willing to
+  sends to the worker without having them acked. If this value is too low, the
+  worker can deadlock because of out of order messages.
+* `--recovery`. Turns on recovery mode. When the worker has received all
+  prefetchable messages and the message processing cannot go further,
+  Promiscuous kicks the recovery mechanism which updates unresolved dependencies,
+  effectively skipping messages.
+  A warning message will be logged in this situation.
+* `--bareback`. Turns on bareback mode. Promiscuous will run without enforcing
+  any message ordering, and swallow all exceptions thrown. Do not use it.
+
+In development mode, using `bundle exec promiscuous subscribe --prefetch 5
+--recovery` is recommended to avoid deadlocks due to database reset.
+
 Testing
 ========
 
@@ -532,28 +561,6 @@ Going to Production
 ====================
 
 ---
-
-Configuration Options
----------------------
-
-If you use Promiscuous in production, you will most likely need to tweak the
-configuration options. We recommend using an initializer file:
-
-```ruby
-# config/initializers/promiscuous.rb
-Promiscuous.configure do |config|
-  # All the settings are optional. The given values are the defaults.
-  # config.app            = 'inferred_from_the_rails_app_name'
-  # config.amqp_url       = 'amqp://guest:guest@localhost:5672'
-  # config.redis_url      = 'redis://localhost/'
-  # config.backend        = :rubyamqp
-  # config.logger         = Rails.logger
-  # config.error_notifier = proc { |exception| nil }
-end
-```
-
-You may set the backend to :null when running your test suite to use
-Promiscuous in pretend mode.
 
 Initial sync
 ------------
