@@ -39,7 +39,7 @@ module Promiscuous::Subscriber::Model
 
   included do
     class_attribute :subscribe_from, :subscribe_foreign_key, :subscribe_as
-    class << self; attr_accessor :subscribed_attrs, :root_class; end
+    class << self; attr_accessor :subscribed_attrs; end
     self.subscribe_foreign_key = :id
     self.subscribe_as = self.name
     self.subscribed_attrs = []
