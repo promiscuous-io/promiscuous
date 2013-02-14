@@ -81,7 +81,7 @@ We need to few things for the promiscuous tutorial:
 * The AMQP broker [RabbitMQ](http://www.rabbitmq.com/) 2.8.7 (not 3.x because of a bug in the ruby driver) up and running.
 * The key-value storage system [Redis](http://redis.io/) up and running.
 * Two rails applications with the promiscuous gem installed.
-* Both applications must be running on separated databases.
+* Both applications must be running on separate databases.
 * Both applications must have a User model (ActiveRecord or Mongoid) with two attributes name and email.
 
 ### 2. Publishing
@@ -96,7 +96,7 @@ class User
 end
 ```
 
-### 2. Subscribing
+### 3. Subscribing
 
 Similarly to the publisher app, we can subscribe to the attributes:
 
@@ -119,8 +119,9 @@ that we can launch with the following command:
 bundle exec promiscuous subscribe
 ```
 
-From now on, you should see the queue in the RabbitMQ web admin page.
-Create a new user in the publisher's rails console with:
+You should start the subscriber *first*, otherwise the appropriate queues
+will not be created. From now on, you should see the queue in the RabbitMQ
+web admin page. Create a new user in the publisher's rails console with:
 
 ```ruby
 User.create(:name => 'Yoda')`
@@ -189,7 +190,7 @@ UserEvent.create(:user_id => 123, :event_name => :registered)
 
 # Subscriber side
 class UserEvent
-  include Promiscuous::Publisher::Model::Observer
+  include Promiscuous::Subscriber::Model::Observer
   attr_accessor :user_id
   attr_accessor :event_name
 
@@ -275,12 +276,13 @@ Using a foreign key with a different column can be handy in this case. Example:
 ```ruby
 # Publisher side
 class User
+  include Mongoid::Document
   include Promiscuous::Publisher
   publish :name, :email
 end
 
 # Subscriber side
-class User
+class User < ActiveRecord::Base
   include Promiscuous::Subscriber
   subscribe :name, :email, :foreign_key => :crowdtap_id
 end
@@ -351,7 +353,7 @@ Promiscuous DSL
 ---------------
 
 There are two ways to define the publishers and subscribers attributes:
-1) directly in the model as shown in the example 2) in a separate file
+1) directly in the model as shown in the examples above 2) in a separate file.
 In big applications, code organization is crucial. Depending on your
 philosophy, you can pick one way or the other.
 
@@ -395,14 +397,14 @@ Promiscuous instruments the database driver to parse the write queries emitted
 to the database. The write queries that correspond to published models are
 passed through the promiscuous pineline. Promiscuous does not allow write
 queries that touch multiple documents (or rows) at the same time.
-These hooks are is in [publisher/model/mongoid.rb](blob/master/lib/promiscuous/publisher/model/mongoid.rb)
+These hooks are in [publisher/model/mongoid.rb](blob/master/lib/promiscuous/publisher/model/mongoid.rb)
 
 1. The first thing promiscuous does is to retrieve the _id_ of the document
    that the database selector would hit.
 2. Then a lock is acquired on the id of the model on the Redis server.
 3. The first step is performed again to check against a race on the selector,
-   ensuring that the id retrieved on step 1 still satisfy the selector.
-4. The dependencies are incremented in Redis (lampard clocks).
+   ensuring that the id retrieved on step 1 still satisfies the selector.
+4. The dependencies ([vector clocks](http://en.wikipedia.org/wiki/Vector_clocks)) are incremented in Redis.
    For the moment, there is just a global counter. The counter value is saved
    for the actual publishing.
 5. The database query is finally performed on the selected document.
@@ -411,7 +413,7 @@ These hooks are is in [publisher/model/mongoid.rb](blob/master/lib/promiscuous/p
    a dummy operation for that id.
 6. The document is read back from the database, and handed off to another thread
    which publishes the model payload with the counter value from step 4.
-7. The lock is released>
+7. The lock is released
 
 This algorithm is in [publisher/operation.rb](blob/master/lib/promiscuous/publisher/operation.rb)
 
@@ -425,7 +427,7 @@ Promiscuous will log a message of this nature if it detects such situation:
 
 While very rare as Promiscuous checks for the health of the connection before
 doing the database query, we are working on a mechanism that would allow any
-kinds of failures.
+kind of failure.
 
 The payload that gets sent over to the subscribers looks like this:
 
@@ -459,7 +461,7 @@ trigger state transitions.
 
 ### Subscriber side
 
-Meanwhile, On the subscriber side, a worker is waiting for messages.
+Meanwhile, on the subscriber side, a worker is waiting for messages.
 
 1.  It all starts when _the pump_ receives a message from the broker.
 2.  The pump passes the received message to the _message synchronizer_ thread.
@@ -494,12 +496,12 @@ Configuration Options
 ---------------------
 
 If you use Promiscuous in production, you will most likely need to tweak the
-configuration options. We recommend using an initializer file:
+configuration options. We recommend using an initializer like so:
 
 ```ruby
 # config/initializers/promiscuous.rb
 Promiscuous.configure do |config|
-  # All the settings are optional. The given values are the defaults.
+  # All the settings are optional, the given values are the defaults.
   # config.app            = 'inferred_from_the_rails_app_name'
   # config.amqp_url       = 'amqp://guest:guest@localhost:5672'
   # config.redis_url      = 'redis://localhost/'
@@ -526,7 +528,7 @@ The subscriber worker accepts a few arguments. The most important ones are:
   effectively skipping messages.
   A warning message will be logged in this situation.
 * `--bareback`. Turns on bareback mode. Promiscuous will run without enforcing
-  any message ordering, and swallow all exceptions thrown. Do not use it.
+  any message ordering, and swallow all exceptions thrown. Do not use it in production.
 
 In development mode, using `bundle exec promiscuous subscribe --prefetch 5
 --recovery` is recommended to avoid deadlocks due to database reset.
@@ -576,8 +578,8 @@ User.each(&:promiscuous_sync)
 ```
 
 Note that the `promiscuous_sync` method simply forces a publish operation.
-It will not be racy with respect to other message as the locking dance
-is performs. Nevertheless, the subscriber will "see" an inconsistent
+It will not be racy with respect to other messages because of the locking dance
+it performs. Nevertheless, the subscriber will "see" an inconsistent
 ordering of messages during the synchronization as model dependencies
 are not respected.
 
@@ -587,11 +589,11 @@ are not respected.
 bundle exec promiscuous publish "User.where(:updated_at.gt => 1.day.ago)" InventoryItem Orders
 ```
 
-Promiscuous will publish each of these collection with a progress bar.
+Promiscuous will publish each of these collections with a progress bar.
 Note that you can partition your data with the right selectors to publish with
 many workers. Partition overlapping is fine.
 
-Furthermore, you might consider having a dummy subscriber that subscribe
+Furthermore, you might consider having a dummy subscriber that subscribes
 to all the models keeping an always up to date database ready to be cloned for
 new applications. This way you just need to synchronize the recently modified
 models.
@@ -601,9 +603,10 @@ Error Handling
 
 Promiscuous tries to reconnect every 2 seconds when the connection to RabbitMQ
 or Redis has been lost. During this time, the publisher cannot perform any write
-queries. To take out the instance out of the load balancer, Promiscuous provides
-a health checker. `Promiscuous.health?` returns true when the system is
-operational.
+queries. To take a publisher instance out of the load balancer, Promiscuous provides
+a health checker. `Promiscuous.healthly?` returns true when the system is able to
+publish or subscribe to message.
+
 On the subscriber side, when a message cannot be processed due to a raised
 exception, for example because of a database failure, the message
 will eventually be retried. (Current implementation: you have to restart
@@ -619,44 +622,57 @@ Promiscuous::Error::Subscriber # Failed to processing a message
 Promiscuous::Error::Recover    # Deadlock recovery, Skipped messages
 ```
 
-More detail of their internals in the code, but most messages will make sense.
+More details of their internals are in the code, but most messages will make sense.
 Exceptions are logged as well.
 
 Monitoring
 ----------
 
-Promiscuous only supports new relic for the moment.
-To install it, add the `promiscuous-newrelic` gem, and that's all.
+Promiscuous only supports NewRelic for the moment.
+To install it, add the `promiscuous-newrelic` gem to your Gemfile:
 
-For Airbrake support, hook the `error_notifier` to Airbrake:
+```ruby
+gem 'promiscuous-newrelic'
+```
+
+For NewRelic error support, hook the `error_notifier`:
 
 ```ruby
 Promiscuous.configure do |config|
   config.error_notifier = proc do |exception|
-    Airbrake.notify(exception)
     NewRelic::Agent.notice_error(exception)
   end
 end
 ```
 
-Monitor closely the size of the RabbitMQ queues.
+For Airbrake support, hook the `error_notifier`:
+
+```ruby
+Promiscuous.configure do |config|
+  config.error_notifier = proc do |exception|
+    Airbrake.notify(exception)
+  end
+end
+```
+
+Monitor closely the size of the RabbitMQ queues (ready messages).
 
 Managing Deploys
 ----------------
 
 When adding new attributes on the publisher and subscriber sides,
-you must deploy the publisher first, and then the subscriber.
+you must deploy the publisher first, then the subscriber.
 Doing otherwise may block the subscriber as it wouldn't be able to process
-message with missing attributes. In this case, you would have to
+a message with missing attributes. In this case, you would have to
 rollback the subscriber deployment, restart the worker, wait until fresh
-messages are getting in, and re-reploy the subscriber.
+messages are getting in, and re-deploy the subscriber.
 
 
 Setup with Unicorn, Resque, etc.
 --------------------------------
 
 When unicorn or resqeue forks (booh!), you need to disconnect/reconnect
-Promiscuous to make sure each children have its own connection.
+Promiscuous to ensure each child has its own connection.
 
 Example with Unicorn:
 
@@ -667,6 +683,22 @@ end
 
 after_fork do
   Promiscuous.connect
+end
+```
+
+Example with Resque:
+
+`lib/tasks/resque.rb`:
+```ruby
+require "resque/tasks"
+task "resque:setup" => :environment do
+  Resque.before_first_fork = proc do
+    Promiscuous.disconnect
+  end
+
+  Resque.after_fork = proc do
+    Promiscuous.connect
+  end
 end
 ```
 
