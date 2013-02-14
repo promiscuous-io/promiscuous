@@ -38,15 +38,14 @@ module Promiscuous::Subscriber::Model
   end
 
   included do
-    class_attribute :subscribe_from, :subscribe_foreign_key, :subscribe_as
-    class << self; attr_accessor :subscribed_attrs; end
+    class_attribute :subscribe_from, :subscribe_foreign_key, :subscribe_as, :subscribed_attrs
     self.subscribe_foreign_key = :id
     self.subscribe_as = self.name
     self.subscribed_attrs = []
   end
 
   module ClassMethods
-    def subscribe(*args)
+    def subscribe(*args, &block)
       options    = args.extract_options!
       attributes = args
 
@@ -66,6 +65,19 @@ module Promiscuous::Subscriber::Model
       self.subscribe_as = options[:as].to_s if options[:as]
 
       ([self] + descendants).each { |klass| klass.subscribed_attrs |= attributes }
+
+      SubscribeProxy.new(self).instance_eval(&block) if block
+    end
+
+    class SubscribeProxy
+      def initialize(klass)
+        @klass = klass
+      end
+
+      def field(name, *args, &block)
+        @klass.__send__(:field, name, *args, &block)
+        @klass.__send__(:subscribe, name)
+      end
     end
 
     def inherited(subclass)

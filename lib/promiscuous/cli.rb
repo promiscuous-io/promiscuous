@@ -45,6 +45,13 @@ class Promiscuous::CLI
     sleep 1 until !@worker.alive?
   end
 
+  def generate_mocks(options)
+    f = options[:output] ? File.open(options[:output], 'w') : STDOUT
+    Promiscuous::Publisher::MockGenerator.new(f).generate
+  ensure
+    f.close rescue nil
+  end
+
   def parse_args(args)
     options = {}
 
@@ -56,6 +63,7 @@ class Promiscuous::CLI
       opts.separator "Actions:"
       opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" Model2 Model3..."
       opts.separator "    promiscuous subscribe"
+      opts.separator "    promiscuous mocks"
       opts.separator ""
       opts.separator "Options:"
 
@@ -76,6 +84,10 @@ class Promiscuous::CLI
         Promiscuous::Config.prefetch = prefetch.to_i
       end
 
+      opts.on "-o", "--output FILE", "Output file for mocks. Defaults to stdout" do |file|
+        options[:output] = file
+      end
+
       opts.on("-h", "--help", "Show this message") do
         puts opts
         exit
@@ -94,18 +106,16 @@ class Promiscuous::CLI
     options[:action] = args.shift.try(:to_sym)
     options[:criterias] = args
 
-    unless options[:action].in? [:publish, :subscribe]
-      puts parser
-      exit
-    end
-
-    if options[:action] == :publish
-      raise "Please specify one or more criterias" unless options[:criterias].present?
-    else
-      raise "Why are you specifying a criteria?" if options[:criterias].present?
+    case options[:action]
+    when :publish   then raise "Please specify one or more criterias" unless options[:criterias].present?
+    when :subscribe then raise "Why are you specifying a criteria?"   if     options[:criterias].present?
+    when :mocks
+    else puts parser; exit 1
     end
 
     options
+  rescue SystemExit
+    exit
   rescue Exception => e
     puts e
     exit
@@ -116,7 +126,8 @@ class Promiscuous::CLI
       require options[:require]
     else
       require 'rails'
-      require File.expand_path("./config/environment.rb")
+      require 'promiscuous/railtie'
+      require File.expand_path("./config/environment")
       ::Rails.application.eager_load!
     end
   end
@@ -131,8 +142,9 @@ class Promiscuous::CLI
   def run
     trap_signals
     case options[:action]
-    when :publish then publish
+    when :publish   then publish
     when :subscribe then subscribe
+    when :mocks     then generate_mocks(options)
     end
   end
 

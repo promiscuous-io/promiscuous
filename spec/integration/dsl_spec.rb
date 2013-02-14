@@ -5,6 +5,23 @@ describe Promiscuous do
   before { use_real_backend }
   before { run_subscriber_worker! }
 
+  context 'with the alternate model syntax' do
+    context 'when creating' do
+      it 'replicates' do
+        pub = PublisherModelOther.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub.save
+
+        eventually do
+          sub = SubscriberModelOther.first
+          sub.id.should == pub.id
+          sub.field_1.should == pub.field_1
+          sub.field_2.should == pub.field_2
+          sub.field_3.should == pub.field_3
+        end
+      end
+    end
+  end
+
   shared_examples_for "replication" do
     it 'replicates' do
       pub = PublisherDslModel.new(:field_1 => '1', :field_2 => '2')
@@ -41,7 +58,7 @@ describe Promiscuous do
     before do
       Promiscuous.define do
         publish :publisher_dsl_models, :to => 'crowdtap/publisher_model' do
-          attributes :field_1
+          attribute  :field_1
           attributes :field_2
         end
       end

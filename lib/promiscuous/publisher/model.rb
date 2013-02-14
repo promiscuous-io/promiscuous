@@ -4,10 +4,14 @@ module Promiscuous::Publisher::Model
 
   extend ActiveSupport::Concern
 
+  mattr_accessor :publishers
+  self.publishers = []
+
   included do
-    class_attribute :publish_to
-    class << self; attr_accessor :published_attrs; end
+    class_attribute :publish_to, :published_attrs
     self.published_attrs = []
+
+    Promiscuous::Publisher::Model.publishers << self
   end
 
   def promiscuous_sync(options={}, &block)
@@ -47,7 +51,7 @@ module Promiscuous::Publisher::Model
   end
 
   module ClassMethods
-    def publish(*args)
+    def publish(*args, &block)
       options    = args.extract_options!
       attributes = args
 
@@ -59,6 +63,19 @@ module Promiscuous::Publisher::Model
       self.publish_to ||= options[:to] || "#{Promiscuous::Config.app}/#{self.name.underscore}"
 
       ([self] + descendants).each { |klass| klass.published_attrs |= attributes }
+
+      PublishProxy.new(self).instance_eval(&block) if block
+    end
+
+    class PublishProxy
+      def initialize(klass)
+        @klass = klass
+      end
+
+      def field(name, *args, &block)
+        @klass.__send__(:field, name, *args, &block)
+        @klass.__send__(:publish, name)
+      end
     end
 
     def inherited(subclass)

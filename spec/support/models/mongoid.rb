@@ -15,11 +15,11 @@ module ModelsHelper
       include Mongoid::Document
       include Promiscuous::Publisher
 
-      field :field_1
-      field :field_2
-      field :field_3
-
-      publish :field_1, :field_2, :field_3, :to => 'crowdtap/publisher_model_other'
+      publish :to => 'crowdtap/publisher_model_other' do
+        field :field_1
+        field :field_2
+        field :field_3
+      end
     end
 
     define_constant :PublisherModelChild, PublisherModel do
@@ -118,11 +118,11 @@ module ModelsHelper
       include Mongoid::Document
       include Promiscuous::Subscriber
 
-      field :field_1
-      field :field_2
-      field :field_3
-
-      subscribe :field_1, :field_2, :field_3, :from => 'crowdtap/publisher_model_other'
+      subscribe :from => 'crowdtap/publisher_model_other' do
+        field :field_1
+        field :field_2
+        field :field_3
+      end
     end
 
     define_constant('SubscriberModelChild', SubscriberModel) do

@@ -1,23 +1,15 @@
 module Promiscuous::Loader
-  def self.load_descriptors(descriptors=[:publishers, :subscribers])
-    [descriptors].flatten.each do |descriptor|
-      dir, file_matcher = case descriptor
-        when :publishers then %w(publishers **_publisher.rb)
-        when :subscribers then %w(subscribers **_subscriber.rb)
-        end
+  CONFIG_FILES = %w(config/publishers.rb config/subscribers.rb config/promiscuous.rb)
 
-      Dir[Rails.root.join('app', dir, file_matcher)].map do |file|
-        File.basename(file, ".rb").camelize.constantize
-      end
+  def self.prepare
+    CONFIG_FILES.each do |file_name|
+      file = defined?(Rails) ?  Rails.root.join(file_name) : File.join('.', file_name)
+      load file if File.exists?(file)
     end
   end
 
-  def self.unload_descriptors(descriptors=[:publishers, :subscribers])
-    [descriptors].flatten.each do |descriptor|
-      dir, file_matcher = case descriptor
-        when :publishers then # TODO Cleanup publishers
-        when :subscribers then Promiscuous::Subscriber::AMQP.subscribers.clear
-        end
-    end
+  def self.cleanup
+    Promiscuous::Publisher::Model.publishers.clear
+    Promiscuous::Subscriber::Model.mapping.select! { |k| k.to_s =~ /__promiscuous__/ }
   end
 end

@@ -24,6 +24,6 @@ RSpec.configure do |config|
   config.include CallbacksHelper
 
   config.after do
-    Promiscuous::Subscriber::Model.mapping.select! { |k| k.to_s =~ /__promiscuous__/ }
+    Promiscuous::Loader.cleanup
   end
 end

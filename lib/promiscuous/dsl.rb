@@ -3,11 +3,11 @@ module Promiscuous::DSL
     instance_eval(&block)
   end
 
-  def publish(model, options, &block)
+  def publish(model, options={}, &block)
     Definition.new(:publish, model, options).instance_eval(&block)
   end
 
-  def subscribe(model, options, &block)
+  def subscribe(model, options={}, &block)
     Definition.new(:subscribe, model, options).instance_eval(&block)
   end
 
@@ -25,5 +25,6 @@ module Promiscuous::DSL
     def attributes(*fields)
       @model_class.__send__(@mode, *fields, @options)
     end
+    alias attribute attributes
   end
 end
