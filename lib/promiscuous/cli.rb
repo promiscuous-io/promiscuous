@@ -54,7 +54,7 @@ class Promiscuous::CLI
 
       opts.separator ""
       opts.separator "Actions:"
-      opts.separator "    promiscuous publish \"Member.where(:updated_at.gt => 1.day.ago)\" BrandAction"
+      opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" Model2 Model3..."
       opts.separator "    promiscuous subscribe"
       opts.separator ""
       opts.separator "Options:"
