@@ -38,20 +38,19 @@ module Promiscuous::Subscriber::Model
   end
 
   included do
-    class_attribute :subscribe_from, :subscribe_foreign_key, :subscribe_as, :subscribed_attrs
+    class_attribute :subscribe_from, :subscribe_foreign_key, :subscribed_attrs
     self.subscribe_foreign_key = :id
-    self.subscribe_as = self.name
     self.subscribed_attrs = []
   end
 
   module ClassMethods
-    def subscribe(*args, &block)
+    def subscribe(*args)
       options    = args.extract_options!
       attributes = args
 
       # TODO reject invalid options
 
-      if self.subscribe_from && options[:from] && self.subscribe_from != options[:from]
+      if attributes.present? && self.subscribe_from && options[:from] && self.subscribe_from != options[:from]
         raise 'Subscribing from different publishers is not supported yet'
       end
 
@@ -62,22 +61,13 @@ module Promiscuous::Subscriber::Model
       end
 
       self.subscribe_foreign_key = options[:foreign_key] if options[:foreign_key]
-      self.subscribe_as = options[:as].to_s if options[:as]
+      @subscribe_as = options[:as].to_s if options[:as]
 
       ([self] + descendants).each { |klass| klass.subscribed_attrs |= attributes }
-
-      SubscribeProxy.new(self).instance_eval(&block) if block
     end
 
-    class SubscribeProxy
-      def initialize(klass)
-        @klass = klass
-      end
-
-      def field(name, *args, &block)
-        @klass.__send__(:field, name, *args, &block)
-        @klass.__send__(:subscribe, name)
-      end
+    def subscribe_as
+      @subscribe_as || name
     end
 
     def inherited(subclass)

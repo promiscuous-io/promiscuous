@@ -2,6 +2,35 @@ module Promiscuous::Publisher::Model::Mongoid
   extend ActiveSupport::Concern
   include Promiscuous::Publisher::Model
 
+  module ClassMethods
+    # TODO DRY this up with the publisher side
+    def publish(*args, &block)
+      super
+      return unless block
+
+      begin
+        @in_publish_block = true
+        block.call
+      ensure
+        @in_publish_block = false
+      end
+    end
+
+    def self.publish_on(method, options={})
+      define_method(method) do |name, *args, &block|
+        super(name, *args, &block)
+        if @in_publish_block
+          name = args.last[:as] if args.last.is_a?(Hash) && args.last[:as]
+          publish(name)
+        end
+      end
+    end
+
+    publish_on :field
+    publish_on :embeds_one
+    publish_on :embeds_many
+  end
+
   def promiscuous_sync(options={}, &block)
     raise "Use promiscuous_sync on the parent instance" if self.embedded?
 
@@ -14,7 +43,9 @@ module Promiscuous::Publisher::Model::Mongoid
 
   def __promiscuous_attribute(attr)
     value = super
-    if value.is_a?(Array) && value.ancestors.any? { |a| a == Promiscuous::Publisher::Model }
+    if value.is_a?(Array) &&
+       value.respond_to?(:ancestors) &&
+       value.ancestors.any? { |a| a == Promiscuous::Publisher::Model }
       value = { :__amqp__ => '__promiscuous__/embedded_many',
                 :payload  => value.map(&:to_promiscuous) }
     end

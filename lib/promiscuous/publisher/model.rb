@@ -24,8 +24,8 @@ module Promiscuous::Publisher::Model
   def to_promiscuous(options={})
     msg = {}
     msg[:__amqp__]  = self.class.publish_to
-    msg[:type]      = self.class.name # for backward compatibility
-    msg[:ancestors] = self.class.ancestors.select { |a| a < Promiscuous::Publisher::Model }.map(&:name)
+    msg[:type]      = self.class.publish_as # for backward compatibility
+    msg[:ancestors] = self.class.ancestors.select { |a| a < Promiscuous::Publisher::Model }.map(&:publish_as)
     msg[:id]        = self.id.to_s
     msg[:payload]   = self.__promiscuous_attributes if options[:operation].in?([nil, :create, :update])
     msg[:operation] = options[:operation]           if options[:operation]
@@ -57,25 +57,17 @@ module Promiscuous::Publisher::Model
 
       # TODO reject invalid options
 
-      if self.publish_to && options[:to] && self.publish_to != options[:to]
+      if attributes.present? && self.publish_to && options[:to] && self.publish_to != options[:to]
         raise 'versionned publishing is not supported yet'
       end
       self.publish_to ||= options[:to] || "#{Promiscuous::Config.app}/#{self.name.underscore}"
+      @publish_as = options[:as].to_s if options[:as]
 
       ([self] + descendants).each { |klass| klass.published_attrs |= attributes }
-
-      PublishProxy.new(self).instance_eval(&block) if block
     end
 
-    class PublishProxy
-      def initialize(klass)
-        @klass = klass
-      end
-
-      def field(name, *args, &block)
-        @klass.__send__(:field, name, *args, &block)
-        @klass.__send__(:publish, name)
-      end
+    def publish_as
+      @publish_as || name
     end
 
     def inherited(subclass)
