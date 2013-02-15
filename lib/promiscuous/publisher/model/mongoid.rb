@@ -1,6 +1,6 @@
 module Promiscuous::Publisher::Model::Mongoid
   extend ActiveSupport::Concern
-  include Promiscuous::Publisher::Model
+  include Promiscuous::Publisher::Model::Base
 
   module ClassMethods
     # TODO DRY this up with the publisher side
@@ -45,7 +45,7 @@ module Promiscuous::Publisher::Model::Mongoid
     value = super
     if value.is_a?(Array) &&
        value.respond_to?(:ancestors) &&
-       value.ancestors.any? { |a| a == Promiscuous::Publisher::Model }
+       value.ancestors.any? { |a| a == Promiscuous::Publisher::Model::Mongoid }
       value = { :__amqp__ => '__promiscuous__/embedded_many',
                 :payload  => value.map(&:to_promiscuous) }
     end

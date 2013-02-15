@@ -1,6 +1,6 @@
 module Promiscuous::Publisher::Model::ActiveRecord
   extend ActiveSupport::Concern
-  include Promiscuous::Publisher::Model
+  include Promiscuous::Publisher::Model::Base
 
   # TODO FIXME This needs some serious work. We need to hook deeper.
 

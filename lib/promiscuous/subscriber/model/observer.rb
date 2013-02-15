@@ -1,6 +1,6 @@
 module Promiscuous::Subscriber::Model::Observer
   extend ActiveSupport::Concern
-  include Promiscuous::Subscriber::Model
+  include Promiscuous::Subscriber::Model::Base
 
   included do
     extend ActiveModel::Callbacks

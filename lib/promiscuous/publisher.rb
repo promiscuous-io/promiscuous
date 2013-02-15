@@ -7,6 +7,6 @@ module Promiscuous::Publisher
   included do
     include Model::Mongoid      if defined?(Mongoid::Document)  && self < Mongoid::Document
     include Model::ActiveRecord if defined?(ActiveRecord::Base) && self < ActiveRecord::Base
-    raise "What kind of model is this? try including Promiscuous::Publisher after all your includes" unless self < Model
+    raise "What kind of model is this? try including Promiscuous::Publisher after all your includes" unless self < Model::Base
   end
 end

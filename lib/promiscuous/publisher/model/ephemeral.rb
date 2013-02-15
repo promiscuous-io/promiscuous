@@ -1,6 +1,6 @@
 module Promiscuous::Publisher::Model::Ephemeral
   extend ActiveSupport::Concern
-  include Promiscuous::Publisher::Model
+  include Promiscuous::Publisher::Model::Base
 
   attr_accessor :id, :new_record, :destroyed
 

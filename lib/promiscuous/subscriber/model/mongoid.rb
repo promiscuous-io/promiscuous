@@ -1,6 +1,6 @@
 module Promiscuous::Subscriber::Model::Mongoid
   extend ActiveSupport::Concern
-  include Promiscuous::Subscriber::Model
+  include Promiscuous::Subscriber::Model::Base
 
   def __promiscuous_update(payload, options={})
     super
@@ -41,7 +41,7 @@ module Promiscuous::Subscriber::Model::Mongoid
   end
 
   class EmbeddedMany
-    include Promiscuous::Subscriber::Model
+    include Promiscuous::Subscriber::Model::Base
 
     subscribe :from => '__promiscuous__/embedded_many'
 
