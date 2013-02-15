@@ -21,8 +21,9 @@ class Promiscuous::Subscriber::Payload
   end
 
   def self.get_subscribed_subclass(root_model, payload)
-    # TODO test the ancestor chain
+    # TODO remove 'type' (backward compatibility)
     received_ancestors = [payload['ancestors'] || payload['type']].flatten.compact
+    # TODO test the ancestor chain
     subscriber_subclasses = [root_model] + root_model.descendants
     received_ancestors.each do |ancestor|
       model = subscriber_subclasses.select { |klass| klass.subscribe_as == ancestor }.first

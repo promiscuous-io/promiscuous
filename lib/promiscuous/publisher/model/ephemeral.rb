@@ -4,8 +4,8 @@ module Promiscuous::Publisher::Model::Ephemeral
 
   attr_accessor :id, :new_record, :destroyed
 
-  def initialize(attrs)
-    self.id = 1
+  def initialize(attrs={})
+    self.id ||= 'none'
     self.new_record = true
     self.destroyed = false
     attrs.each { |attr, value| __send__("#{attr}=", value) }

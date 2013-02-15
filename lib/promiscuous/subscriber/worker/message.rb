@@ -53,15 +53,13 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def process
-    #return if worker.stopped?
-
     Promiscuous.debug "[receive] #{payload}"
     unit_of_work(queue_name) do
       payload = Promiscuous::Subscriber::Payload.new(parsed_payload, self)
       Promiscuous::Subscriber::Operation.new(payload).commit
     end
 
-    ack
+    ack if metadata
   rescue Exception => e
     e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
     Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"
