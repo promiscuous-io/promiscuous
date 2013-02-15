@@ -68,6 +68,7 @@ module Promiscuous::Publisher::Model::Mongoid
     end
 
     def fetch_instance(id=nil)
+      return nil unless model
       return model.find(id) if id
 
       if operation == :create
