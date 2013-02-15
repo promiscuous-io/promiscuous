@@ -29,7 +29,7 @@ Gem::Specification.new do |s|
   s.add_dependency "celluloid-io",        "~> 0.12.1"
   s.add_dependency "algorithms",          "~> 0.1.0"
 
-  s.files        = Dir["lib/**/*"] + Dir["bin/**/*"] + ['README.md']
+  s.files        = Dir["lib/**/*"] + Dir["bin/**/*"]
   s.require_path = 'lib'
   s.has_rdoc     = false
 end
