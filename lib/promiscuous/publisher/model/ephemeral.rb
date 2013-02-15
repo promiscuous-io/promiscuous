@@ -33,6 +33,14 @@ module Promiscuous::Publisher::Model::Ephemeral
   end
 
   module ClassMethods
+    def publish(*args)
+      super
+      published_attrs.each do |attr|
+        # TODO do not overwrite existing methods
+        attr_accessor attr
+      end
+    end
+
     def create(attributes)
       new(attributes).tap { |m| m.save }
     end

@@ -21,6 +21,14 @@ module Promiscuous::Subscriber::Model::Observer
   end
 
   module ClassMethods
+    def subscribe(*args)
+      super
+      subscribed_attrs.each do |attr|
+        # TODO do not overwrite existing methods
+        attr_accessor attr
+      end
+    end
+
     def __promiscuous_fetch_new(id)
       new.tap { |o| o.id = id }
     end
