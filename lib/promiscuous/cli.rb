@@ -38,10 +38,9 @@ class Promiscuous::CLI
   end
 
   def subscribe
-    Promiscuous::Loader.load_descriptors if defined?(Rails)
     @worker = Promiscuous::Subscriber::Worker.run!
     Celluloid::Actor[:pump].subscribe_sync.wait
-    print_status "Replicating with #{Promiscuous::Subscriber::AMQP.subscribers.count} subscribers"
+    print_status "Replicating..."
     sleep 1 until !@worker.alive?
   end
 
