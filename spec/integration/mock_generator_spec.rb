@@ -5,75 +5,96 @@ if ORM.has(:mongoid)
     before { load_models }
     before { use_null_backend }
 
-    let(:output) { StringIO.new }
-    subject      { Promiscuous::Publisher::MockGenerator.new(output) }
+    subject { Promiscuous::Publisher::MockGenerator }
 
     it "generates mocks" do
-      subject.generate
-      output.rewind
-      output.read.should == <<-MOCKS
-module TestPublisher::Publishers
-  # Auto-generated file
+      subject.generate.should == <<-MOCKS.gsub(/^ {6}/, '')
+      # ---------------------------------
+      # Auto-generated file. Do not edit.
+      # ---------------------------------
 
-  class PublisherModel
-    include Promiscuous::Publisher::Model::Mock
-    publish :to => 'crowdtap/publisher_model'
-    publish :field_1
-    publish :field_2
-    publish :field_3
-  end
-  class PublisherModelChild < PublisherModel
-    publish :child_field_1
-    publish :child_field_2
-    publish :child_field_3
-  end
-  class PublisherModelAnotherChild < PublisherModel
-    publish :another_child_field_1
-    publish :another_child_field_2
-    publish :another_child_field_3
-  end
-  class Scoped::ScopedPublisherModel < PublisherModel
-  end
+      module TestPublisher::Publishers
+        module Scoped; end
 
-  class PublisherModelOther
-    include Promiscuous::Publisher::Model::Mock
-    publish :to => 'crowdtap/publisher_model_other'
-    publish :field_1
-    publish :field_2
-    publish :field_3
-  end
+        # ------------------------------------------------------------------
 
-  class PublisherModelEmbedded
-    include Promiscuous::Publisher::Model::Mock
-    publish :to => 'crowdtap/publisher_model_embedded'
-    publish :embedded_field_1
-    publish :embedded_field_2
-    publish :embedded_field_3
-  end
-  class PublisherModelEmbeddedChild < PublisherModelEmbedded
-    publish :child_embedded_field_1
-    publish :child_embedded_field_2
-    publish :child_embedded_field_3
-  end
+        class PublisherModel
+          include Promiscuous::Publisher::Model::Mock
+          publish :to => 'crowdtap/publisher_model'
+          mock    :id => :bson
 
-  class PublisherModelEmbed
-    include Promiscuous::Publisher::Model::Mock
-    publish :to => 'crowdtap/publisher_model_embed'
-    publish :field_1
-    publish :field_2
-    publish :field_3
-    publish :model_embedded
-  end
+          publish :field_1
+          publish :field_2
+          publish :field_3
+        end
+        class PublisherModelChild < PublisherModel
+          publish :child_field_1
+          publish :child_field_2
+          publish :child_field_3
+        end
+        class PublisherModelAnotherChild < PublisherModel
+          publish :another_child_field_1
+          publish :another_child_field_2
+          publish :another_child_field_3
+        end
+        class Scoped::ScopedPublisherModel < PublisherModel
+        end
 
-  class PublisherModelEmbedMany
-    include Promiscuous::Publisher::Model::Mock
-    publish :to => 'crowdtap/publisher_model_embed_many'
-    publish :field_1
-    publish :field_2
-    publish :field_3
-    publish :models_embedded
-  end
-end
+        # ------------------------------------------------------------------
+
+        class PublisherModelOther
+          include Promiscuous::Publisher::Model::Mock
+          publish :to => 'crowdtap/publisher_model_other'
+          mock    :id => :bson
+
+          publish :field_1
+          publish :field_2
+          publish :field_3
+        end
+
+        # ------------------------------------------------------------------
+
+        class PublisherModelEmbedded
+          include Promiscuous::Publisher::Model::Mock
+          publish :to => 'crowdtap/publisher_model_embedded'
+          mock    :id => :bson
+
+          publish :embedded_field_1
+          publish :embedded_field_2
+          publish :embedded_field_3
+        end
+        class PublisherModelEmbeddedChild < PublisherModelEmbedded
+          publish :child_embedded_field_1
+          publish :child_embedded_field_2
+          publish :child_embedded_field_3
+        end
+
+        # ------------------------------------------------------------------
+
+        class PublisherModelEmbed
+          include Promiscuous::Publisher::Model::Mock
+          publish :to => 'crowdtap/publisher_model_embed'
+          mock    :id => :bson
+
+          publish :field_1
+          publish :field_2
+          publish :field_3
+          publish :model_embedded
+        end
+
+        # ------------------------------------------------------------------
+
+        class PublisherModelEmbedMany
+          include Promiscuous::Publisher::Model::Mock
+          publish :to => 'crowdtap/publisher_model_embed_many'
+          mock    :id => :bson
+
+          publish :field_1
+          publish :field_2
+          publish :field_3
+          publish :models_embedded
+        end
+      end
       MOCKS
     end
   end

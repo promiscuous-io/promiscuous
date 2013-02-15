@@ -1,69 +1,64 @@
-class Promiscuous::Publisher::MockGenerator
-  def initialize(output)
-    @out = SourceOutput.new(output)
-  end
+require 'erb'
 
-  def generate
-    @out << "module #{Promiscuous::Config.app.camelize}::Publishers"
-    @out.indent
-    @out << "# Auto-generated file"
+module Promiscuous::Publisher::MockGenerator
+  def self.generate
+    ERB.new(<<-ERB.gsub(/^\s+<%/, '<%').gsub(/^ {6}/, ''), nil, '-').result(binding)
+      # ---------------------------------
+      # Auto-generated file. Do not edit.
+      # ---------------------------------
 
-    Promiscuous::Publisher::Model.publishers.map do |publisher|
-      next unless publisher.publish_to
+      module <%= Promiscuous::Config.app.camelize %>::Publishers
+      <% modules.each do |mod| -%>
+        <%- if mod.constantize.is_a?(Class) -%>
+        class <%= mod %>; end
+        <%- else -%>
+        module <%= mod %>; end
+        <% end -%>
+      <% end -%>
 
-      publisher_for(publisher) do
-        @out << "include Promiscuous::Publisher::Model::Mock"
-        @out << "publish :to => '#{publisher.publish_to}'"
-        attributes_for(publisher)
-      end
+      <% Promiscuous::Publisher::Model.publishers.each do |publisher| -%>
+        <% next unless publisher.publish_to -%>
+        <% %>
+        # ------------------------------------------------------------------
 
-      publisher.descendants.each do |subclass|
-        publisher_for(subclass, publisher) do
-          attributes_for(subclass, publisher)
+        class <%= publisher.publish_as %>
+          include Promiscuous::Publisher::Model::Mock
+          publish :to => '<%= publisher.publish_to %>'
+          <% if defined?(Mongoid::Document) && publisher.include?(Mongoid::Document) -%>
+          mock    :id => :bson
+          <% end -%>
+          <% %>
+          <% attributes_for(publisher).each do |attr| -%>
+          publish :<%= attr %>
+          <% end -%>
         end
+
+        <% publisher.descendants.each do |subclass| -%>
+        class <%= subclass.publish_as %> < <%= publisher.publish_as %>
+          <% attributes_for(subclass, publisher).each do |attr| -%>
+          publish :<%= attr %>
+          <% end -%>
+        end
+        <% end -%>
+      <% end -%>
       end
-
-    end
-    @out.outdent
-    @out << "end"
-
-    true
+    ERB
   end
 
-  def publisher_for(klass, parent=nil, &block)
-    @out << '' unless parent
-    @out << (parent ? "class #{klass} < #{parent}" : "class #{klass}")
-    @out.indent
-    yield
-    @out.outdent
-    @out << 'end'
-  end
-
-  def attributes_for(klass, parent=nil)
+  def self.attributes_for(klass, parent=nil)
     attrs = klass.published_attrs
     attrs -= parent.published_attrs if parent
-    attrs.each do |attr|
-      @out << "publish :#{attr}"
-    end
+    attrs
   end
 
-  class SourceOutput
-    attr_accessor :output
-    def initialize(output)
-      self.output = output.nil? ? STDOUT : output
-      @level = 0
+  def self.modules
+    Promiscuous::Publisher::Model.publishers.map do |publisher|
+      [publisher] + publisher.descendants.map(&:name)
     end
-
-    def indent
-      @level += 2
-    end
-
-    def outdent
-      @level -= 2
-    end
-
-    def <<(string)
-      output << (string.present? ? (" " * @level) + string : string) + "\n"
-    end
+      .flatten
+      .select { |name| name =~ /::/ }
+      .map    { |name| name.gsub(/::[^:]+$/, '') }
+      .uniq
+      .sort
   end
 end
