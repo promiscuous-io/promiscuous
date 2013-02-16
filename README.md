@@ -9,7 +9,7 @@
 Introduction
 ------------
 
-Promiscuous is a **publisher-subscriber framework** to easily replicate data
+Promiscuous is a **publisher-subscriber framework** for easily replicating data
 across your Ruby applications.
 
 **Motivation**
@@ -30,7 +30,7 @@ has not always been easy to achieve this in Ruby.
 Promiscuous facilitates designing Ruby based SOA services. It does this by
 watching models in publisher applications to send corresponding model operations
 on a common message bus powered by [RabbitMQ](http://www.rabbitmq.com/).
-Each subscribers have their own queue to receive message asynchronously.
+Each subscriber has its own queue to receive messages asynchronously.
 
 **Role in our Infrastructure**
 
