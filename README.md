@@ -1,5 +1,3 @@
-[![Promiscuous](https://github.com/crowdtap/promiscuous/wiki/promiscuous.png)](https://github.com/crowdtap/promiscuous/#introduction)
-
 <p align="center">
   <img src="https://github.com/crowdtap/promiscuous/wiki/promiscuous.png">
 </p>
