@@ -25,7 +25,7 @@ distribute data around and [Redis](http://redis.io/) to synchronize and order
 operations.
 
 Promiscuous guarantees that the subscriber never sees out of order updates.
-This property considerably reduce the complexity of applications.
+This property considerably reduces the complexity of applications.
 
 This constraint removes any hopes of subscribing directly to the database oplog
 as it wouldn't know the ordering of operations when using shards, which is
