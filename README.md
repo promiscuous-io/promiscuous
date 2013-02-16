@@ -45,7 +45,7 @@ internal services, such as our e-commerce store on
 By using [Redis](http://redis.io) to synchronize and order operations,
 Promiscuous guarantees that the subscriber never sees out of order updates,
 even when using shards. This guarantee considerably reduces the complexity of
-applications improving their robustness.
+applications, while improving their robustness.
 
 Rails Quick Tutorial
 --------------------
