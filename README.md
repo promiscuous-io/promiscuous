@@ -1,5 +1,9 @@
 [![Promiscuous](https://github.com/crowdtap/promiscuous/wiki/promiscuous.png)](https://github.com/crowdtap/promiscuous/#introduction)
 
+<p align="center">
+  <img src="https://github.com/crowdtap/promiscuous/wiki/promiscuous.png">
+</p>
+
 [![Build Status](https://travis-ci.org/crowdtap/promiscuous.png?branch=travis)](https://travis-ci.org/crowdtap/promiscuous)
 
 Introduction
