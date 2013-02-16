@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="https://github.com/crowdtap/promiscuous/wiki/promiscuous.png">
+  <a href="https://github.com/crowdtap/promiscuous/#introduction">
+    <img src="https://github.com/crowdtap/promiscuous/wiki/promiscuous.png">
+  </a>
 </p>
 
 [![Build Status](https://travis-ci.org/crowdtap/promiscuous.png?branch=travis)](https://travis-ci.org/crowdtap/promiscuous)
