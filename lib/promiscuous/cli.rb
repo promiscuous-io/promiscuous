@@ -37,6 +37,16 @@ class Promiscuous::CLI
     end
   end
 
+  def replay
+    require 'json'
+    File.open(options[:log_file], 'r').each do |line|
+      break if @stop
+      if line =~ /^\[promiscuous\] \[receive\] ({.*})$/
+        replay_payload($1)
+      end
+    end
+  end
+
   def subscribe
     @worker = Promiscuous::Subscriber::Worker.run!
     Celluloid::Actor[:pump].subscribe_sync.wait
@@ -44,9 +54,18 @@ class Promiscuous::CLI
     sleep 1 until !@worker.alive?
   end
 
-  def generate_mocks(options)
+  def generate_mocks
     f = options[:output] ? File.open(options[:output], 'w') : STDOUT
     f.write Promiscuous::Publisher::MockGenerator.generate
+  end
+
+  def replay_payload(payload)
+    endpoint = JSON.parse(payload)['__amqp__']
+    if endpoint
+      Promiscuous::AMQP.publish(:key => endpoint, :payload => payload)
+    else
+      puts "[warn] missing destination in #{payload}"
+    end
   end
 
   def parse_args(args)
@@ -61,6 +80,7 @@ class Promiscuous::CLI
       opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" Model2 Model3..."
       opts.separator "    promiscuous subscribe"
       opts.separator "    promiscuous mocks"
+      opts.separator "    promiscuous replay logfile"
       opts.separator ""
       opts.separator "Options:"
 
@@ -102,10 +122,12 @@ class Promiscuous::CLI
 
     options[:action] = args.shift.try(:to_sym)
     options[:criterias] = args
+    options[:log_file] = args.first
 
     case options[:action]
     when :publish   then raise "Please specify one or more criterias" unless options[:criterias].present?
     when :subscribe then raise "Why are you specifying a criteria?"   if     options[:criterias].present?
+    when :replay    then raise "Please specify a log file to replay"  unless options[:log_file].present?
     when :mocks
     else puts parser; exit 1
     end
@@ -141,7 +163,8 @@ class Promiscuous::CLI
     case options[:action]
     when :publish   then publish
     when :subscribe then subscribe
-    when :mocks     then generate_mocks(options)
+    when :replay    then replay
+    when :mocks     then generate_mocks
     end
   end
 
