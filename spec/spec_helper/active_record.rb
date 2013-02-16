@@ -6,7 +6,7 @@ if ENV['LOGGER_LEVEL']
 end
 
 ActiveRecord::Base.establish_connection(
-  :adapter  => "postgresql",
+  :adapter  => RUBY_PLATFORM == "java" ? "jdbcpostgresql" : "postgresql",
   :database => "promiscuous",
   :username => ENV["TRAVIS"] ? "postgres" : "promiscuous",
   :password => ENV["TRAVIS"] ?        nil : "promiscuous",

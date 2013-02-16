@@ -1,6 +1,6 @@
 module Promiscuous::AMQP
   extend Promiscuous::Autoload
-  autoload :Bunny, :RubyAMQP, :Null
+  autoload :HotBunny, :Bunny, :RubyAMQP, :Null
 
   EXCHANGE = 'promiscuous'.freeze
 

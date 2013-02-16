@@ -1,4 +1,4 @@
-module Promiscuous::AMQP:: Bunny
+module Promiscuous::AMQP::Bunny
   mattr_accessor :connection
 
   def self.connect

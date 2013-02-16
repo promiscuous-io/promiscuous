@@ -7,4 +7,8 @@ gem 'mocha', :require => false
 gem 'pry'
 gem 'colorize'
 
-gem 'mongoid', '~> 3.0'
+gem 'mongoid', '~> 3.0.0'
+
+platforms :jruby do
+  gem 'hot_bunnies'
+end

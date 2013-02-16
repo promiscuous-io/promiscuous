@@ -1,9 +1,10 @@
 module BackendHelper
   def use_real_backend(options={})
-    if Promiscuous::Config.backend != :rubyamqp
+    real_backend = RUBY_PLATFORM == 'java' ? :hot_bunny : :rubyamqp
+    if Promiscuous::Config.backend != real_backend
       Promiscuous.configure do |config|
         config.reset
-        config.backend = :rubyamqp
+        config.backend = real_backend
         config.app = options[:app] || 'test_subscriber'
         config.queue_options = {:auto_delete => true}
       end

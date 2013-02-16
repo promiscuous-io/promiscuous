@@ -27,7 +27,7 @@ Gem::Specification.new do |s|
   s.add_dependency "crowdtap_redis_lock", "~> 0.1.2"
   s.add_dependency "celluloid",           "~> 0.12.4"
   s.add_dependency "celluloid-io",        "~> 0.12.1"
-  s.add_dependency "algorithms",          "~> 0.1.0"
+  s.add_dependency "algorithms",          "~> 0.6.1"
 
   s.files        = Dir["lib/**/*"] + Dir["bin/**/*"]
   s.require_path = 'lib'
