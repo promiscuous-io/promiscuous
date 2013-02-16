@@ -52,9 +52,8 @@ module Promiscuous::Publisher::MockGenerator
   end
 
   def self.modules
-    Promiscuous::Publisher::Model.publishers.map do |publisher|
-      [publisher] + publisher.descendants.map(&:name)
-    end
+    Promiscuous::Publisher::Model.publishers
+      .map    { |publisher| [publisher] + publisher.descendants.map(&:name) }
       .flatten
       .select { |name| name =~ /::/ }
       .map    { |name| name.gsub(/::[^:]+$/, '') }

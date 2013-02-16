@@ -47,8 +47,6 @@ class Promiscuous::CLI
   def generate_mocks(options)
     f = options[:output] ? File.open(options[:output], 'w') : STDOUT
     f.write Promiscuous::Publisher::MockGenerator.generate
-  ensure
-    f.close rescue nil
   end
 
   def parse_args(args)

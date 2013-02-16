@@ -26,14 +26,16 @@ Table of Content
    [Subscriber CLI Options](#subscriber-cli-options)  
 
 * **Testing**  
+   [Exporting Publishers Definitions](#exporting-publishers-definitions)  
    [Unit Testing](#unit-testing)  
    [Integration Testing](#integration-testing)  
-   [Gemify your apps](#gemify-your-apps)  
+   [Gemify your Apps](#gemify-your-apps)  
 
 * **Going to Production**  
-   [Initial sync](#initial-sync)  
+   [RabbitMQ & Redis](#rabbitmq--redis)  
+   [Initial Sync](#initial-sync)  
    [Error Handling](#error-handling)  
-   [Monitoring](#monitoring)  
+   [Instrumentation](#instrumentation)  
    [Managing Deploys](#managing-deploys)  
    [Setup with Unicorn, Resque, etc.](#setup-with-unicorn-resque-etc)  
 
@@ -41,6 +43,7 @@ Table of Content
    [Roadmap](#roadmap)  
    [Coding Restrictions](#coding-restrictions)  
    [Limitations](#limitations)  
+   [FAQs](#faqs)  
    [License](#license)  
 
 Introduction
@@ -180,9 +183,7 @@ can be very useful:
 # Publisher side
 class UserEvent
   include Promiscuous::Publisher::Model::Ephemeral
-  attr_accessor :user_id
-  attr_accessor :event_name
-
+  attr_accessor :user_id, :event_name
   publish :user_id, :event_name
 end
 
@@ -191,13 +192,11 @@ UserEvent.create(:user_id => 123, :event_name => :registered)
 # Subscriber side
 class UserEvent
   include Promiscuous::Subscriber::Model::Observer
-  attr_accessor :user_id
-  attr_accessor :event_name
-
+  attr_accessor :user_id, :event_name
   subscribe :user_id, :event_name
 
   after_create do
-    User.find(user_id).send_email("welcome!") if event_name == :registered
+    Mailer.send_email(:member_id => user_id, :type => :sign_up)
   end
 end
 ```
@@ -294,9 +293,9 @@ Namespace Mapping
 ### AMQP Endpoint names
 
 By default, Promiscuous publishes model operations to the
-'app\_name/model\_name' endpoint (RabbitMQ message key).
-Subscribers subscribe each of their models to '\*/model\_name'.
-The '*' means that we subscribe from any application in the system.
+`app_name/model_name` endpoint (RabbitMQ message key).
+Subscribers subscribe each of their models to `*/model_name`.
+The `*` means that we subscribe from any application in the system.
 This can be overridden with the `:to` and `:from` arguments.
 
 ```ruby
@@ -374,19 +373,51 @@ class User
 end
 ```
 
-### In a config file
+### In the model with Mongoid
+
+With Mongoid, you can wrap all the field declarations in a publish/subscribe
+block. We recommand this syntax for subscribers as it serve as documentation.
 
 ```ruby
-# file: ./config/promiscuous.rb
+class User
+  include Mongoid::Document
+  include Promiscuous::Publisher
+
+  publish :to => 'crowdtap/user' do
+    field :name
+    field :email
+    belongs_to :group
+  end
+
+  field :password
+end
+```
+
+Promiscuous definitions are automatically reloaded at every requests in
+development mode on the publisher side (TODO: reload for subscribers as well).
+
+### In a config file
+
+In some ways, the configuration file is the analogous of the
+`./config/routes.rb` file when comparing promiscuous and rails controllers.
+
+Promiscuous will load any of the following files to find your Promiscuous
+definitions:
+
+* ./config/promiscuous.rb
+* ./config/publishers.rb
+* ./config/subscribers.rb
+
+Use `Promiscuous.define` as shown below. Note that you must specify the
+published/subscribed model name pluralized:
+
+```ruby
 Promiscuous.define do
-  publish :user, :to => 'crowdtap/user' do
+  publish :users, :to => 'crowdtap/user' do
     attributes :name, :email
   end
 end
 ```
-
-In some ways, the configuration file is the analogous of the
-`./config/routes.rb` file when comparing promiscuous and rails controllers.
 
 How it really works
 -------------------
@@ -502,16 +533,16 @@ configuration options. We recommend using an initializer like so:
 # config/initializers/promiscuous.rb
 Promiscuous.configure do |config|
   # All the settings are optional, the given values are the defaults.
-  # config.app            = 'inferred_from_the_rails_app_name'
-  # config.amqp_url       = 'amqp://guest:guest@localhost:5672'
-  # config.redis_url      = 'redis://localhost/'
-  # config.backend        = :rubyamqp
-  # config.logger         = Rails.logger
-  # config.error_notifier = proc { |exception| nil }
+  config.app            = 'inferred_from_the_rails_app_name'
+  config.amqp_url       = 'amqp://guest:guest@localhost:5672'
+  config.redis_url      = 'redis://localhost/'
+  config.backend        = :rubyamqp
+  config.logger         = Rails.logger
+  config.error_notifier = proc { |exception| nil }
 end
 ```
 
-You may set the backend to :null when running your test suite to use
+You may set the backend to `:null` when running your test suite to use
 Promiscuous in pretend mode.
 
 Subscriber CLI Options
@@ -531,45 +562,311 @@ The subscriber worker accepts a few arguments. The most important ones are:
   any message ordering, and swallow all exceptions thrown. Do not use it in production.
 
 In development mode, using `bundle exec promiscuous subscribe --prefetch 5
---recovery` is recommended to avoid deadlocks due to database reset.
+--recovery` is recommended to avoid deadlocks due to database resets and seeding.
 
 Testing
 ========
 
 ---
 
+Promiscuous provides tools to facilitate TDD and BDD. The design of the
+Promiscuous test framework allows applications to be tested independently of
+each other, while providing strong guarantees.
+
+Exporting Publishers Definitions
+--------------------------------
+
+To be able to test subscribers, we must have knowledge of the publisher
+definitions.
+
+To do so, Promiscuous provides a command line tool:
+
+    bundle exec promiscuous mocks -o generated_mocks.rb
+
+To generate the mock file programmatically, you may use:
+
+```ruby
+File.open('generated_mocks.rb') do |f|
+  f.write Promiscuous::Publisher::MockGenerator.generate
+end
+```
+
+This is an example of the generated mocks file:
+
+```ruby
+module Crowdtap::Publishers
+  class User
+    include Promiscuous::Publisher::Model::Mock
+    publish :to => 'crowdtap/user'
+    mock    :id => :bson
+
+    publish :name
+    publish :email
+    publish :group_id
+  end
+  class Member < User
+    publish :state
+  end
+  class Admin < User
+  end
+
+  class UserGroup
+    include Promiscuous::Publisher::Model::Mock
+    publish :to => 'crowdtap/user_group'
+    mock    :id => :bson
+
+    publish :name
+  end
+end
+```
+
 Unit Testing
 ------------
 
-TODO
+Promiscuous includes a checkers to validates definitions.
+
+### Publisher side
+
+On the Publisher side, execute the following code in your test suite.
+It generates exceptions with comprehensive error messages to guide the
+developer.
+
+```ruby
+Promiscuous::Publisher.validate('path/to/generated_mocks.rb')
+```
+
+The following rules are checked:
+
+* **Your mock file is up to date**  
+  Promiscuous will check that the mock file corresponds to what is really
+  published in the application.
+* **All the published attributes getter methods must exist**  
+  Promiscuous do so by instantiating all publishers, including subclasses, to
+  verify that instances respond to all published attributes.
+
+### Subscriber side
+
+On the subscriber side, the exported mocks must be required before running the
+validator. Once done, you may use the following command to validate the
+subscribed models:
+
+```ruby
+Promiscuous::Subscriber.validate
+```
+
+The following rules are checked:
+
+* **All the subscribed attributes getter methods must exist**  
+  Promiscuous performs the check similarly to the publisher side.
+* **All the subscribed classes must be published**  
+  Promiscuous checks that the corresponding endpoint exists.
+* **All the subscribed subclasses must be published**  
+  Promiscuous checks that all subscribed subclasses map to existing published
+  subclasses.
+* **All the subscribed attributes must be published**  
+  Promiscuous checks that all the subscribed attributes are published.
 
 Integration Testing
 -------------------
 
-TODO
+Promiscuous API definitions differ from [Thrift](http://thrift.apache.org/) or
+[Protocol Buffers](https://code.google.com/p/protobuf/) as it is not strongly
+typed. We believe type checking is too weak for the level of robustest we
+want to achieve. Rather, Promiscuous combines mocks and factories to allow
+integration testing on the subscriber side.
 
-1. Generate the mock file with `promiscuous generate mocks`
-2. Export a factory with that file to subscribers
-3. Use the mocks+factories in the subscribers integration tests.
-   Promiscuous will inject the json payloads to your subscribers
-   endpoints to emulate what will really happen.
+Notice that the mocks file (from the [example above](#exporting-publishers-definitions))
+are actual classes that behave like models. Once loaded, to simulate operations
+on a given user, one would do for example:
 
-Gemify your apps
+```ruby
+user = Crowdtap::Publishers::Member.create(:name => 'John')
+user.update_attributes(:points => 123)
+```
+
+Promiscuous generates the appropriate JSON payload corresponding to each
+operation and sends it to the subscriber pipeline. The operations are processed
+synchronously.
+
+The mocks are best used with factories. The following shows an example with
+[Factory Girl](https://github.com/thoughtbot/factory_girl), but you can use
+[Fabrication](https://github.com/paulelliott/fabrication),
+[Machinist](https://github.com/notahat/machinist), or regular fixtures, you
+name it.
+
+Both mocks and the factories are provided by the publisher app. Promiscuous
+uses factories to describe the semantics of the data that will be published.
+
+### Publisher side
+
+Pair the mock file example with this published factory file (FactoryGirl style):
+
+```ruby
+module Crowdtap::Publishers
+  FactoryGirl.define do
+    sequence :crowdtap_email { |n| "user#{n}@example.com" }
+
+    factory :crowdtap_user, :class => User do
+      name  "John"
+      email { FactoryGirl.generate :crowdtap_email }
+      association :group, :factory => :crowdtap_group
+
+      factory :crowdtap_admin, :class => Admin
+
+      factory :crowdtap_member, :class => Member do
+        state 'active'
+      end
+
+      Member.class_eval do
+        def ban!
+          update_attributes(:state => 'banned')
+        end
+      end
+    end
+
+    factory :crowdtap_user_group, :class => UserGroup do
+      name "Some user group"
+    end
+  end
+end
+```
+
+### Subscriber side
+
+```ruby
+class Member
+  include Mongoid::Document
+  include Promiscuous::Subscriber
+
+  subscribe do
+    field :name
+    field :email
+  end
+end
+
+class Member
+  subscribe do
+    field :state
+  end
+
+  def got_banned?
+    state_changed? && state == 'banned'
+  end
+
+  after_create do
+    Mailer.send_email(:member_id => self.id, :type => :banned) if got_banned?
+  end
+end
+```
+
+The integration test for the subscriber becomes (RSpec style):
+
+```ruby
+describe Member do
+  subject { create(:crowdtap_member) }
+
+  context 'when the user gets banned' do
+    before { subject.ban! }
+    it 'receives an ban email' do
+      Mailer.sent_emails.first.to.should   == subject.email
+      Mailer.sent_emails.first.body.should =~ /#{subject.name}/
+      Mailer.sent_emails.first.body.should =~ /You got banned/
+    end
+  end
+end
+```
+
+A best practice when writing integration tests is to provide helper methods to
+do state transitions on published models, like `ban!` for two reasons:
+
+1. The publisher is the _owner_ of the Member model. It is the one responsible
+   for the semantics of the data changes that a subscriber may observe.
+2. When you start having many subscriber to the same publisher, you don't
+   repeat yourself when it comes to the behavior of published data.
+
+Gemify your Apps
 ----------------
 
-TODO
+We found that using gems is a great way to efficiently export the mocks and
+factories files to the subscriber applications. Example:
+
+### Publisher side
+
+```ruby
+# file: ./api/crowdtap/publishers.rb
+# Generated mock file (omitted)
+
+# file: ./api/crowdtap/factories.rb
+# Factories (omitted)
+
+# file: ./api/crowdtap.rb
+require 'active_support'
+module Crowdtap
+  autoload :Publishers, 'crowdtap/publishers'
+end
+
+# file: ./crowdtap.gemspec
+Gem::Specification.new do |gem|
+  gem.name    = "crowdtap"
+  gem.version = "1.0"
+  gem.summary = "Crowdtap API"
+  gem.files   = Dir["api/**/*"]
+  gem.require_path = 'api'
+end
+```
+
+### Subscriber side
+
+```ruby
+# file: ./Gemfile
+gem 'crowdtap', :git => 'git@github.com:crowdtap/crowdtap.git'
+# for local development:
+gem 'crowdtap', :path => '~/crowdtap'
+
+# file: ./spec/factories.rb
+load 'crowdtap/factories.rb'
+
+FactoryGirl.define do
+  # local factories
+end
+```
+
+At Crowdtap, we also use these gems to make internal synchronous APIs available
+to other applications. The benefit is twofold:
+
+1. It makes the integration testing much easier (no tests on the actual wire
+   prototocol).
+2. The owner of the API can change the underlying protocol without having to
+   change the users of the API.
 
 Going to Production
 ====================
 
 ---
 
-Initial sync
+RabbitMQ & Redis
+----------------
+
+Your RabbitMQ instance must be shared among your publishers and subscribers.
+Make sure you use a highly available setup, and a TCP load balancer in front
+of it if necessary.
+
+Although Promiscuous allows you to use a shared Redis instance for all your
+applications, we recommend that each application have its own Redis instance.
+Given an application, in the case of a unique subscriber worker, having
+the Redis instance and the worker on the same machine improves performance.
+
+Initial Sync
 ------------
 
 When deploying a new subscriber, it is useful to synchronize its database
 with the publisher database. Promiscuous provides two ways of synchronizing
 the subscriber database.
+
+Synchronizing is also useful when adding new published attributes.
+Although we consider it a bad practice, note that Promiscuous doesn't support
+changes in class types yet (e.g. a Admin instance changes to be a Member
+instance).
 
 ### Programmatically
 
@@ -586,17 +883,17 @@ are not respected.
 ### From the command line
 
 ```
-bundle exec promiscuous publish "User.where(:updated_at.gt => 1.day.ago)" InventoryItem Orders
+bundle exec promiscuous publish UserGroup "User.where(:updated_at.gt => 1.day.ago)"
 ```
 
-Promiscuous will publish each of these collections with a progress bar.
-Note that you can partition your data with the right selectors to publish with
-many workers. Partition overlapping is fine.
+Promiscuous will publish each of these collections with a progress bar in the
+given order. Note that you can partition your data with the right selectors to
+publish with many workers. Partition overlapping is fine.
 
-Furthermore, you might consider having a dummy subscriber that subscribes
-to all the models keeping an always up to date database ready to be cloned for
-new applications. This way you just need to synchronize the recently modified
-models.
+Furthermore, you might consider having a dummy subscriber that subscribes to
+everything. This will maintain an always up to date database ready to be cloned
+for new applications. This way you just need to synchronize the recently
+modified models.
 
 Error Handling
 --------------
@@ -604,8 +901,8 @@ Error Handling
 Promiscuous tries to reconnect every 2 seconds when the connection to RabbitMQ
 or Redis has been lost. During this time, the publisher cannot perform any write
 queries. To take a publisher instance out of the load balancer, Promiscuous provides
-a health checker. `Promiscuous.healthly?` returns true when the system is able to
-publish or subscribe to message.
+a health checker. `Promiscuous.healthy?` returns true when the system is able to
+publish or subscribe to messages.
 
 On the subscriber side, when a message cannot be processed due to a raised
 exception, for example because of a database failure, the message
@@ -625,11 +922,11 @@ Promiscuous::Error::Recover    # Deadlock recovery, Skipped messages
 More details of their internals are in the code, but most messages will make sense.
 Exceptions are logged as well.
 
-Monitoring
-----------
+Instrumentation
+---------------
 
-Promiscuous only supports NewRelic for the moment.
-To install it, add the `promiscuous-newrelic` gem to your Gemfile:
+Promiscuous supports NewRelic. Just add the `promiscuous-newrelic` gem to your
+Gemfile to instrument the performance of the subscriber workers:
 
 ```ruby
 gem 'promiscuous-newrelic'
@@ -719,13 +1016,12 @@ Roadmap
 
 Coding Restrictions
 -------------------
-
 When using Promiscuous, multi updates and delete anymore are no longer possible
-on the publisher side. Promiscuous enforces this rule with Mongoid but not yet with
-ActiveRecord.
+on the publisher side. Promiscuous enforces this rule and will throw exception
+when the rule is not followed.
 
 In the system, only one application can publish to a given endpoint. We call
-this application the owner of corresponding model.
+this application the _owner_ of corresponding model.
 
 The subscribed models' callbacks should be idempotent as Promiscuous may
 retry to process a message when a failure has occurred.
@@ -747,7 +1043,40 @@ Limitations
 
 4. Subscribing the same model from different publishers is not yet supported.
 
+FAQs
+----
+
+**Q**: Is it Production Ready?  
+**A**: Yes, except for ActiveRecord publishers
+
+**Q**: How big is promiscuous?  
+**A**: Fairly small for what it does, less than 2,000 lines.
+
+**Q**: Is Promiscous well tested?  
+**A**: Yes, we mostly have integrations tests.
+
+**Q**: Does it depends on Rails?  
+**A**: No. You can use `promiscuous --require boot.rb`.
+
 License
 -------
 
-Promiscuous is distributed under the MIT license.
+Copyright (c) 2013 Crowdtap
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
