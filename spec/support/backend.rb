@@ -18,7 +18,7 @@ module BackendHelper
   def run_subscriber_worker!
     @worker.terminate if @worker
     @worker = Promiscuous::Subscriber::Worker.run!
-    Celluloid::Actor[:pump].subscribe_sync.wait
+    Celluloid::Actor[:pump].wait_for_subscription
   end
 
   def use_null_backend(options={})

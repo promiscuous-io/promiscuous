@@ -27,6 +27,10 @@ module Promiscuous::AMQP
       backend.publish(options)
     end
 
-    delegate :connect, :disconnect, :connected?, :open_queue, :to => :backend
+    delegate :connect, :disconnect, :connected?, :to => :backend
+
+    def const_missing(sym)
+      backend.const_get(sym)
+    end
   end
 end

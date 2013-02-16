@@ -29,13 +29,9 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def ack
-    EM.next_tick do
-      begin
-        metadata.ack if metadata.channel.open?
-      rescue
-        # We don't care if we fail, the message will be redelivered at some point
-      end
-    end
+    metadata.ack
+  rescue
+    # We don't care if we fail, the message will be redelivered at some point
   end
 
   def unit_of_work(type, &block)
