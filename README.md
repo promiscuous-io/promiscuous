@@ -9,30 +9,43 @@
 Introduction
 ------------
 
-Promiscuous is designed to facilitate designing a
-[service-oriented architecture](http://en.wikipedia.org/wiki/Service-oriented_architecture)
-in Ruby.
+Promiscuous is a **publisher-subscriber framework** to easily replicate data
+across your Ruby applications.
 
-In order for a service-oriented system to be successful, services *must* be
-loosely coupled. Using a common database goes against this principle. Each
-service in the system has its own dedicated database. This way, each
-application can denormalize and transform data at will.
+**Motivation**
 
-Promiscuous replicates the data around the system. Each application can publish
-and subscribe to application models. Promiscuous supports Mongoid3 and
-ActiveRecord (partially). It relies on [RabbitMQ](http://www.rabbitmq.com/) to
-distribute data around and [Redis](http://redis.io/) to synchronize and order
-operations.
+> If you hit the Amazon.com gateway page, the application calls more than 100
+> services to collect data and construct the page for you.
 
-Promiscuous guarantees that the subscriber never sees out of order updates.
-This property considerably reduces the complexity of applications.
+— _Werner Vogels, CTO, Amazon.com, 2006_
 
-This constraint removes any hopes of subscribing directly to the database oplog
-as it wouldn't know the ordering of operations when using shards, which is
-one of the limitations of [MoSQL](https://github.com/stripe/mosql).
+When it comes to scaling a team, having just one codebase adversely impacts productivity
+and performance.  A more sustainable approach is to adopt a [service-oriented
+architecture](http://en.wikipedia.org/wiki/Service-oriented_architecture) (SOA).
+with a system composed of several *loosely coupled* applications, each existing in isolation
+with its own database.  In this manner, each service can be tested separately,
+deployed separately and even owned separately by developers.  Unfortunately, it
+has not always been easy to achieve this in Ruby.
 
-Essentially, Promiscuous is a record/replay system built on top the ActiveModel API.
-The recording is done on the publisher side, and replayed asynchronously on subscribers.
+Promiscuous facilitates designing Ruby based SOA services. It does this by
+watching models in publisher applications to send corresponding model operations
+on a common message bus powered by [RabbitMQ](http://www.rabbitmq.com/).
+Each subscribers have their own queue to receive message asynchronously.
+
+**Role in our Infrastructure**
+
+At Crowdtap, we use Promiscuous as the central tier of our system.  It
+replicates a subset of our core models backed by [MongoDB](http://www.mongodb.org/) to
+internal services, such as our e-commerce store on
+[PostgreSQL](http://www.postgresql.org/) and our analytics engine on
+[ElasticSearch](www.elasticsearch.org).
+
+**Difference from traditional replication**
+
+By using [Redis](http://redis.io) to synchronize and order operations,
+Promiscuous guarantees that the subscriber never sees out of order updates,
+even when using shards. This guarantee considerably reduces the complexity of
+applications improving their robustness.
 
 Rails Quick Tutorial
 --------------------
