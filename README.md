@@ -25,7 +25,7 @@ architecture](http://en.wikipedia.org/wiki/Service-oriented_architecture) (SOA),
 with a system composed of several *loosely coupled* applications, each existing in isolation
 with its own database.  In this manner, each service can be tested separately,
 deployed separately and even owned separately by developers.  Unfortunately, it
-has not always been easy to achieve this in Ruby.
+has not always been easy to achieve this with Ruby.
 
 Promiscuous facilitates designing Ruby based SOA services. It does this by
 watching models in publisher applications and sending corresponding model operations
