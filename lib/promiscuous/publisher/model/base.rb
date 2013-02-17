@@ -8,40 +8,55 @@ module Promiscuous::Publisher::Model::Base
     Promiscuous::Publisher::Model.publishers << self
   end
 
-  def promiscuous_sync(options={}, &block)
-    options = options.dup
-    options[:instance] = self
-    options[:operation] ||= :update
-    Promiscuous::Publisher::Operation.new(options).commit(&block)
+  module PromiscuousMethodsBase
+    def initialize(instance)
+      @instance = instance
+    end
+
+    def sync(options={}, &block)
+      options = options.dup
+      options[:instance] = @instance
+      options[:operation] ||= :update
+      Promiscuous::Publisher::Operation.new(options).commit(&block)
+    end
+
+    def payload(options={})
+      msg = {}
+      msg[:__amqp__]  = @instance.class.publish_to
+      msg[:type]      = @instance.class.publish_as # for backward compatibility
+      msg[:ancestors] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+      msg[:id]        = @instance.id.to_s
+      msg[:payload]   = self.attributes     if options[:operation].in?([nil, :create, :update])
+      msg[:operation] = options[:operation] if options[:operation]
+      msg[:version]   = options[:version]   if options[:version]
+      msg
+    end
+
+    def attributes
+      Hash[@instance.class.published_attrs.map { |attr| [attr, self.attribute(attr)] }]
+    end
+
+    def attribute(attr)
+      value = @instance.__send__(attr)
+      value = value.promiscuous.payload if value.respond_to?(:promiscuous)
+      value
+    end
+
+    def publish(options={})
+      payload = self.payload(options)
+      Promiscuous::AMQP.publish(:key => payload[:__amqp__], :payload => payload.to_json)
+    rescue Exception => e
+      raise Promiscuous::Error::Publisher.new(e, :instance => @instance, :payload => payload, :out_of_sync => true)
+    end
   end
 
-  def to_promiscuous(options={})
-    msg = {}
-    msg[:__amqp__]  = self.class.publish_to
-    msg[:type]      = self.class.publish_as # for backward compatibility
-    msg[:ancestors] = self.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
-    msg[:id]        = self.id.to_s
-    msg[:payload]   = self.__promiscuous_attributes if options[:operation].in?([nil, :create, :update])
-    msg[:operation] = options[:operation]           if options[:operation]
-    msg[:version]   = options[:version]             if options[:version]
-    msg
+  class PromiscuousMethods
+    include Promiscuous::Publisher::Model::Base::PromiscuousMethodsBase
   end
 
-  def __promiscuous_attributes
-    Hash[self.class.published_attrs.map { |attr| [attr, self.__promiscuous_attribute(attr)] }]
-  end
-
-  def __promiscuous_attribute(attr)
-    value = __send__(attr)
-    value = value.to_promiscuous if value.respond_to?(:to_promiscuous)
-    value
-  end
-
-  def __promiscuous_publish(options={})
-    payload = self.to_promiscuous(options)
-    Promiscuous::AMQP.publish(:key => payload[:__amqp__], :payload => payload.to_json)
-  rescue Exception => e
-    raise Promiscuous::Error::Publisher.new(e, :instance => self, :payload => payload, :out_of_sync => true)
+  def promiscuous
+    # XXX Not thread safe, but sharing models between threads is a bad idea to begin with
+    @promiscuous ||= self.class.const_get(:PromiscuousMethods).new(self)
   end
 
   module ClassMethods

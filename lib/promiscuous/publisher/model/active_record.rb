@@ -5,8 +5,8 @@ module Promiscuous::Publisher::Model::ActiveRecord
   # TODO FIXME This needs some serious work. We need to hook deeper.
 
   included do
-    around_create  { |&block| promiscuous_sync(:operation => :create,  &block) }
-    around_update  { |&block| promiscuous_sync(:operation => :update,  &block) }
-    around_destroy { |&block| promiscuous_sync(:operation => :destroy, &block) }
+    around_create  { |&block| promiscuous.sync(:operation => :create,  &block) }
+    around_update  { |&block| promiscuous.sync(:operation => :update,  &block) }
+    around_destroy { |&block| promiscuous.sync(:operation => :destroy, &block) }
   end
 end

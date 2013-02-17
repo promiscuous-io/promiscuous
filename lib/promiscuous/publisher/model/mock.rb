@@ -19,8 +19,12 @@ module Promiscuous::Publisher::Model::Mock
     end
   end
 
-  def promiscuous_sync(options={}, &block)
-    Promiscuous::Subscriber::Worker::Message.new(nil, to_promiscuous(options).to_json).process
+  class PromiscuousMethods
+    include Promiscuous::Publisher::Model::Base::PromiscuousMethodsBase
+
+    def sync(options={}, &block)
+      Promiscuous::Subscriber::Worker::Message.new(nil, promiscuous.payload(options).to_json).process
+    end
   end
 
   module ClassMethods

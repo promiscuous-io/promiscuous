@@ -31,7 +31,7 @@ class Promiscuous::CLI
       bar = ProgressBar.create(:format => '%t |%b>%i| %c/%C %e', :title => title, :total => criteria.count)
       criteria.each do |doc|
         break if @stop
-        doc.promiscuous_sync
+        doc.promiscuous.sync
         bar.increment
       end
     end

@@ -15,7 +15,7 @@ module Promiscuous::Publisher::Model::Ephemeral
     operation = :create
     operation = :update  unless self.new_record
     operation = :destroy if     self.destroyed
-    promiscuous_sync(:operation => operation)
+    promiscuous.sync(:operation => operation)
     self.new_record = false
     true
   end

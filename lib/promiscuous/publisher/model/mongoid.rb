@@ -2,6 +2,31 @@ module Promiscuous::Publisher::Model::Mongoid
   extend ActiveSupport::Concern
   include Promiscuous::Publisher::Model::Base
 
+  class PromiscuousMethods
+    include Promiscuous::Publisher::Model::Base::PromiscuousMethodsBase
+
+    def sync(options={}, &block)
+      raise "Use promiscuous.sync on the parent instance" if @instance.embedded?
+
+      options = options.dup
+      options[:operation]  ||= :update
+      options[:collection] = @instance.collection.name
+      options[:selector]   = @instance.atomic_selector
+      Promiscuous::Publisher::Model::Mongoid::Operation.new(options).commit(&block)
+    end
+
+    def attribute(attr)
+      value = super
+      if value.is_a?(Array) &&
+         value.respond_to?(:ancestors) &&
+         value.ancestors.any? { |a| a == Promiscuous::Publisher::Model::Mongoid }
+        value = { :__amqp__ => '__promiscuous__/embedded_many',
+                  :payload  => value.map(&:promiscuous).map(&:payload) }
+      end
+      value
+    end
+  end
+
   module ClassMethods
     # TODO DRY this up with the publisher side
     def publish(*args, &block)
@@ -29,27 +54,6 @@ module Promiscuous::Publisher::Model::Mongoid
     publish_on :field
     publish_on :embeds_one
     publish_on :embeds_many
-  end
-
-  def promiscuous_sync(options={}, &block)
-    raise "Use promiscuous_sync on the parent instance" if self.embedded?
-
-    options = options.dup
-    options[:operation]  ||= :update
-    options[:collection] = collection.name
-    options[:selector]   = atomic_selector
-    Promiscuous::Publisher::Model::Mongoid::Operation.new(options).commit(&block)
-  end
-
-  def __promiscuous_attribute(attr)
-    value = super
-    if value.is_a?(Array) &&
-       value.respond_to?(:ancestors) &&
-       value.ancestors.any? { |a| a == Promiscuous::Publisher::Model::Mongoid }
-      value = { :__amqp__ => '__promiscuous__/embedded_many',
-                :payload  => value.map(&:to_promiscuous) }
-    end
-    value
   end
 
   class Operation < Promiscuous::Publisher::Operation

@@ -71,7 +71,7 @@ class Promiscuous::Publisher::Operation
       retry
     end
 
-    self.instance.__promiscuous_publish(:operation => operation, :version => version)
+    self.instance.promiscuous.publish(:operation => operation, :version => version)
 
     raise exception if exception
     ret
