@@ -28,7 +28,7 @@ deployed separately and even owned separately by developers.  Unfortunately, it
 has not always been easy to achieve this in Ruby.
 
 Promiscuous facilitates designing Ruby based SOA services. It does this by
-watching models in publisher applications to send corresponding model operations
+watching models in publisher applications and sending corresponding model operations
 on a common message bus powered by [RabbitMQ](http://www.rabbitmq.com/).
 Each subscriber has its own queue to receive messages asynchronously.
 
