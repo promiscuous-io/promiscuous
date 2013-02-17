@@ -56,7 +56,7 @@ We need to few things for the promiscuous tutorial:
 
 * The AMQP broker [RabbitMQ](http://www.rabbitmq.com/) 2.8.7 (not 3.x because of a bug in the ruby driver) up and running.
 * The key-value storage system [Redis](http://redis.io/) up and running.
-* Two rails applications with the promiscuous gem installed.
+* Two Rails applications with the promiscuous gem installed.
 * Both applications must be running on separate databases.
 * Both applications must have a User model (ActiveRecord or Mongoid) with two attributes name and email.
 
