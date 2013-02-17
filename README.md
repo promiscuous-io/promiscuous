@@ -97,7 +97,7 @@ bundle exec promiscuous subscribe
 
 You should start the subscriber *first*, otherwise the appropriate queues
 will not be created. From now on, you should see the queue in the RabbitMQ
-web admin page. Create a new user in the publisher's rails console with:
+web admin page. Create a new user in the publisher's Rails console with:
 
 ```ruby
 User.create(:name => 'Yoda')`
