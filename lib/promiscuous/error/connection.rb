@@ -4,7 +4,10 @@ class Promiscuous::Error::Connection < RuntimeError
   def initialize(options={})
     super(nil)
     self.service = options[:service]
-    self.url = Promiscuous::Config.__send__("#{service}_url")
+    self.url = case service
+    when :zookeeper then "zookeeper://#{Promiscuous::Config.zookeeper_hosts}"
+    when :redis     then Promiscuous::Config.redis_url
+    when :amqp      then Promiscuous::Config.amqp_url
   end
 
   def message

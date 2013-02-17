@@ -1,5 +1,3 @@
-require 'crowdtap_redis_lock'
-
 class Promiscuous::Publisher::Operation
   class TryAgain < RuntimeError; end
 
@@ -19,15 +17,11 @@ class Promiscuous::Publisher::Operation
   end
 
   def with_instance_lock(&block)
-    return yield if Promiscuous::Config.backend == :null
-
     # create operations don't need locking as the race with concurrent updates
     # cannot happen.
     return yield if operation == :create
 
-    key = Promiscuous::Redis.pub_key(instance_key)
-    # We'll block for 60 seconds before raising an exception
-    ::RedisLock.new(Promiscuous::Redis, key).retry(300).every(0.2).lock_for_update(&block)
+    Promiscuous::ZK.with_lock(instance_key, &block)
   end
 
   def version

@@ -1,5 +1,3 @@
-require 'crowdtap_redis_lock'
-
 class Promiscuous::Subscriber::Operation
   attr_accessor :payload
 
@@ -10,11 +8,7 @@ class Promiscuous::Subscriber::Operation
   end
 
   def with_instance_lock(&block)
-    return yield if Promiscuous::Config.backend == :null
-
-    key = Promiscuous::Redis.sub_key(id)
-    # We'll block for 60 seconds before raising an exception
-    ::RedisLock.new(Promiscuous::Redis, key).retry(300).every(0.2).lock_for_update(&block)
+    Promiscuous::ZK.with_lock(id, &block)
   end
 
   def verify_dependencies

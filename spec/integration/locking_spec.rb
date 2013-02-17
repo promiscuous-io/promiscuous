@@ -26,7 +26,7 @@ describe Promiscuous do
       it 'stays ordered' do
         pub = Publisher.create(:field => 0)
         10.times.map { Thread.new { 10.times { pub.inc(:field, 1) } } }.each(&:join)
-        eventually do
+        eventually :timeout => 10.seconds do
           Subscriber.first.field.should == 100
           Subscriber.first.inc_by_one.should == 100
         end

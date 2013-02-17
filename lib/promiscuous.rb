@@ -6,7 +6,7 @@ module Promiscuous
 
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
-           :CLI, :Error, :Loader, :AMQP, :Redis, :Config, :DSL
+           :CLI, :Error, :Loader, :AMQP, :Redis, :ZK, :Config, :DSL
 
   extend Promiscuous::DSL
 
