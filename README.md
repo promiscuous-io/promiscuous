@@ -43,9 +43,9 @@ internal services, such as our e-commerce store on
 **Difference from traditional replication**
 
 By using [Redis](http://redis.io) to synchronize and order operations,
-Promiscuous guarantees that the subscriber never sees out of order updates,
+Promiscuous guarantees that a subscriber never sees out of order updates,
 even when using shards. This guarantee considerably reduces the complexity of
-applications, while improving their robustness.
+an application, while improving its robustness.
 
 Rails Quick Tutorial
 --------------------
