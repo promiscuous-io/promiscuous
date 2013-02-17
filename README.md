@@ -21,7 +21,7 @@ across your Ruby applications.
 
 When it comes to scaling a team, having just one codebase adversely impacts productivity
 and performance.  A more sustainable approach is to adopt a [service-oriented
-architecture](http://en.wikipedia.org/wiki/Service-oriented_architecture) (SOA).
+architecture](http://en.wikipedia.org/wiki/Service-oriented_architecture) (SOA),
 with a system composed of several *loosely coupled* applications, each existing in isolation
 with its own database.  In this manner, each service can be tested separately,
 deployed separately and even owned separately by developers.  Unfortunately, it
