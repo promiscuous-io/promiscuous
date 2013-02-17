@@ -6,9 +6,12 @@ module Promiscuous
 
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
-           :CLI, :Error, :Loader, :AMQP, :Redis, :ZK, :Config, :DSL
+           :CLI, :Error, :Loader, :AMQP, :Redis, :ZK, :Config, :DSL, :Key,
+           :Convenience
 
   extend Promiscuous::DSL
+
+  Object.__send__(:include, Promiscuous::Convenience)
 
   class << self
     def configure(&block)
@@ -24,20 +27,27 @@ module Promiscuous
     def connect
       AMQP.connect
       Redis.connect
+      ZK.connect
     end
 
     def disconnect
       AMQP.disconnect
       Redis.disconnect
+      ZK.disconnect
     end
 
     def healthy?
       AMQP.ensure_connected
       Redis.ensure_connected
+      ZK.ensure_connected
     rescue
       false
     else
       true
+    end
+
+    def transaction(*args, &block)
+      Publisher::Transaction.open(*args, &block)
     end
   end
 

@@ -9,4 +9,10 @@ module Promiscuous::Publisher::Model::ActiveRecord
     around_update  { |&block| promiscuous.sync(:operation => :update,  &block) }
     around_destroy { |&block| promiscuous.sync(:operation => :destroy, &block) }
   end
+
+  module ClassMethods
+    def __promiscuous_missing_record_exception
+      ActiveRecord::RecordNotFound
+    end
+  end
 end

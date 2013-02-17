@@ -10,6 +10,7 @@ module Promiscuous::Loader
 
   def self.cleanup
     Promiscuous::Publisher::Model.publishers.clear
+    Promiscuous::Publisher::Model::Mongoid.collection_mapping.clear
     Promiscuous::Subscriber::Model.mapping.select! { |k| k.to_s =~ /__promiscuous__/ }
   end
 end

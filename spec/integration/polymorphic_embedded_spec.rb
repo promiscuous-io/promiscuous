@@ -8,10 +8,13 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
 
     context 'when creating' do
       it 'replicates' do
-        pub = PublisherModelEmbed.new(:field_1 => '1')
-        pub.model_embedded = PublisherModelEmbeddedChild.new(:embedded_field_1 => 'e1',
-                                                             :embedded_field_2 => 'e2')
-        pub.save
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModelEmbed.new(:field_1 => '1')
+          pub.model_embedded = PublisherModelEmbeddedChild.new(:embedded_field_1 => 'e1',
+                                                               :embedded_field_2 => 'e2')
+          pub.save
+        end
         pub_e = pub.model_embedded
 
         eventually do
@@ -33,12 +36,15 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
 
     context 'when updating' do
       it 'replicates' do
-        pub = PublisherModelEmbed.create(:field_1 => '1',
-                                         :model_embedded => { :embedded_field_1 => 'e1',
-                                                              :embedded_field_2 => 'e2' })
-        pub.update_attributes(:field_1 => '1_updated',
-                              :model_embedded => { :embedded_field_1 => 'e1_updated',
-                                                   :embedded_field_2 => 'e2_updated' })
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModelEmbed.create(:field_1 => '1',
+                                           :model_embedded => { :embedded_field_1 => 'e1',
+                                                                :embedded_field_2 => 'e2' })
+          pub.update_attributes(:field_1 => '1_updated',
+                                :model_embedded => { :embedded_field_1 => 'e1_updated',
+                                                     :embedded_field_2 => 'e2_updated' })
+        end
         pub_e = pub.model_embedded
 
         eventually do
@@ -59,15 +65,16 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
 
     context 'when destroying' do
       it 'replicates' do
-        pub = PublisherModelEmbed.create(:field_1 => '1',
-                                         :model_embedded => { :embedded_field_1 => 'e1',
-                                                              :embedded_field_2 => 'e2' })
-
-        eventually do
-          eventually { SubscriberModelEmbed.count.should == 1 }
-          pub.destroy
-          eventually { SubscriberModelEmbed.count.should == 0 }
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModelEmbed.create(:field_1 => '1',
+                                           :model_embedded => { :embedded_field_1 => 'e1',
+                                                                :embedded_field_2 => 'e2' })
         end
+
+        eventually { SubscriberModelEmbed.count.should == 1 }
+        Promiscuous.transaction { pub.destroy }
+        eventually { SubscriberModelEmbed.count.should == 0 }
       end
     end
   end

@@ -8,8 +8,11 @@ describe Promiscuous do
   context 'when creating' do
     context 'with save' do
       it 'replicates' do
-        pub = ModelEphemeral.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.save
+        pub = nil
+        Promiscuous.transaction do
+          pub = ModelEphemeral.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+          pub.save
+        end
 
         eventually do
           sub = SubscriberModel.first
@@ -22,7 +25,10 @@ describe Promiscuous do
 
     context 'with create' do
       it 'replicates' do
-        pub = ModelEphemeral.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub = nil
+        Promiscuous.transaction do
+          pub = ModelEphemeral.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        end
 
         eventually do
           sub = SubscriberModel.first

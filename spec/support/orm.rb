@@ -16,10 +16,10 @@ module ORM
   end
 
   if has(:mongoid)
-    Operation = Promiscuous::Publisher::Model::Mongoid::Operation
+    #Operation = Promiscuous::Publisher::Model::Mongoid::Operation
     ID = :_id
   elsif has(:active_record)
-    Operation = Promiscuous::Publisher::Operation
+    #Operation = Promiscuous::Publisher::Operation
     ID = :id
   end
 

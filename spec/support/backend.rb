@@ -31,6 +31,16 @@ module BackendHelper
     config_logger(options)
   end
 
+  def use_fake_backend(options={})
+    Promiscuous.configure do |config|
+      config.reset
+      config.backend = :fake
+      config.app = options[:app] || 'test_publisher'
+    end
+    Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
+    config_logger(options)
+  end
+
   def config_logger(options={})
     Promiscuous::Config.logger.level = ENV["LOGGER_LEVEL"].to_i if ENV["LOGGER_LEVEL"]
     Promiscuous::Config.logger.level = options[:logger_level] if options[:logger_level]

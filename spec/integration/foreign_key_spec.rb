@@ -10,10 +10,13 @@ describe Promiscuous do
 
   context 'when creating' do
     it 'replicates' do
-      pub_id = ORM.generate_id
-      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      pub.id = pub_id
-      pub.save
+      pub = nil
+      Promiscuous.transaction do
+        pub_id = ORM.generate_id
+        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub.id = pub_id
+        pub.save
+      end
 
       eventually do
         sub = SubscriberModel.first
@@ -27,12 +30,14 @@ describe Promiscuous do
 
   context 'when updating' do
     it 'replicates' do
-      pub_id = ORM.generate_id
-      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      pub.id = pub_id
-      pub.save
-
-      pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
+      pub = nil
+      Promiscuous.transaction do
+        pub_id = ORM.generate_id
+        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub.id = pub_id
+        pub.save
+        pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
+      end
 
       eventually do
         sub = SubscriberModel.first
@@ -46,16 +51,22 @@ describe Promiscuous do
 
   context 'when updating (upsert)' do
     it 'replicates' do
-      pub_id = ORM.generate_id
-      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      pub.id = pub_id
-      pub.save
+      pub = nil
+      Promiscuous.transaction do
+        pub_id = ORM.generate_id
+        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub.id = pub_id
+        pub.save
+      end
 
       eventually { SubscriberModel.first.should_not == nil }
 
       SubscriberModel.first.destroy
       config_logger(:logger_level => Logger::FATAL)
-      pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
+
+      Promiscuous.transaction do
+        pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
+      end
 
       eventually do
         sub = SubscriberModel.first
@@ -69,13 +80,16 @@ describe Promiscuous do
 
   context 'when destroying' do
     it 'replicates' do
-      pub_id = ORM.generate_id
-      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      pub.id = pub_id
-      pub.save
+      pub = nil
+      Promiscuous.transaction do
+        pub_id = ORM.generate_id
+        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub.id = pub_id
+        pub.save
+      end
 
       eventually { SubscriberModel.count.should == 1 }
-      pub.destroy
+      Promiscuous.transaction { pub.destroy }
       eventually { SubscriberModel.count.should == 0 }
     end
   end

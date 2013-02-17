@@ -41,7 +41,7 @@ RSpec.configure do |config|
   end
 
   config.after do
-    @defined_constants.each do |base, class_names|
+    @defined_constants.to_a.each do |base, class_names|
       class_names.each do |class_name|
         base.send(:remove_const, class_name)
       end

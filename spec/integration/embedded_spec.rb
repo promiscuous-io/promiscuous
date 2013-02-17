@@ -8,9 +8,12 @@ if ORM.has(:embedded_documents)
 
     context 'when creating' do
       it 'replicates' do
-        pub = PublisherModelEmbed.create(:field_1 => '1',
-                                         :model_embedded => { :embedded_field_1 => 'e1',
-                                                              :embedded_field_2 => 'e2' })
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModelEmbed.create(:field_1 => '1',
+                                           :model_embedded => { :embedded_field_1 => 'e1',
+                                                                :embedded_field_2 => 'e2' })
+        end
         pub_e = pub.model_embedded
 
         eventually do
@@ -32,12 +35,15 @@ if ORM.has(:embedded_documents)
     context 'when updating' do
       context 'when embedded document is saved' do
         it 'replicates' do
-          pub = PublisherModelEmbed.create(:field_1 => '1',
-                                           :model_embedded => { :embedded_field_1 => 'e1',
-                                                                :embedded_field_2 => 'e2' })
-          pub_e = pub.model_embedded
-          pub_e.embedded_field_1 = 'e1_updated'
-          pub_e.save
+          pub = pub_e = nil
+          Promiscuous.transaction do
+            pub = PublisherModelEmbed.create(:field_1 => '1',
+                                             :model_embedded => { :embedded_field_1 => 'e1',
+                                                                  :embedded_field_2 => 'e2' })
+            pub_e = pub.model_embedded
+            pub_e.embedded_field_1 = 'e1_updated'
+            pub_e.save
+          end
 
           eventually do
             sub = SubscriberModelEmbed.first
@@ -57,9 +63,12 @@ if ORM.has(:embedded_documents)
 
       context 'when embedded document setter is used' do
         it 'replicates' do
-          pub = PublisherModelEmbed.create(:field_1 => '1',
-                                           :model_embedded => { :embedded_field_1 => 'e1',
-                                                                :embedded_field_2 => 'e2' })
+          pub = nil
+          Promiscuous.transaction do
+            pub = PublisherModelEmbed.create(:field_1 => '1',
+                                             :model_embedded => { :embedded_field_1 => 'e1',
+                                                                  :embedded_field_2 => 'e2' })
+          end
           pub_e = pub.model_embedded
 
           eventually do
@@ -76,8 +85,10 @@ if ORM.has(:embedded_documents)
             sub_e.embedded_field_3.should == pub_e.embedded_field_3
           end
 
-          pub.model_embedded = PublisherModelEmbeddedChild.new(:embedded_field_1 => 'e1_updated')
-          pub.save
+          Promiscuous.transaction do
+            pub.model_embedded = PublisherModelEmbeddedChild.new(:embedded_field_1 => 'e1_updated')
+            pub.save
+          end
 
           pub_e = pub.model_embedded
 
@@ -99,12 +110,15 @@ if ORM.has(:embedded_documents)
 
       context 'when parent document is saved' do
         it 'replicates' do
-          pub = PublisherModelEmbed.create(:field_1 => '1',
-                                           :model_embedded => { :embedded_field_1 => 'e1',
-                                                                :embedded_field_2 => 'e2' })
-          pub.update_attributes(:field_1 => '1_updated',
-                                :model_embedded => { :embedded_field_1 => 'e1_updated',
-                                                     :embedded_field_2 => 'e2_updated' })
+          pub = nil
+          Promiscuous.transaction do
+            pub = PublisherModelEmbed.create(:field_1 => '1',
+                                             :model_embedded => { :embedded_field_1 => 'e1',
+                                                                  :embedded_field_2 => 'e2' })
+            pub.update_attributes(:field_1 => '1_updated',
+                                  :model_embedded => { :embedded_field_1 => 'e1_updated',
+                                                       :embedded_field_2 => 'e2_updated' })
+          end
           pub_e = pub.model_embedded
 
           eventually do
@@ -127,44 +141,49 @@ if ORM.has(:embedded_documents)
     context 'when destroying' do
       context 'the parent' do
         it 'replicates' do
-          pub = PublisherModelEmbed.create(:field_1 => '1',
-                                           :model_embedded => { :embedded_field_1 => 'e1',
-                                                                :embedded_field_2 => 'e2' })
-
-          eventually do
-            eventually { SubscriberModelEmbed.count.should == 1 }
-            pub.destroy
-            eventually { SubscriberModelEmbed.count.should == 0 }
+          pub = nil
+          Promiscuous.transaction do
+            pub = PublisherModelEmbed.create(:field_1 => '1',
+                                             :model_embedded => { :embedded_field_1 => 'e1',
+                                                                  :embedded_field_2 => 'e2' })
           end
+
+          eventually { SubscriberModelEmbed.count.should == 1 }
+          Promiscuous.transaction { pub.destroy }
+          eventually { SubscriberModelEmbed.count.should == 0 }
         end
       end
 
       context 'the embedded document with destroy' do
         it 'replicates' do
-          pub = PublisherModelEmbed.create(:field_1 => '1',
-                                           :model_embedded => { :embedded_field_1 => 'e1',
-                                                                :embedded_field_2 => 'e2' })
-
-          eventually do
-            eventually { SubscriberModelEmbed.first.model_embedded.should_not == nil }
-            pub.model_embedded.destroy
-            eventually { SubscriberModelEmbed.first.model_embedded.should == nil }
+          pub = nil
+            Promiscuous.transaction do
+            pub = PublisherModelEmbed.create(:field_1 => '1',
+                                             :model_embedded => { :embedded_field_1 => 'e1',
+                                                                  :embedded_field_2 => 'e2' })
           end
+
+          eventually { SubscriberModelEmbed.first.model_embedded.should_not == nil }
+          Promiscuous.transaction { pub.model_embedded.destroy }
+          eventually { SubscriberModelEmbed.first.model_embedded.should == nil }
         end
       end
 
       context 'the embedded document with setting to nil' do
         it 'replicates' do
-          pub = PublisherModelEmbed.create(:field_1 => '1',
-                                           :model_embedded => { :embedded_field_1 => 'e1',
-                                                                :embedded_field_2 => 'e2' })
+          pub = nil
+          Promiscuous.transaction do
+            pub = PublisherModelEmbed.create(:field_1 => '1',
+                                             :model_embedded => { :embedded_field_1 => 'e1',
+                                                                  :embedded_field_2 => 'e2' })
+          end
 
-          eventually do
-            eventually { SubscriberModelEmbed.first.model_embedded.should_not == nil }
+          eventually { SubscriberModelEmbed.first.model_embedded.should_not == nil }
+          Promiscuous.transaction do
             pub.model_embedded = nil
             pub.save
-            eventually { SubscriberModelEmbed.first.model_embedded.should == nil }
           end
+          eventually { SubscriberModelEmbed.first.model_embedded.should == nil }
         end
       end
     end

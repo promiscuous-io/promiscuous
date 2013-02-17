@@ -8,8 +8,11 @@ describe Promiscuous do
   context 'with the alternate model syntax' do
     context 'when creating' do
       it 'replicates' do
-        pub = PublisherModelOther.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.save
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModelOther.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+          pub.save
+        end
 
         eventually do
           sub = SubscriberModelOther.first
@@ -24,8 +27,11 @@ describe Promiscuous do
 
   shared_examples_for "replication" do
     it 'replicates' do
-      pub = PublisherDslModel.new(:field_1 => '1', :field_2 => '2')
-      pub.save
+      pub = nil
+      Promiscuous.transaction do
+        pub = PublisherDslModel.new(:field_1 => '1', :field_2 => '2')
+        pub.save
+      end
 
       eventually do
         sub = SubscriberDslModel.first
@@ -92,8 +98,11 @@ describe Promiscuous do
     end
 
     it 'replicates' do
-      pub = PublisherDslModel.new(:field_1 => '1', :field_2 => '2')
-      pub.save
+      pub = nil
+      Promiscuous.transaction do
+        pub = PublisherDslModel.new(:field_1 => '1', :field_2 => '2')
+        pub.save
+      end
 
       eventually do
         sub = SubscriberDslModel.first

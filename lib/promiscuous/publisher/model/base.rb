@@ -2,9 +2,10 @@ module Promiscuous::Publisher::Model::Base
   extend ActiveSupport::Concern
 
   included do
-    class_attribute :publish_to, :published_attrs
+    class_attribute :publish_to, :published_attrs, :tracked_attrs
     self.published_attrs = []
-
+    self.tracked_attrs = []
+    track_dependencies_of :id
     Promiscuous::Publisher::Model.publishers << self
   end
 
@@ -14,21 +15,21 @@ module Promiscuous::Publisher::Model::Base
     end
 
     def sync(options={}, &block)
-      options = options.dup
-      options[:instance] = @instance
-      options[:operation] ||= :update
-      Promiscuous::Publisher::Operation.new(options).commit(&block)
+      options = {:instance => @instance, :operation => :update}.merge(options)
+      Promiscuous::Publisher::Operation::Base.new(options).commit(&block)
     end
 
     def payload(options={})
+      # It's nice to see the entire payload in one piece, not merged 36 times
       msg = {}
-      msg[:__amqp__]  = @instance.class.publish_to
-      msg[:type]      = @instance.class.publish_as # for backward compatibility
-      msg[:ancestors] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
-      msg[:id]        = @instance.id.to_s
-      msg[:payload]   = self.attributes     if options[:operation].in?([nil, :create, :update])
-      msg[:operation] = options[:operation] if options[:operation]
-      msg[:version]   = options[:version]   if options[:version]
+      msg[:__amqp__]      = @instance.class.publish_to
+      msg[:type]          = @instance.class.publish_as # for backward compatibility
+      msg[:ancestors]     = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+      msg[:id]            = @instance.id.to_s
+      msg[:payload]       = self.attributes         if options[:operation].in?([nil, :create, :update])
+      msg[:operation]     = options[:operation]     if options[:operation]
+      msg[:dependencies]  = options[:dependencies]  if options[:dependencies]
+      msg[:transaction]   = options[:transaction]   if options[:transaction]
       msg
     end
 
@@ -48,6 +49,21 @@ module Promiscuous::Publisher::Model::Base
     rescue Exception => e
       raise Promiscuous::Error::Publisher.new(e, :instance => @instance, :payload => payload, :out_of_sync => true)
     end
+
+    def get_dependency(attr, value)
+      return nil unless value
+      @collection ||= @instance.class.promiscuous_collection_name
+      Promiscuous::Publisher::Dependency.new(@collection, attr, value)
+    end
+
+    def tracked_dependencies(options={})
+      # FIXME This is not sufficient, we need to consider the previous and next
+      # values in case of an update.
+      @instance.class.tracked_attrs
+        .map { |attr| [attr, @instance.__send__(attr)]}
+        .map { |attr, value| get_dependency(attr, value) }
+        .compact
+    end
   end
 
   class PromiscuousMethods
@@ -55,11 +71,13 @@ module Promiscuous::Publisher::Model::Base
   end
 
   def promiscuous
-    # XXX Not thread safe, but sharing models between threads is a bad idea to begin with
+    # XXX Not thread safe
     @promiscuous ||= self.class.const_get(:PromiscuousMethods).new(self)
   end
 
   module ClassMethods
+    # all methods are virtual
+
     def publish(*args, &block)
       options    = args.extract_options!
       attributes = args
@@ -75,6 +93,14 @@ module Promiscuous::Publisher::Model::Base
       ([self] + descendants).each { |klass| klass.published_attrs |= attributes }
     end
 
+    def track_dependencies_of(*attributes)
+      ([self] + descendants).each { |klass| klass.tracked_attrs |= attributes }
+    end
+
+    def promiscuous_collection_name
+      self.name.underscore
+    end
+
     def publish_as
       @publish_as || name
     end
@@ -82,6 +108,12 @@ module Promiscuous::Publisher::Model::Base
     def inherited(subclass)
       super
       subclass.published_attrs = self.published_attrs.dup
+      subclass.tracked_attrs   = self.tracked_attrs.dup
+    end
+
+    class None; end
+    def promiscuous_missing_record_exception
+      None
     end
   end
 end

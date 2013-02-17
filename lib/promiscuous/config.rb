@@ -1,7 +1,7 @@
 module Promiscuous::Config
   mattr_accessor :app, :logger, :error_notifier, :backend, :amqp_url,
                  :redis_url, :zookeeper_hosts, :queue_options, :heartbeat, :bareback,
-                 :recovery, :prefetch
+                 :recovery, :prefetch, :use_transactions
 
   def self.backend=(value)
     @@backend = value
@@ -25,6 +25,7 @@ module Promiscuous::Config
     self.heartbeat       ||= 60
     self.prefetch        ||= 1000
     self.logger          ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
+    self.use_transactions = true if self.use_transactions.nil?
 
     unless self.app
       raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""

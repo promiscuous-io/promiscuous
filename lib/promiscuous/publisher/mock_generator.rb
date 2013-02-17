@@ -16,7 +16,7 @@ module Promiscuous::Publisher::MockGenerator
         <% end -%>
       <% end -%>
 
-      <% Promiscuous::Publisher::Model.publishers.each do |publisher| -%>
+      <% publishers.each do |publisher| -%>
         <% next unless publisher.publish_to -%>
         <% %>
         # ------------------------------------------------------------------
@@ -52,12 +52,17 @@ module Promiscuous::Publisher::MockGenerator
   end
 
   def self.modules
-    Promiscuous::Publisher::Model.publishers
+    publishers
       .map    { |publisher| [publisher] + publisher.descendants.map(&:name) }
       .flatten
       .select { |name| name =~ /::/ }
       .map    { |name| name.gsub(/::[^:]+$/, '') }
       .uniq
       .sort
+  end
+
+  def self.publishers
+    Promiscuous::Publisher::Model.publishers
+      .reject { |publisher| publisher.publish_to =~ /^__promiscuous__\// }
   end
 end

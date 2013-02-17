@@ -27,3 +27,5 @@ RSpec.configure do |config|
     Promiscuous::Loader.cleanup
   end
 end
+
+load './debug.rb' if File.exists?('./debug.rb')

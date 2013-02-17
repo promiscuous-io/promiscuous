@@ -1,15 +1,18 @@
 require 'spec_helper'
 
 describe Promiscuous do
-  before { load_models }
   before { use_real_backend }
+  before { load_models }
   before { run_subscriber_worker! }
 
   context 'when creating' do
     context 'with new' do
       it 'replicates' do
-        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.save
+        pub = Promiscuous.transaction do
+          pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+          pub.save
+          pub
+        end
 
         eventually do
           sub = SubscriberModel.first
@@ -23,7 +26,9 @@ describe Promiscuous do
 
     context 'with create' do
       it 'replicates' do
-        pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub = Promiscuous.transaction do
+          PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        end
 
         eventually do
           sub = SubscriberModel.first
@@ -38,8 +43,11 @@ describe Promiscuous do
 
   context 'when updating' do
     it 'replicates' do
-      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
+      pub = nil
+      Promiscuous.transaction do
+        pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
+      end
 
       eventually do
         sub = SubscriberModel.first
@@ -52,8 +60,11 @@ describe Promiscuous do
 
     if ORM.has(:find_and_modify)
       it 'replicate' do
-        pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        PublisherModel.find_and_modify('$set' => { :field_1 => '1_updated', :field_2 => '2_updated'})
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+          PublisherModel.find_and_modify('$set' => { :field_1 => '1_updated', :field_2 => '2_updated'})
+        end
         pub.reload
 
         eventually do
@@ -69,10 +80,12 @@ describe Promiscuous do
 
   context 'when destroying' do
     it 'replicates' do
-      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub = Promiscuous.transaction do
+        PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      end
 
       eventually { SubscriberModel.count.should == 1 }
-      pub.destroy
+      Promiscuous.transaction { pub.destroy }
       eventually { SubscriberModel.count.should == 0 }
     end
   end

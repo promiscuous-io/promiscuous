@@ -49,7 +49,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def process
-    Promiscuous.debug "[receive] #{payload}"
+    Promiscuous.debug "[receive] #{payload}".yellow
     unit_of_work(queue_name) do
       payload = Promiscuous::Subscriber::Payload.new(parsed_payload, self)
       Promiscuous::Subscriber::Operation.new(payload).commit

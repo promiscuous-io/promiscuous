@@ -1,6 +1,6 @@
 module Promiscuous::AMQP
   extend Promiscuous::Autoload
-  autoload :HotBunny, :Bunny, :RubyAMQP, :Null
+  autoload :HotBunny, :Bunny, :RubyAMQP, :Null, :Fake
 
   EXCHANGE = 'promiscuous'.freeze
 
@@ -23,7 +23,7 @@ module Promiscuous::AMQP
 
     def publish(options={})
       ensure_connected
-      Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}"
+      Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}".purple
       backend.publish(options)
     end
 

@@ -9,11 +9,14 @@ if ORM.has(:many_embedded_documents)
     context 'when creating' do
       context 'when the parent does not exist yet' do
         it 'replicates' do
-          pub = PublisherModelEmbedMany.create(:field_1 => '1',
-                                               :models_embedded => [{ :embedded_field_1 => 'e1',
-                                                                      :embedded_field_2 => 'e2' },
-                                                                    { :embedded_field_1 => 'e3',
-                                                                      :embedded_field_2 => 'e4' }])
+          pub = nil
+          Promiscuous.transaction do
+            pub = PublisherModelEmbedMany.create(:field_1 => '1',
+                                                 :models_embedded => [{ :embedded_field_1 => 'e1',
+                                                                        :embedded_field_2 => 'e2' },
+                                                                      { :embedded_field_1 => 'e3',
+                                                                        :embedded_field_2 => 'e4' }])
+          end
           pub_e1 = pub.models_embedded[0]
           pub_e2 = pub.models_embedded[1]
 
@@ -41,15 +44,18 @@ if ORM.has(:many_embedded_documents)
 
       context 'when the parent already exists' do
         it 'replicates' do
-          pub = PublisherModelEmbedMany.create(:field_1 => '1')
+          pub = Promiscuous.transaction { PublisherModelEmbedMany.create(:field_1 => '1') }
 
           eventually do
             SubscriberModelEmbedMany.first.should_not == nil
           end
 
-          pub.models_embedded.create(:embedded_field_1 => 'e1', :embedded_field_2 => 'e2')
-          pub.models_embedded.create(:embedded_field_1 => 'e3', :embedded_field_2 => 'e4')
+          Promiscuous.transaction do
+            pub.models_embedded.create(:embedded_field_1 => 'e1', :embedded_field_2 => 'e2')
+            pub.models_embedded.create(:embedded_field_1 => 'e3', :embedded_field_2 => 'e4')
+          end
 
+          pub.reload
           pub_e1 = pub.models_embedded[0]
           pub_e2 = pub.models_embedded[1]
 
@@ -78,11 +84,14 @@ if ORM.has(:many_embedded_documents)
 
     context 'when updating' do
       it 'replicates' do
-        pub = PublisherModelEmbedMany.create(:field_1 => '1',
-                                             :models_embedded => [{ :embedded_field_1 => 'e1',
-                                                                    :embedded_field_2 => 'e2' },
-                                                                  { :embedded_field_1 => 'e3',
-                                                                    :embedded_field_2 => 'e4' }])
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModelEmbedMany.create(:field_1 => '1',
+                                               :models_embedded => [{ :embedded_field_1 => 'e1',
+                                                                      :embedded_field_2 => 'e2' },
+                                                                    { :embedded_field_1 => 'e3',
+                                                                      :embedded_field_2 => 'e4' }])
+        end
 
         eventually do
           SubscriberModelEmbedMany.first.should_not == nil
@@ -91,8 +100,10 @@ if ORM.has(:many_embedded_documents)
         pub_e1 = pub.models_embedded[0]
         pub_e2 = pub.models_embedded[1]
 
-        pub_e2.embedded_field_1 = 'e3_updated'
-        pub_e2.save
+        Promiscuous.transaction do
+          pub_e2.embedded_field_1 = 'e3_updated'
+          pub_e2.save
+        end
 
         eventually do
           sub = SubscriberModelEmbedMany.first
@@ -118,11 +129,14 @@ if ORM.has(:many_embedded_documents)
 
     context 'when destroying' do
       it 'replicates' do
-        pub = PublisherModelEmbedMany.create(:field_1 => '1',
-                                             :models_embedded => [{ :embedded_field_1 => 'e1',
-                                                                    :embedded_field_2 => 'e2' },
-                                                                  { :embedded_field_1 => 'e3',
-                                                                    :embedded_field_2 => 'e4' }])
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModelEmbedMany.create(:field_1 => '1',
+                                               :models_embedded => [{ :embedded_field_1 => 'e1',
+                                                                      :embedded_field_2 => 'e2' },
+                                                                    { :embedded_field_1 => 'e3',
+                                                                      :embedded_field_2 => 'e4' }])
+        end
 
         eventually do
           sub = SubscriberModelEmbedMany.first
@@ -130,7 +144,8 @@ if ORM.has(:many_embedded_documents)
           sub.models_embedded[1].should_not == nil
         end
 
-        pub.models_embedded[1].destroy
+        # XXX Mongoid is buggy
+        Promiscuous.transaction(:active => true) { pub.models_embedded[1].destroy }
 
         eventually do
           sub = SubscriberModelEmbedMany.first
@@ -142,13 +157,16 @@ if ORM.has(:many_embedded_documents)
 
     context 'when creating/updating/destroying' do
       it 'replicates' do
-        pub = PublisherModelEmbedMany.create(:field_1 => '1',
-                                             :models_embedded => [{ :embedded_field_1 => 'e1',
-                                                                    :embedded_field_2 => 'e2' },
-                                                                  { :embedded_field_1 => 'e3',
-                                                                    :embedded_field_2 => 'e4' },
-                                                                  { :embedded_field_1 => 'e5',
-                                                                    :embedded_field_2 => 'e6' }])
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModelEmbedMany.create(:field_1 => '1',
+                                               :models_embedded => [{ :embedded_field_1 => 'e1',
+                                                                      :embedded_field_2 => 'e2' },
+                                                                    { :embedded_field_1 => 'e3',
+                                                                      :embedded_field_2 => 'e4' },
+                                                                    { :embedded_field_1 => 'e5',
+                                                                      :embedded_field_2 => 'e6' }])
+        end
 
         eventually do
           SubscriberModelEmbedMany.first.should_not == nil
@@ -158,11 +176,13 @@ if ORM.has(:many_embedded_documents)
         pub_e2 = pub.models_embedded[1]
         pub_e3 = pub.models_embedded[2]
 
-        # Updating the first one, Destroying the second one, and adding a new one
-        pub_e2.destroy
-        pub_e1.embedded_field_1 = 'e1_updated'
-        pub_e1.save
-        pub.models_embedded.create(:embedded_field_1 => 'e7', :embedded_field_2 => 'e8')
+        Promiscuous.transaction do
+          # Updating the first one, Destroying the second one, and adding a new one
+          pub_e2.destroy
+          pub_e1.embedded_field_1 = 'e1_updated'
+          pub_e1.save
+          pub.models_embedded.create(:embedded_field_1 => 'e7', :embedded_field_2 => 'e8')
+        end
 
         pub_e1 = pub.models_embedded[0]
         pub_e2 = pub.models_embedded[1]

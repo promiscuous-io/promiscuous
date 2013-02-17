@@ -23,7 +23,7 @@ describe Promiscuous do
         run_subscriber_worker!
       end
 
-      it 'stays ordered' do
+      it 'stays ordered', :pending => true do
         pub = Publisher.create(:field => 0)
         10.times.map { Thread.new { 10.times { pub.inc(:field, 1) } } }.each(&:join)
         eventually :timeout => 10.seconds do
