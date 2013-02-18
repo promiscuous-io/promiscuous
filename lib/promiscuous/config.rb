@@ -14,7 +14,7 @@ module Promiscuous::Config
   end
 
   def self.configure(&block)
-    block.call(self)
+    block.call(self) if block
 
     self.app           ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
     self.amqp_url      ||= 'amqp://guest:guest@localhost:5672'
