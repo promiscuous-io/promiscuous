@@ -82,7 +82,7 @@ class User
   include Promiscuous::Subscriber
   subscribe :name, :email
 
-  after_create { Logger.info "Hi #{name}!" }
+  after_create { Rails.logger.info "Hi #{name}!" }
 end
 ```
 
