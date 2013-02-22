@@ -71,6 +71,7 @@ class Promiscuous::Publisher::Transaction
       # We need to consider the last write operation as an implicit read
       # dependency. This is why we don't need to consider the read dependencies
       # of the first write when publishing the second write.
+      # TODO increment the link counter, and treat it as a real read dependency
       options[:dependencies] = {}
       options[:dependencies][:link] = @last_written_dependency if @last_written_dependency
       options[:dependencies][:read] = read_dependencies        if read_dependencies.present?

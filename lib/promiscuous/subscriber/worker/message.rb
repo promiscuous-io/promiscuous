@@ -14,23 +14,28 @@ class Promiscuous::Subscriber::Worker::Message
     parsed_payload['__amqp__']
   end
 
-  def version
-    return nil unless parsed_payload['version'].is_a? Hash # TODO remove once migrated
-    @version ||= parsed_payload['version'].try(:symbolize_keys)
-  end
+  def dependencies
+    return @dependencies if @dependencies
+    @dependencies = parsed_payload['dependencies'].try(:symbolize_keys) || {}
+    @dependencies[:read]  ||= []
+    @dependencies[:write] ||= []
 
-  def global_version
-    version.try(:[], :global)
-  end
+    # --- backward compatiblity code ---
+    # TODO remove code
+    if global = (parsed_payload['version'] || {})['global']
+      @dependencies[:write] << "global:#{global}"
+    end
+    # --- backward compatiblity code ---
 
-  def has_global_dependencies?
-    return false if Promiscuous::Config.bareback
-    !!global_version
+    @dependencies[:link] = Promiscuous::Dependency.from_json(@dependencies[:link]) if @dependencies[:link]
+    @dependencies[:read].map!  { |dep| Promiscuous::Dependency.from_json(dep) }
+    @dependencies[:write].map! { |dep| Promiscuous::Dependency.from_json(dep) }
+    @dependencies
   end
 
   def has_dependencies?
     return false if Promiscuous::Config.bareback
-    !!global_version
+    dependencies[:read].present? || dependencies[:write].present?
   end
 
   def ack

@@ -98,13 +98,23 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 
+  def resolve_dependencies(deps)
+    incremented = {}
+    deps.reverse.map do |dep|
+      key = dep.key.for(:redis)
+      incremented[key] ||= 0
+      dep = dep.dup.tap { |d| d.version -= incremented[key] }
+      incremented[key] += 1
+      dep
+    end
+    # We keep the list reversed to speed up the wait chain.
+  end
+
   # process_when_ready() is called by the AMQP pump. This is what happens:
   # 1. First, we subscribe to redis and wait for the confirmation.
   # 2. Then we check if the version in redis is old enough to process the message.
   #    If not we bail out and rely on the subscription to kick the processing.
-  # Because we subscribed in advanced, we will not miss the notification, but
-  # extra care needs to be taken to avoid processing the message twice (see
-  # perform()).
+  # Because we subscribed in advanced, we will not miss the notification.
   def process_when_ready(msg)
     # Dropped messages will be redelivered as we reconnect
     # when calling worker.pump.start
@@ -114,11 +124,17 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     return process_message!(msg) unless msg.has_dependencies?
 
-    # The message synchronizer only takes care of happens before (>=) dependencies.
-    # The message will handle the skip logic in case of duplicates.
-    on_version Promiscuous::Redis.sub_key('global'), msg.global_version do
-      process_message!(msg)
-    end
+    # We wait for each read version to be equal to what we received, and the
+    # write version - 1, because the received value is what it will be once the
+    # update has been made.
+    deps = msg.dependencies[:read] +
+           msg.dependencies[:write].map { |dep| dep.dup.tap { |d| d.version -= 1 } }
+    deps = resolve_dependencies(deps)
+    deps << msg.dependencies[:link] if msg.dependencies[:link]
+
+    deps.reduce(proc { process_message!(msg) }) do |chain, dep|
+      proc { on_version(dep.key.for(:redis), dep.version) { chain.call } }
+    end.call
   end
 
   def bump_message_counter!
@@ -138,35 +154,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def recover
-    global_key = Promiscuous::Redis.sub_key('global')
-    current_version = Promiscuous::Redis.get(global_key).to_i
-
-    version_to_allow_progress = get_subscription(global_key).callbacks.next.version - 1
-    num_messages_to_skip = version_to_allow_progress - current_version
-
-    if num_messages_to_skip > 0
-      recovery_msg = "Recovering. Moving current version from #{current_version} " +
-                     "to #{version_to_allow_progress}. " +
-                     "Skipping #{num_messages_to_skip} messages..."
-    else
-      recovery_msg = "Not recovering. current version is #{current_version}, " +
-                     "while we just need #{version_to_allow_progress}. " +
-                     "Offset is #{num_messages_to_skip} message."
-    end
-
-    e = Promiscuous::Error::Recover.new(recovery_msg)
-    if current_version > 0
-      Promiscuous.error "[receive] #{e}"
-      Promiscuous::Config.error_notifier.try(:call, e)
-    else
-      Promiscuous.info "[receive] #{e}"
-      # Initial sync, nothing to worry about
-    end
-
-    if num_messages_to_skip > 0
-      Promiscuous::Redis.set(global_key, version_to_allow_progress)
-      Promiscuous::Redis.publish(global_key, version_to_allow_progress)
-    end
+    raise NotImplementedError
   end
 
   def process_message!(msg)
@@ -253,7 +241,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       end
 
       def can_perform?(current_version)
-        current_version + 1 >= self.version
+        current_version >= self.version
       end
 
       def perform

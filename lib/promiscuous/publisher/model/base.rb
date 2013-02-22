@@ -53,7 +53,7 @@ module Promiscuous::Publisher::Model::Base
     def get_dependency(attr, value)
       return nil unless value
       @collection ||= @instance.class.promiscuous_collection_name
-      Promiscuous::Publisher::Dependency.new(@collection, attr, value)
+      Promiscuous::Dependency.new(@collection, attr, value)
     end
 
     def tracked_dependencies(options={})

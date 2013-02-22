@@ -1,13 +1,13 @@
 require 'spec_helper'
 
-describe Promiscuous do
-  before { load_models }
-  before { use_real_backend }
-  before { record_callbacks(SubscriberModel) }
+if ORM.has(:mongoid)
+  describe Promiscuous do
+    before { load_models }
+    before { use_real_backend }
+    before { record_callbacks(SubscriberModel) }
 
-  before { run_subscriber_worker! }
+    before { run_subscriber_worker! }
 
-  if ORM.has(:mongoid)
     context 'when doing a blank update' do
       it 'passes through' do
         pub1 = Promiscuous.transaction { PublisherModel.create(:field_1 => '1') }
@@ -37,42 +37,32 @@ describe Promiscuous do
         expect { Promiscuous.transaction { PublisherModel.delete_all(:field_1 => '1') } }.to raise_error
       end
     end
-  end
 
-  context 'with total ordering' do
-    context 'when the messages arrive out of order', :pending => true do
-      it 'replicates' do
-        ORM::Operation.any_instance.stubs(:version).returns(
-          {:global => 1}, {:global => 3}, {:global => 2}
-        )
-
-        pub = PublisherModel.create(:field_1 => '1')
-        pub.update_attributes(:field_1 => '2')
-        pub.update_attributes(:field_1 => '3')
-
-        eventually do
-          SubscriberModel.first.field_1.should == '2'
-          SubscriberModel.num_saves.should == 3
+    context 'when doing parallel increments' do
+      before do
+        define_constant :Publisher do
+          include Mongoid::Document
+          include Promiscuous::Publisher
+          publish { field :field }
         end
+
+        define_constant :Subscriber do
+          include Mongoid::Document
+          include Promiscuous::Subscriber
+          subscribe(:from => '*/publisher') { field :field }
+          field :inc_by_one
+          before_update { inc(:inc_by_one, 1) if field == field_was + 1 }
+        end
+
+        run_subscriber_worker!
       end
-    end
 
-    context 'when the messages are duplicated', :pending => true do
-      it 'does not replicate the duplicates' do
-        ORM::Operation.any_instance.stubs(:version).returns(
-          {:global => 1}, {:global => 2}, {:global => 1}, {:global => 3}
-        )
-
-        pub = PublisherModel.create
-        pub.update_attributes(:field_1 => '1')
-        pub.update_attributes(:field_1 => '2')
-        pub.update_attributes(:field_1 => '3')
-
-        sleep 0.5 # Avoid killing runners too soon
-
-        eventually do
-          SubscriberModel.first.field_1.should == '3'
-          SubscriberModel.num_saves.should == 3
+      it 'stays ordered' do
+        pub = Promiscuous.transaction { Publisher.create(:field => 0) }
+        10.times.map { Thread.new { Promiscuous.transaction { 10.times { pub.inc(:field, 1) } } } }.each(&:join)
+        eventually :timeout => 10.seconds do
+          Subscriber.first.field.should == 100
+          Subscriber.first.inc_by_one.should == 100
         end
       end
     end
@@ -103,28 +93,6 @@ describe Promiscuous do
 
         eventually do
           SubscriberModel.count.should == 2
-        end
-      end
-    end
-
-    context 'when the worker is blocking in recovery mode', :pending => true do
-      before do
-        config_logger(:logger_level => Logger::FATAL)
-        Promiscuous::Config.prefetch = 3
-        Promiscuous::Config.recovery = true
-      end
-
-      it 'recovers' do
-        ORM::Operation.any_instance.stubs(:version).returns(
-          {:global => 10}, {:global => 11}, {:global => 12}
-        )
-
-        pub = PublisherModel.create(:field_1 => '1')
-        pub.update_attributes(:field_1 => '2')
-        pub.update_attributes(:field_1 => '3')
-
-        eventually do
-          SubscriberModel.first.field_1.should == '3'
         end
       end
     end

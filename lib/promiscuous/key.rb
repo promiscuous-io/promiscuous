@@ -15,7 +15,7 @@ class Promiscuous::Key
     when :sub then path << 'subscribers'
     end
     path << Promiscuous::Config.app
-    path += @nodes
+    path += @nodes.compact
     case service
     when :redis then path.join(':')
     when :zk    then path.join('/')

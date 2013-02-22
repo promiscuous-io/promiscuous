@@ -7,7 +7,7 @@ module Promiscuous
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
            :CLI, :Error, :Loader, :AMQP, :Redis, :ZK, :Config, :DSL, :Key,
-           :Convenience
+           :Convenience, :Dependency
 
   extend Promiscuous::DSL
 
@@ -50,30 +50,6 @@ module Promiscuous
       Publisher::Transaction.open(*args, &block)
     end
   end
-
-  module ConsoleHelpers
-    # These are just for the subscriber, some helpers to debug in production
-    def global_key
-      Promiscuous::Redis.sub_key('global')
-    end
-
-    def global_version
-      Promiscuous::Redis.get(global_key).to_i
-    end
-
-    def global_version=(value)
-      Promiscuous::Redis.set(global_key, value)
-      Promiscuous::Redis.publish(global_key, value)
-      value
-    end
-
-    def global_version!
-      version = Promiscuous::Redis.incr(global_key)
-      Promiscuous::Redis.publish(global_key, version)
-      version
-    end
-  end
-  extend ConsoleHelpers
 
   at_exit { self.disconnect rescue nil }
 end

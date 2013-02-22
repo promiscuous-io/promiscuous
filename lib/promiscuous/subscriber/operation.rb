@@ -7,37 +7,28 @@ class Promiscuous::Subscriber::Operation
     self.payload = payload
   end
 
-  def with_instance_lock(&block)
-    Promiscuous::ZK.with_lock(id, &block)
-  end
-
-  def verify_dependencies
-    @global_key = Promiscuous::Redis.sub_key('global')
-    Promiscuous::Redis.get(@global_key).to_i + 1 == message.global_version
-  end
-
   def update_dependencies
-    Promiscuous::Redis.set(@global_key, message.global_version)
-    @changed_global_key = true
-  end
-
-  def publish_dependencies
-    Promiscuous::Redis.publish(@global_key, message.global_version) if @changed_global_key
-  end
-
-  def with_instance_dependencies
-    return yield unless message && message.has_dependencies?
-
-    with_instance_lock do
-      if verify_dependencies
-        yield
-        update_dependencies
-      else
-        Promiscuous.info "[receive] (skipped, already processed) #{message.payload}"
+    futures = nil
+    # link is not incremented
+    dependencies = message.dependencies[:read] + message.dependencies[:write]
+    Promiscuous::Redis.multi do
+      futures = dependencies.map do |dep|
+        key = dep.key.for(:redis)
+        [key, Promiscuous::Redis.incr(key)]
       end
     end
 
-    publish_dependencies
+    Promiscuous::Redis.pipelined do
+      futures.each do |key, future|
+        Promiscuous::Redis.publish(key, future.value)
+      end
+    end
+  end
+
+  def with_instance_dependencies
+    result = yield
+    update_dependencies if message && message.has_dependencies?
+    result
   end
 
   def create
