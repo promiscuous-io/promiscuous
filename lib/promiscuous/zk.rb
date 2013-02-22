@@ -24,7 +24,8 @@ module Promiscuous::ZK
     end
 
     unless Promiscuous::Config.zookeeper_hosts
-      Promiscuous.warn "[zookeeper] Running without zookeeper"
+      raise "You need zookeeper in production" if ENV['RAILS_ENV'] == 'production'
+      Promiscuous.warn "[zookeeper] Running without zookeeper, never do this in production"
       return Null.new
     end
 

@@ -34,6 +34,30 @@ module Promiscuous::Config
     # amqp connection is done in when setting the backend
     Promiscuous::Redis.connect
     Promiscuous::ZK.connect
+
+    hook_fork
+  end
+
+  def self.hook_fork
+    return if @fork_hooked
+
+    Kernel.module_eval do
+      alias_method :fork_without_promiscuous, :fork
+      def fork(&block)
+        Promiscuous.disconnect
+        pid = fork_without_promiscuous do
+          Promiscuous.connect
+          block.call if block
+        end
+
+        if pid
+          # TODO should we reconnect the parent?
+          # Promiscuous.connect
+        end
+      end
+    end
+
+    @fork_hooked = true
   end
 
   def self.configured?
