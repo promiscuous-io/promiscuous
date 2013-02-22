@@ -101,7 +101,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   def count_dependencies(deps)
     increments = {}
     deps.each do |dep|
-      key = dep.key.for(:redis)
+      key = dep.key(:sub).for(:redis)
       increments[key] ||= 0
       increments[key] += 1
     end
@@ -129,13 +129,13 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     read_increments = count_dependencies(msg.dependencies[:read])
     deps = []
     deps += msg.dependencies[:write].map do |dep|
-      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key.for(:redis)].to_i }
+      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key(:sub).for(:redis)].to_i }
     end
     deps += msg.dependencies[:read]
     deps << msg.dependencies[:link] if msg.dependencies[:link]
 
     deps.reduce(proc { process_message!(msg) }) do |chain, dep|
-      proc { on_version(dep.key.for(:redis), dep.version) { chain.call } }
+      proc { on_version(dep.key(:sub).for(:redis), dep.version) { chain.call } }
     end.call
   end
 

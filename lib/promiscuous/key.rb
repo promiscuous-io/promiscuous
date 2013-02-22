@@ -1,11 +1,11 @@
 class Promiscuous::Key
-  def initialize(service, nodes=[])
-    @service = service
+  def initialize(role, nodes=[])
+    @role = role
     @nodes = nodes
   end
 
   def join(*nodes)
-    self.class.new(@service, @nodes + nodes)
+    self.class.new(@role, @nodes + nodes)
   end
 
   def for(service)

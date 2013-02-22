@@ -41,11 +41,11 @@ class Promiscuous::Publisher::Operation::Base
       # subscriber side: we want to be able to execute the read dependencies
       # in any order as it doesn't change the behavior.
       @dependencies.each do |dep|
-        Promiscuous::Redis.incr(dep.key.join('rw').for(:redis))
+        Promiscuous::Redis.incr(dep.key(:pub).join('rw').for(:redis))
       end
 
       futures = @dependencies.map do |dep|
-        [dep, Promiscuous::Redis.get(dep.key.join('w').for(:redis))]
+        [dep, Promiscuous::Redis.get(dep.key(:pub).join('w').for(:redis))]
       end
     end
     futures.each { |dep, version| dep.version = version.value.to_i }
@@ -55,7 +55,7 @@ class Promiscuous::Publisher::Operation::Base
     futures = nil
     Promiscuous::Redis.pipelined do
       futures = @dependencies.map do |dep|
-        [dep, Promiscuous::Redis.incr(dep.key.join('rw').for(:redis))]
+        [dep, Promiscuous::Redis.incr(dep.key(:pub).join('rw').for(:redis))]
       end
     end
     futures.each { |dep, version| dep.version = version.value.to_i }
@@ -64,7 +64,7 @@ class Promiscuous::Publisher::Operation::Base
     # but maybe it would be faster using a lua script?
     Promiscuous::Redis.pipelined do
       @dependencies.each do |dep|
-        Promiscuous::Redis.set(dep.key.join('w').for(:redis), dep.version)
+        Promiscuous::Redis.set(dep.key(:pub).join('w').for(:redis), dep.version)
       end
     end
   end
@@ -79,7 +79,7 @@ class Promiscuous::Publisher::Operation::Base
     # don't need extra logic in here.
     Promiscuous::ZK::MultiLock.new.tap do |locks|
       @dependencies.each do|dep|
-        locks.add(dep.key.for(:zk), :mode => read? ? :shared : :exclusive)
+        locks.add(dep.key(:pub).for(:zk), :mode => read? ? :shared : :exclusive)
       end
     end.acquire(&block)
   end

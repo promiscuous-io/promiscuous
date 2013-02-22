@@ -1,6 +1,6 @@
 class Promiscuous::Dependency < Struct.new(:collection, :attribute, :value, :version)
-  def key
-    Promiscuous::Key.new(:pub).join(collection, attribute, value)
+  def key(role)
+    Promiscuous::Key.new(role).join(collection, attribute, value)
   end
 
   def as_json(options={})
@@ -11,7 +11,7 @@ class Promiscuous::Dependency < Struct.new(:collection, :attribute, :value, :ver
     case payload
     when /^([^:]+):([^:]+):(.+):([0-9]+)$/ then new($1, $2, $3, $4.to_i)
     # TODO remove backward compatibility code
-    when /^global:([0-9]+)$/               then new(global, nil, nil, $1.to_i)
+    when /^global:([0-9]+)$/               then new('global', nil, nil, $1.to_i)
     else raise "Cannot parse #{payload} as a dependency"
     end
   end

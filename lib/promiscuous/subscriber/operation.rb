@@ -13,7 +13,7 @@ class Promiscuous::Subscriber::Operation
     dependencies = message.dependencies[:read] + message.dependencies[:write]
     Promiscuous::Redis.multi do
       futures = dependencies.map do |dep|
-        key = dep.key.for(:redis)
+        key = dep.key(:sub).for(:redis)
         [key, Promiscuous::Redis.incr(key)]
       end
     end
