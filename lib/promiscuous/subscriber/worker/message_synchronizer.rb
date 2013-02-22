@@ -167,8 +167,13 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   def on_version(key, version, &callback)
     return unless @subscriptions
     sub = get_subscription(key).subscribe
-    sub.add_callback(Subscription::Callback.new(version, callback))
-    sub.signal_version(Promiscuous::Redis.get(key))
+    cb = Subscription::Callback.new(version, callback)
+
+    if sub.last_version && cb.can_perform?(sub.last_version)
+      cb.perform
+    else
+      sub.add_callback(cb).signal_version(Promiscuous::Redis.get(key))
+    end
   end
 
   def find_subscription(key)
@@ -181,7 +186,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   class Subscription
-    attr_accessor :parent, :key, :callbacks
+    attr_accessor :parent, :key, :callbacks, :last_version
 
     def initialize(parent, key)
       self.parent = parent
@@ -219,7 +224,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     end
 
     def signal_version(current_version)
-      current_version = current_version.to_i
+      @last_version = current_version = current_version.to_i
       loop do
         next_cb = @callbacks.next
         return unless next_cb && next_cb.can_perform?(current_version)
@@ -232,6 +237,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     def add_callback(callback)
       callback.subscription = self
       @callbacks.push(callback, callback.version)
+      self
     end
 
     class Callback
