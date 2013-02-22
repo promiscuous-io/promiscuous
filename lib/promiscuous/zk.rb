@@ -1,3 +1,8 @@
+# zk depends on Logging, but libv8 requires mkmf which set its own ::Logging
+if defined?(::Logging) && ::Logging.respond_to?(:postpone)
+  Object.__send__(:remove_const, :Logging)
+end
+
 require 'zk'
 
 module Promiscuous::ZK
@@ -14,8 +19,18 @@ module Promiscuous::ZK
   end
 
   def self.new_connection
-    return Null.new if Promiscuous::Config.backend == :null
-    ::ZK.new(Promiscuous::Config.zookeeper_hosts)
+    if Promiscuous::Config.backend == :null
+      return Null.new
+    end
+
+    unless Promiscuous::Config.zookeeper_hosts
+      Promiscuous.warn "[zookeeper] Running without zookeeper"
+      return Null.new
+    end
+
+    zk = ::ZK.new(Promiscuous::Config.zookeeper_hosts)
+    zk.wait_until_connected
+    zk
   end
 
   def self.lost_connection_exception
@@ -39,6 +54,10 @@ module Promiscuous::ZK
   class Null
     def method_missing(name, *args, &block)
       0
+    end
+
+    def with_lock(*args, &block)
+      block.call
     end
   end
 

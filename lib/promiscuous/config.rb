@@ -19,7 +19,7 @@ module Promiscuous::Config
     self.app             ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
     self.amqp_url        ||= 'amqp://guest:guest@localhost:5672'
     self.redis_url       ||= 'redis://localhost/'
-    self.zookeeper_hosts ||= 'localhost:2181'
+    self.zookeeper_hosts ||= nil
     self.backend         ||= RUBY_PLATFORM == 'java' ? :hot_bunny : :rubyamqp
     self.queue_options   ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.heartbeat       ||= 60
