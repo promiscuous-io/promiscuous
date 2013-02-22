@@ -159,8 +159,12 @@ class Promiscuous::Publisher::Operation::Base
           result = db_operation.call(self)
         end
 
-        # XXX For auto generated ids, we must have a valid id to have the
-        # proper dependencies.
+        if operation == :create
+          # For auto generated ids, we must have a valid id to have the
+          # proper dependencies.
+          @dependencies = lookup_dependencies
+        end
+
         update_dependencies
 
         # This will be used to generate the payload.

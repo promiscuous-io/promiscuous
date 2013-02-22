@@ -98,7 +98,7 @@ module Promiscuous::Publisher::Model::Base
     end
 
     def promiscuous_collection_name
-      self.name.underscore
+      self.name.pluralize.underscore
     end
 
     def publish_as
