@@ -1,1 +1,3 @@
-class Promiscuous::Error::InactiveTransaction < RuntimeError; end
+class Promiscuous::Error::InactiveTransaction < RuntimeError
+  # Not visible by the end user
+end

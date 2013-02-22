@@ -49,6 +49,10 @@ module Promiscuous
     def transaction(*args, &block)
       Publisher::Transaction.open(*args, &block)
     end
+
+    def close_current_transaction
+      Publisher::Transaction.current.try(:close)
+    end
   end
 
   at_exit { self.disconnect rescue nil }

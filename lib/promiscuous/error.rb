@@ -1,5 +1,5 @@
 module Promiscuous::Error
   extend Promiscuous::Autoload
   autoload :Connection, :Publisher, :Subscriber, :Recover, :Dependency,
-           :MissingTransaction, :InactiveTransaction
+           :MissingTransaction, :InactiveTransaction, :ClosedTransaction
 end

@@ -33,7 +33,7 @@ class Promiscuous::Publisher::Transaction
     write_predictions_lock.synchronize do
       if write_predictions[transaction.name]
         write_predictions[transaction.name] -= 1
-        write_predictions.delete(transaction.name) if write_predictions[transaction.name] == 0
+        write_predictions.delete(transaction.name) if write_predictions[transaction.name] <= 0
         true
       else
         false
@@ -57,12 +57,23 @@ class Promiscuous::Publisher::Transaction
     @name ||= 'noname'
     @active = options[:active]
     @operations = []
+    @closed = false
 
     Promiscuous::AMQP.ensure_connected
   end
 
   def active?
     !!@active
+  end
+
+  def closed?
+    !!@closed
+  end
+
+  def close
+    commit
+    @active = false
+    @closed = true
   end
 
   def with_next_batch

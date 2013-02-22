@@ -188,6 +188,7 @@ class Promiscuous::Publisher::Operation::Base
 
     if write?
       raise Promiscuous::Error::MissingTransaction  unless transaction
+      raise Promiscuous::Error::ClosedTransaction   if     transaction.closed?
       transaction.active = true if transaction.name == '__anonymous__'
       raise Promiscuous::Error::InactiveTransaction unless transaction.active?
     end

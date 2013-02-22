@@ -50,5 +50,13 @@ describe Promiscuous do
 
       @run_count.should == 2
     end
+
+    it 'throws exception if closed' do
+      Promiscuous.transaction('test') do
+        PublisherModel.first
+        Promiscuous.close_current_transaction
+        expect { PublisherModel.create }.to raise_error(Promiscuous::Error::ClosedTransaction)
+      end
+    end
   end
 end
