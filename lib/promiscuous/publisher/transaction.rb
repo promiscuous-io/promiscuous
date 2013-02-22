@@ -4,16 +4,40 @@ class Promiscuous::Publisher::Transaction
   def self.open(*args)
     raise 'Already in a transaction, nesting is not supported yet' if self.current
     self.current = new(*args)
+    self.current.active = true if should_assume_write?(self.current)
     begin
       yield
     rescue Promiscuous::Error::InactiveTransaction
       self.current.active = true
+      remember_write(self.current)
       retry
     end
   ensure
     if current
       self.current.commit
       self.current = nil
+    end
+  end
+
+  cattr_accessor :write_predictions, :write_predictions_lock
+  self.write_predictions = {}
+  self.write_predictions_lock = Mutex.new
+
+  def self.remember_write(transaction)
+    write_predictions_lock.synchronize do
+      write_predictions[transaction.name] = Promiscuous::Config.transaction_forget_rate
+    end
+  end
+
+  def self.should_assume_write?(transaction)
+    write_predictions_lock.synchronize do
+      if write_predictions[transaction.name]
+        write_predictions[transaction.name] -= 1
+        write_predictions.delete(transaction.name) if write_predictions[transaction.name] == 0
+        true
+      else
+        false
+      end
     end
   end
 
@@ -30,6 +54,7 @@ class Promiscuous::Publisher::Transaction
   def initialize(*args)
     options = args.extract_options!
     @name = args.first
+    @name ||= 'noname'
     @active = options[:active]
     @operations = []
 
