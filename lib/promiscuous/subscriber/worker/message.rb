@@ -23,6 +23,11 @@ class Promiscuous::Subscriber::Worker::Message
     version.try(:[], :global)
   end
 
+  def has_global_dependencies?
+    return false if Promiscuous::Config.bareback
+    !!global_version
+  end
+
   def has_dependencies?
     return false if Promiscuous::Config.bareback
     !!global_version

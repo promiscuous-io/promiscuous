@@ -1,7 +1,7 @@
 language: ruby
 script: bundle exec rspec spec
 rvm:
-  - jruby-head
+  - ruby-head
 gemfile:
   - gemfiles/mongoid3.gemfile
   - gemfiles/active_record.gemfile

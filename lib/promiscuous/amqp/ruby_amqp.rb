@@ -9,13 +9,22 @@ module Promiscuous::AMQP::RubyAMQP
       @signaled = false
     end
 
-    def wait
+    def _wait
       @mutex.synchronize do
         loop do
           return if @signaled
           @condition.wait(@mutex)
         end
       end
+    end
+
+    def wait(options={})
+      if options[:timeout]
+        Timeout.timeout(options[:timeout]) { _wait }
+      else
+        _wait
+      end
+    rescue Timeout::Error
     end
 
     def signal
@@ -186,7 +195,7 @@ module Promiscuous::AMQP::RubyAMQP
       Promiscuous::AMQP::RubyAMQP.close_channel(@channel_name) do
         channel_sync.signal
       end
-      channel_sync.wait
+      channel_sync.wait :timeout => 2.seconds
     end
 
     def recover
