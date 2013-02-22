@@ -23,6 +23,8 @@ module Promiscuous::Config
     self.backend         ||= RUBY_PLATFORM == 'java' ? :hot_bunny : :rubyamqp
     self.queue_options   ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.heartbeat       ||= 60
+    self.bareback        ||= false
+    self.recovery        ||= false
     self.prefetch        ||= 1000
     self.logger          ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.use_transactions = true if self.use_transactions.nil?
