@@ -14,7 +14,9 @@ module Promiscuous::ZK
   end
 
   def self.disconnect
-    self.master.close! if self.master
+    Timeout.timeout(2.seconds) do
+      self.master.close! if self.master
+    end
     self.master = nil
   end
 
@@ -51,7 +53,7 @@ module Promiscuous::ZK
   end
 
   def self.ensure_connected
-    Promiscuous::ZK.master.ping
+    Promiscuous::ZK.master.ping?
   rescue
     raise lost_connection_exception
   end

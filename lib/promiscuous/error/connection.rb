@@ -8,6 +8,7 @@ class Promiscuous::Error::Connection < RuntimeError
     when :zookeeper then "zookeeper://#{Promiscuous::Config.zookeeper_hosts}"
     when :redis     then Promiscuous::Config.redis_url
     when :amqp      then Promiscuous::Config.amqp_url
+    end
   end
 
   def message
