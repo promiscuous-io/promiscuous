@@ -18,6 +18,11 @@ class Promiscuous::Subscriber::Operation
       end
     end
 
+    synchronizer = Celluloid::Actor[:message_synchronizer]
+    futures.each do |key, future|
+      synchronizer.async.try_notify_key_change(key, future.value)
+    end
+
     Promiscuous::Redis.pipelined do
       futures.each do |key, future|
         Promiscuous::Redis.publish(key, future.value)

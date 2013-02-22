@@ -78,7 +78,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
         find_subscription(subscription).finalize_subscription
       when 'unsubscribe'
       when 'message'
-        find_subscription(subscription).signal_version(arg)
+        notify_key_change(subscription, arg)
       end
     end
   rescue EOFError
@@ -174,6 +174,14 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     else
       sub.add_callback(cb).signal_version(Promiscuous::Redis.get(key))
     end
+  end
+
+  def notify_key_change(key, version)
+    find_subscription(key).signal_version(version)
+  end
+
+  def try_notify_key_change(key, version)
+    notify_key_change(key, version) if @subscriptions[key]
   end
 
   def find_subscription(key)
