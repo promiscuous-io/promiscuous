@@ -23,7 +23,7 @@ module Promiscuous::Publisher::Model::Mock
     include Promiscuous::Publisher::Model::Base::PromiscuousMethodsBase
 
     def sync(options={}, &block)
-      Promiscuous::Subscriber::Worker::Message.new(nil, promiscuous.payload(options).to_json).process
+      Promiscuous::Subscriber::Worker::Message.new(nil, payload(options).to_json).process
     end
   end
 
