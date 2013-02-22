@@ -98,16 +98,14 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 
-  def resolve_dependencies(deps)
-    incremented = {}
-    deps.reverse.map do |dep|
+  def count_dependencies(deps)
+    increments = {}
+    deps.each do |dep|
       key = dep.key.for(:redis)
-      incremented[key] ||= 0
-      dep = dep.dup.tap { |d| d.version -= incremented[key] }
-      incremented[key] += 1
-      dep
+      increments[key] ||= 0
+      increments[key] += 1
     end
-    # We keep the list reversed to speed up the wait chain.
+    increments
   end
 
   # process_when_ready() is called by the AMQP pump. This is what happens:
@@ -124,12 +122,16 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     return process_message!(msg) unless msg.has_dependencies?
 
-    # We wait for each read version to be equal to what we received, and the
-    # write version - 1, because the received value is what it will be once the
-    # update has been made.
-    deps = msg.dependencies[:read] +
-           msg.dependencies[:write].map { |dep| dep.dup.tap { |d| d.version -= 1 } }
-    deps = resolve_dependencies(deps)
+    # We wait for each link/read versions to be equal to what we received.
+    # For write versions, since they represent the value of the corresponding
+    # counters after all the increments, we have to figure out the version that
+    # they would be before all the increments.
+    read_increments = count_dependencies(msg.dependencies[:read])
+    deps = []
+    deps += msg.dependencies[:write].map do |dep|
+      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key.for(:redis)].to_i }
+    end
+    deps += msg.dependencies[:read]
     deps << msg.dependencies[:link] if msg.dependencies[:link]
 
     deps.reduce(proc { process_message!(msg) }) do |chain, dep|
