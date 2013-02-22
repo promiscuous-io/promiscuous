@@ -89,6 +89,7 @@ module Promiscuous::Publisher::Model::Base
       end
       self.publish_to ||= options[:to] || "#{Promiscuous::Config.app}/#{self.name.underscore}"
       @publish_as = options[:as].to_s if options[:as]
+      Promiscuous::ZK.ensure_valid_backend unless publish_to =~ /^__promiscuous__\//
 
       ([self] + descendants).each { |klass| klass.published_attrs |= attributes }
     end

@@ -19,19 +19,27 @@ module Promiscuous::ZK
   end
 
   def self.new_connection
-    if Promiscuous::Config.backend == :null
-      return Null.new
-    end
-
-    unless Promiscuous::Config.zookeeper_hosts
-      raise "You need zookeeper in production" if ENV['RAILS_ENV'] == 'production'
-      Promiscuous.warn "[zookeeper] Running without zookeeper, never do this in production"
+    if Promiscuous::Config.backend == :null || !Promiscuous::Config.zookeeper_hosts
       return Null.new
     end
 
     zk = ::ZK.new(Promiscuous::Config.zookeeper_hosts)
     zk.wait_until_connected
     zk
+  end
+
+  def self.ensure_valid_backend
+    unless Promiscuous::Config.backend == :null || Promiscuous::Config.zookeeper_hosts
+      if ENV['RAILS_ENV'] == 'production'
+        raise "You need to use zookeeper in production"
+      else
+        unless @warned_for_zookeeper
+          Promiscuous.warn "[zookeeper] Running without zookeeper, never do this in production"
+          STDERR.puts      "[promiscuous] [zookeeper] Running without zookeeper, never do this in production"
+        end
+        @warned_for_zookeeper = true
+      end
+    end
   end
 
   def self.lost_connection_exception
