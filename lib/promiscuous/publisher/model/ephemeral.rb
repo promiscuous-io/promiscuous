@@ -4,6 +4,23 @@ module Promiscuous::Publisher::Model::Ephemeral
 
   attr_accessor :id, :new_record, :destroyed
 
+  module PromiscuousMethodsEphemeral
+    def attribute(attr)
+      value = super
+      if value.is_a?(Array) &&
+         value.first.is_a?(Promiscuous::Publisher::Model::Ephemeral)
+         value = {:__amqp__ => '__promiscuous__/embedded_many',
+                  :payload  => value.map(&:promiscuous).map(&:payload)}
+      end
+      value
+    end
+  end
+
+  class PromiscuousMethods
+    include Promiscuous::Publisher::Model::Base::PromiscuousMethodsBase
+    include Promiscuous::Publisher::Model::Ephemeral::PromiscuousMethodsEphemeral
+  end
+
   def initialize(attrs={})
     self.id ||= 'none'
     self.new_record = true

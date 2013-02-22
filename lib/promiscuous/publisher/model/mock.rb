@@ -21,6 +21,7 @@ module Promiscuous::Publisher::Model::Mock
 
   class PromiscuousMethods
     include Promiscuous::Publisher::Model::Base::PromiscuousMethodsBase
+    include Promiscuous::Publisher::Model::Ephemeral::PromiscuousMethodsEphemeral
 
     def sync(options={}, &block)
       Promiscuous::Subscriber::Worker::Message.new(nil, payload(options).to_json).process
