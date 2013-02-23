@@ -148,6 +148,8 @@ module Promiscuous::AMQP::RubyAMQP
   end
 
   module CelluloidSubscriber
+    attr_accessor :closed
+
     def subscribe(options={}, &block)
       queue_name    = options[:queue_name]
       bindings      = options[:bindings]
@@ -166,23 +168,20 @@ module Promiscuous::AMQP::RubyAMQP
           Promiscuous.debug "[bind] #{queue_name} -> #{binding}"
         end
         queue.subscribe(:ack => true, :confirm => proc { @subscribe_sync.signal }) do |metadata, payload|
-          block.call(MetaData.new(metadata), payload)
+          block.call(MetaData.new(self, metadata), payload)
         end
       end
       wait_for_subscription
     end
 
     class MetaData
-      def initialize(raw_metadata)
+      def initialize(subscriber, raw_metadata)
+        @subscriber = subscriber
         @raw_metadata = raw_metadata
       end
 
       def ack
-        if @raw_metadata.channel.open?
-          @raw_metadata.ack
-        else
-          raise "connection closed"
-        end
+        @raw_metadata.ack unless subscriber.closed
       end
     end
 
@@ -191,6 +190,7 @@ module Promiscuous::AMQP::RubyAMQP
     end
 
     def finalize
+      @closed = true
       channel_sync = Promiscuous::AMQP::RubyAMQP::Synchronizer.new
       Promiscuous::AMQP::RubyAMQP.close_channel(@channel_name) do
         channel_sync.signal
