@@ -1,4 +1,4 @@
-class Promiscuous::Error::Publisher < RuntimeError
+class Promiscuous::Error::Publisher < Promiscuous::Error::Base
   attr_accessor :inner, :instance, :payload, :out_of_sync
 
   def initialize(inner, options={})

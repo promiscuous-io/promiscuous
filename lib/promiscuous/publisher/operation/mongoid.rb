@@ -19,7 +19,7 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     rescue NameError
     end
 
-    def _commit(&db_operation)
+    def _commit(transaction, &db_operation)
       @instance = Mongoid::Factory.from_db(model, @document)
       super
     end
@@ -27,6 +27,11 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     def commit(&db_operation)
       return db_operation.call unless model
       super
+    rescue Promiscuous::Error::InactiveTransaction => e
+      # Because we do lazy binding on @instance, the instance is still not
+      # set at this point. It's useful to set it for error messages.
+      @instance = Mongoid::Factory.from_db(model, @document)
+      raise e
     end
   end
 
@@ -48,11 +53,12 @@ end
 
 class Moped::PromiscuousQueryWrapper < Moped::Query
   class PromiscuousQueryOperation < Promiscuous::Publisher::Operation::Base
-    attr_accessor :raw_instance, :new_raw_instance
+    attr_accessor :raw_instance, :new_raw_instance, :change
 
     def initialize(options={})
       super
       @query = options[:query]
+      @change = options[:change]
     end
 
     def model
@@ -74,7 +80,31 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       super
     end
 
-    def _commit(&db_operation)
+    def get_selector_instance
+      selector = @query.operation.selector["$query"] || @query.operation.selector
+
+      # TODO use the original instance for an update/delete, that would be
+      # an even better hint.
+
+      # We only support == selectors, no $in, or $gt.
+      @selector = selector.select { |k,v| k =~ /^[^$]/ && !v.is_a?(Hash) }
+
+      # @instance is not really a proper instance of a model, it's just a
+      # convenient representation of a selector as explain in base.rb,
+      # which explain why we don't want any constructor to be called.
+      # Note that this optimistic mechanism also works with writes because
+      # the instance gets reloaded once the lock is taken. If the
+      # dependencies were incorrect, the locks will be released and
+      # reacquired appropriately.
+      model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, @selector) }
+    end
+
+    def get_original_selector_instance
+      selector = @query.operation.selector["$query"] || @query.operation.selector
+      model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, selector) }
+    end
+
+    def _commit(transaction, &db_operation)
       # We need to operate on the primary from now on, because we need to make
       # sure that the reads we are doing on the database match their dependencies.
       @query.strong_consistency!
@@ -82,22 +112,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       begin
         # We are trying to be optimistic for the locking. We are trying to figure
         # out our dependencies with the selector upfront to avoid an extra read.
-        selector = @query.operation.selector["$query"] || @query.operation.selector
-
-        # TODO use the original instance for an update/delete, that would be
-        # an even better hint.
-
-        # We only support == selectors, no $in, or $gt.
-        original_selector, selector = selector, selector.select { |k,v| k =~ /^[^$]/ && !v.is_a?(Hash) }
-
-        # @instance is not really a proper instance of a model, it's just a
-        # convenient representation of a selector as explain in base.rb,
-        # which explain why we don't want any constructor to be called.
-        # Note that this optimistic mechanism also works with writes because
-        # the instance gets reloaded once the lock is taken. If the
-        # dependencies were incorrect, the locks will be released and
-        # reacquired appropriately.
-        @instance = model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, selector) }
+        @instance = get_selector_instance
         super
       rescue Promiscuous::Error::Dependency => e
         # Note that only read operations can throw such exceptions.
@@ -105,14 +120,17 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
           # When doing the multi read, we cannot resolve the selector to a
           # specific id, (or we would have to do the count ourselves, which is
           # not desirable).
-          @instance = model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, original_selector) }
-          e.dependency_solutions = selector.keys
+          @instance = get_original_selector_instance
+          e.dependency_solutions = @selector.keys
           raise e
         else
           # in the case of a single read, we can resolve the selector to an id
           # one, which means that we have to pay an extra read.
-          @instance = fetch_instance
-          return nil unless @instance
+          instance = fetch_instance
+          return nil unless instance
+          # We set @instance only now because preserving it improves the error
+          # messages.
+          @instance = instance
           super
         end
       end
@@ -125,8 +143,12 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       if (operation == :update || operation == :destroy) && multi?
         raise Promiscuous::Error::Dependency.new(:operation => self)
       end
-
       super
+    rescue Promiscuous::Error::InactiveTransaction => e
+      # Because we do lazy binding on @instance, the instance is still not
+      # set at this point. It's useful to set it for error messages.
+      @instance = get_selector_instance
+      raise e
     end
   end
 
@@ -174,7 +196,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
   def update(change, flags=nil)
     multi = flags && flags.include?(:multi)
-    promiscuous_operation(:update, :multi => multi).commit do |operation|
+    promiscuous_operation(:update, :change => change, :multi => multi).commit do |operation|
       if operation
         operation.new_raw_instance = without_promiscuous { modify(change, :new => true) }
         {'updatedExisting' => true, 'n' => 1, 'err' => nil, 'ok' => 1.0}
@@ -185,7 +207,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   end
 
   def modify(change, options={})
-    promiscuous_operation(:update).commit { super }
+    promiscuous_operation(:update, :change => change).commit { super }
   end
 
   def remove

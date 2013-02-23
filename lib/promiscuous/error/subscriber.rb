@@ -1,4 +1,4 @@
-class Promiscuous::Error::Subscriber < RuntimeError
+class Promiscuous::Error::Subscriber < Promiscuous::Error::Base
   attr_accessor :inner, :payload
 
   def initialize(inner, options={})

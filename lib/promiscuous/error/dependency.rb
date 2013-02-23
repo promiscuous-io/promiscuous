@@ -1,4 +1,4 @@
-class Promiscuous::Error::Dependency < RuntimeError
+class Promiscuous::Error::Dependency < Promiscuous::Error::Base
   attr_accessor :dependency_solutions, :operation, :transaction
 
   def initialize(options={})
@@ -7,56 +7,59 @@ class Promiscuous::Error::Dependency < RuntimeError
     self.transaction = Promiscuous::Publisher::Transaction.current
   end
 
+  # TODO Convert all that with Erb
+
   def message
     msg = nil
     case operation.operation
     when :read
       msg = "Promiscuous doesn't have any tracked dependencies to perform this multi read operation.\n" +
             "This is what you can do:\n\n" +
-            "  - If you don't use the result of this operation in your following writes,\n" +
-            "    you can wrap your read query in a 'without_promiscuous { }' block.\n\n" +
-            "  - Read each of the documents one by one (not implemented yet, it's a bad idea anyway).\n\n" +
-            "  - Wrap earlier writes in a transaction if they are seldom. Example:\n\n" +
-            "      class Member\n" +
-            "        def update_last_visited_at\n" +
-            "          Promiscuous.transaction(:update_last_visited_at) do\n" +
-            "            update_attributes(:last_visited_at => Time.now)\n" +
-            "          end\n" +
-            "        end\n" +
-            "      end\n\n"
+            "  1. Bypass Promiscuous\n\n" +
+            "     If you don't use the result of this operation in your following writes,\n" +
+            "     you can wrap your read query in a 'without_promiscuous { }' block.\n" +
+            "     This is the preferred solution when you are sure that the read doesn't\n" +
+            "     influence the value of a published attribute.\n\n" +
+            "  2. Use a Nested Transaction\n\n" +
+            "     a) Some earlier writes may have had happen in in this controller.\n"+
+            "        Try to identify offening writes (TRACE=1), and wrap them with a transaction.\n"+
+            "        A typical pattern is the update of the 'last_visited_at'.\n"+
+            "     b) Nested transaction can also be used as a subtitute of 1. when you\n"+
+            "        are not sure if you should discard the writes, but you know that you\n"+
+            "        have isolation on a block of code\n\n" +
+            "     Promiscuous will adjust its write predictions and dependencies accordingly\n" +
+            "     when using transactions.\n" +
+            "     Refer to the wiki for details of the black magic (TODO).\n\n"
       if dependency_solutions.present?
-        msg += "  - Add a new dependency to track by adding #{dependency_solutions.count == 1 ?
-                    "the following line" : "one of the following lines"} in the #{operation.instance.class} model:\n\n" +
-               "      class #{operation.instance.class}\n" +
+        msg += "  3. Track New Dependencies\n\n" +
+               "     Add #{dependency_solutions.count == 1 ? "the following line" : "one of the following lines"} " +
+                    "in the #{operation.instance.class} model:\n\n" +
+               "       class #{operation.instance.class}\n" +
                     dependency_solutions.map { |field| "         track_dependencies_of :#{field}" }.join("\n") + "\n" +
-               "      end\n\n" +
+               "       end\n\n" +
                (dependency_solutions.count > 1 ?
-               "    You should use the most specific field (least amount of matching documents for a given value).\n" +
-               "    Tracking 'user_id' is almost always a safe choice for example.\n\n" : "") +
-               "    Note that this tracking slow your writes (tracking is the analogous of an index on a regular database)\n" +
-               "    You may find more information on the implications on the Promiscuous wiki (TODO:link).\n\n"
+               "     The more specific field, the better. Promiscuous works better when working with small subsets\n" +
+               "     For example, tracking something like 'member_id' is a fairly safe choice.\n\n" : "") +
+               "     Note that dependency tracking slows down your writes. It can be seen as the analogous\n" +
+               "     of an index on a regular database.\n" +
+               "     You may find more information about the implications in the Promiscuous wiki (TODO:link).\n\n"
       end
     when :update
       msg = "Promiscuous cannot track dependencies of a multi update operation.\n" +
              "This is what you can do:\n\n" +
-             "  - Instead of doing a multi updates, update each instance separately\n\n" +
-             "  - Do not assign has_many associations directly, but use the << operator instead.\n\n"
+             "  1. Instead of doing a multi updates, update each instance separately\n\n" +
+             "  2. Do not assign has_many associations directly, but use the << operator instead.\n\n"
     when :destroy
       msg = "Promiscuous cannot track dependencies of a multi delete operation.\n" +
              "This is what you can do:\n\n" +
-            "   - Instead of doing a multi delete, delete each instance separatly.\n\n" +
-            "   - Use destroy_all instead of destroy_all.\n\n" +
-            "   - Declare your has_many relationships with :dependent => :destroy instead of :delete.\n\n"
+            "   1. Instead of doing a multi delete, delete each instance separatly.\n\n" +
+            "   2. Use destroy_all instead of destroy_all.\n\n" +
+            "   3. Declare your has_many relationships with :dependent => :destroy instead of :delete.\n\n"
     end
 
-    if operation.operation == :read
-      if transaction.commited_writes.present?
-        msg += "Promiscuous is tracking this read because of these earlier writes:\n\n"
-        msg += transaction.commited_writes.map { |operation| "  #{explain_operation(operation)}" }.join("\n")
-      else
-        msg += "Promiscuous is tracking this read because this controller (#{transaction.name}) used to write.\n\n"
-      end
-    end
+    msg += "#{"-" * 100}\n\n"
+
+    msg += explain_transaction(transaction)
 
     msg += "The problem comes from the following "
     case operation.operation_ext || operation.operation
@@ -65,27 +68,59 @@ class Promiscuous::Error::Dependency < RuntimeError
     when :update  then msg += 'multi update'
     when :destroy then msg += 'multi destroy'
     end
-    msg += ":\n\n  #{explain_operation(self.operation)}"
-
+    msg += ":\n\n  #{self.class.explain_operation(self.operation)}"
+    msg += "\n\nProTip: Try again with TRACE=1 in the shell or ENV['TRACE']='1' in the console." unless ENV['TRACE']
     msg
   rescue Exception => e
     "#{e.to_s}\n#{e.backtrace.join("\n")}"
   end
 
-  def explain_operation(operation)
-    selector = operation.instance.attributes.map { |k,v| ":#{k} => #{v}" }.join(", ")
-    selector = "#{selector[0...(100-3)]}..." if selector.size > 100
+  def explain_transaction(transaction)
+    msg = ""
+    if operation.operation == :read
+      t = nil
+      if transaction.write_attempts.present?
+        msg += "Promiscuous is tracking this read because of these earlier writes:\n\n"
+        t = transaction
+      else
+        transaction.class.with_earlier_transaction(transaction.name) { |_t| t = _t }
+        call_distance = Promiscuous::Config.transaction_forget_rate - t[:counter]
+        t = t[:transaction]
+        msg += "Promiscuous is tracking this read because this controller (#{transaction.name}) used to write.\n" +
+               "#{call_distance == 1 ? 'One call' : "#{call_distance} calls"} back, this controller wrote:\n\n"
+      end
+      msg += t.write_attempts.map { |operation| "  #{self.class.explain_operation(operation)}" }.join("\n") + "\n\n"
+    end
+    msg
+  end
+
+  def self.explain_operation(operation, limit=100)
+    instance = operation.old_instance || operation.instance
+    selector   = instance ? get_selector(instance.attributes, limit) : ""
+    class_name = instance ? instance.class : "Unknown"
+
     if operation.operation == :create
-      "#{operation.instance.class}.create(#{selector})"
+      "#{instance.class}.create(#{selector})"
     else
       case operation.operation_ext || operation.operation
       when :count   then verb = 'count'
-      when :read    then verb = 'each { ... }'
-      when :update  then verb = 'update_all'
-      when :destroy then verb = 'delete_all'
+      when :read    then verb = operation.multi? ? 'each { ... }' : 'first'
+      when :update  then verb = operation.multi? ? 'update_all'   : 'update'
+      when :destroy then verb = operation.multi? ? 'delete_all'   : 'delete'
       end
-      "#{operation.instance.class}.where(#{selector}).#{verb}"
+      msg = "#{class_name}#{selector.present? ? ".where(#{selector})" : ""}.#{verb}"
+      if operation.operation == :update && operation.respond_to?(:change) && operation.change
+        msg += "(#{get_selector(operation.change, limit)})"
+      end
+      msg
     end
+  end
+
+  def self.get_selector(attributes, limit=100)
+    attributes = attributes['$set'] if attributes.count == 1 && attributes['$set']
+    selector = attributes.map { |k,v| ":#{k} => #{v}" }.join(", ")
+    selector = "#{selector[0...(limit-3)]}..." if selector.size > limit
+    selector
   end
 
   def to_s

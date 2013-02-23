@@ -11,18 +11,37 @@ class Promiscuous::Publisher::Transaction
       # updating the last_visisted_at field on a member which can
       # happen in any controller. We wouldn't want to start tracking
       # all controllers because of this.
-      unless old_current && old_current.commited_childrens.include?(self.current.name)
+      if old_current && old_current.commited_childrens.include?(self.current.name)
+        self.current.trace "**** Skipping Execution ****", true if ENV['TRACE']
+      else
+        old_active = self.current.active
         self.current.active ||= should_assume_write?(self.current)
+        if ENV['TRACE']
+          attr = self.current.active ? (old_active ? "" : "prediction") : "passive"
+          self.current.trace ">>> open #{attr.present? ? "(#{attr}) " : ""}>>>", true
+        end
         yield
       end
-    rescue Promiscuous::Error::InactiveTransaction
+    rescue Promiscuous::Error::InactiveTransaction => e
+      self.current.retried = true
       self.current.active = true
       remember_write(self.current)
       # Note that we will remember the last link, which can come from a child
       # transaction, which is a good thing.
+      if ENV['TRACE']
+        self.current.trace "**** Restarting transaction with dependency tracking ****", true
+        self.current.trace_operation(e.operation)
+      end
       retry
     ensure
       self.current.commit
+      if ENV['TRACE']
+        if self.current.active && !self.current.write_attempts.present?
+          self.current.trace "<<< close \e[1;31m(mispredicted)\e[0m <<<", true
+        else
+          self.current.trace "<<< close <<<", true
+        end
+      end
       self.current = old_current
       self.disabled = old_disabled
     end
@@ -34,15 +53,22 @@ class Promiscuous::Publisher::Transaction
 
   def self.remember_write(transaction)
     write_predictions_lock.synchronize do
-      write_predictions[transaction.name] = Promiscuous::Config.transaction_forget_rate
+      write_predictions[transaction.name] = {:transaction => transaction,
+                                             :counter => Promiscuous::Config.transaction_forget_rate}
+    end
+  end
+
+  def self.with_earlier_transaction(transaction_name)
+    write_predictions_lock.synchronize do
+      yield write_predictions[transaction_name]
     end
   end
 
   def self.should_assume_write?(transaction)
-    write_predictions_lock.synchronize do
-      if write_predictions[transaction.name]
-        write_predictions[transaction.name] -= 1
-        write_predictions.delete(transaction.name) if write_predictions[transaction.name] <= 0
+    with_earlier_transaction(transaction.name) do |t|
+      if t
+        t[:counter] -= 1
+        write_predictions.delete(transaction.name) if t[:counter] <= 0
         true
       else
         false
@@ -66,20 +92,21 @@ class Promiscuous::Publisher::Transaction
     Thread.current[:promiscuous_disabled] = value
   end
 
-  attr_accessor :name, :active, :operations
-  attr_accessor :last_written_dependency, :commited_childrens, :commited_writes
+  attr_accessor :name, :active, :operations, :retried, :nesting
+  attr_accessor :last_written_dependency, :commited_childrens, :write_attempts
 
   def initialize(*args)
     options = args.extract_options!
     @parent = self.class.current
     @last_written_dependency = @parent.try(:last_written_dependency)
+    @nesting = @parent.try(:nesting).to_i + 1
     @name = args.first.try(:to_s)
     @name ||= 'anonymous'
     @active = options[:active]
     @operations = []
     @closed = false
     @commited_childrens = []
-    @commited_writes = []
+    @write_attempts = []
     Promiscuous::AMQP.ensure_connected
   end
 
@@ -89,6 +116,31 @@ class Promiscuous::Publisher::Transaction
 
   def closed?
     !!@closed
+  end
+
+  def retried?
+    !!@retried
+  end
+
+  def add_operation(operation)
+    @operations << operation
+    trace_operation(operation) if ENV['TRACE']
+  end
+
+  def trace_operation(operation)
+    msg = Promiscuous::Error::Dependency.explain_operation(operation, 70)
+    msg = operation.read? ? "\e[0;#{32}m#{msg}" : "\e[1;#{31}m#{msg}" if active?
+    trace(msg)
+  end
+
+  def trace(msg, alt_fmt=false)
+    name = "(#{self.name})#{' ' * ([0,25 - self.name.size].max)}"
+    nesting = @nesting
+    if active?
+      STDERR.puts "\e[1;#{33}m#{'  ' * nesting}#{name}#{alt_fmt ? '':'  '} \e[1;#{36}m#{msg}\e[0m"
+    else
+      STDERR.puts "\e[1;#{30}m#{'  ' * nesting}#{name}#{alt_fmt ? '':'  '} #{msg}\e[0m"
+    end
   end
 
   def close
@@ -161,7 +213,6 @@ class Promiscuous::Publisher::Transaction
         end
 
         write_operation.instance.promiscuous.publish(options)
-        self.commited_writes << write_operation
       else
         # We have to send the remaining read dependencies to the subscriber,
         # but we have no context, so we'll have to use a Dummy class to

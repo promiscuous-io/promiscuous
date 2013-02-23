@@ -1,4 +1,4 @@
-class Promiscuous::Error::MissingTransaction < RuntimeError
+class Promiscuous::Error::MissingTransaction < Promiscuous::Error::Base
   def to_s
     "Promiscuous needs to execute all your queries (read and write) in a transaction.\n" +
     "This is what you can do:\n" +

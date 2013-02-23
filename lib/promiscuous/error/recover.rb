@@ -1,1 +1,1 @@
-class Promiscuous::Error::Recover < RuntimeError; end
+class Promiscuous::Error::Recover < Promiscuous::Error::Base; end

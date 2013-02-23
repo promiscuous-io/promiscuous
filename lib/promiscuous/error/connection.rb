@@ -1,4 +1,4 @@
-class Promiscuous::Error::Connection < RuntimeError
+class Promiscuous::Error::Connection < Promiscuous::Error::Base
   attr_accessor :service, :url
 
   def initialize(options={})

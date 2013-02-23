@@ -124,7 +124,9 @@ class Promiscuous::Publisher::Operation::Base
 
   # --- the following methods can be overridden if needed --- #
 
-  def _commit(&db_operation)
+  def _commit(transaction, &db_operation)
+    transaction.add_operation(self) unless @operation_added
+    @operation_added = true
     # @instance is already set when entering the commit method. It's not
     # necessarily a proper instance, as it can represent any selector with a
     # {:field => value} hash type.
@@ -136,11 +138,14 @@ class Promiscuous::Publisher::Operation::Base
         if operation != :create && single?
           # We want to fetch the instance to make sure we have all the locked
           # dependencies that we need.
-          @instance = without_promiscuous { fetch_instance }
+          instance = without_promiscuous { fetch_instance }
 
           # The selector doesn't fetch any instance, the query has no effect so
           # we can bypass it as if nothing happened.
-          return nil unless @instance
+          return nil unless instance
+          # We set @instance only now because preserving it improves the error
+          # messages.
+          @instance = instance
 
           # If we have stale dependencies locked (because of the instance
           # fetch), or have the opportunity to get a better dependency for a
@@ -179,12 +184,17 @@ class Promiscuous::Publisher::Operation::Base
 
   def ensure_transaction
     transaction = Transaction.current
-    transaction ||= Transaction.new('anonymous', :active => write?) unless Promiscuous::Config.use_transactions
+    # We wrap all writes in transactions if the user doesn't want to deal with
+    # them. It can be used in the development console.
+    unless Promiscuous::Config.use_transactions
+      transaction ||= Transaction.new('anonymous', :active => write?)
+    end
 
     if write?
-      raise Promiscuous::Error::MissingTransaction  unless transaction
-      raise Promiscuous::Error::ClosedTransaction   if     transaction.closed?
-      raise Promiscuous::Error::InactiveTransaction unless transaction.active?
+      raise Promiscuous::Error::MissingTransaction unless transaction
+      raise Promiscuous::Error::ClosedTransaction  if     transaction.closed?
+      transaction.write_attempts << self
+      raise Promiscuous::Error::InactiveTransaction.new(self) unless transaction.active?
     end
 
     yield(transaction)
@@ -197,11 +207,10 @@ class Promiscuous::Publisher::Operation::Base
     ensure_transaction do |transaction|
       return db_operation.call unless transaction.try(:active?)
 
-      transaction.operations << self
-      result = _commit(&db_operation)
+      result = _commit(transaction, &db_operation)
       @completed = true
 
-      # TODO We commit immediatly for now. It works with mongoid, but it's
+      # TODO We commit immediately for now. It works with mongoid, but it's
       # a very different story with ActiveRecord transactions.
       transaction.commit if write?
       result
