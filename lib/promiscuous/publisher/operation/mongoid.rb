@@ -1,3 +1,6 @@
+raise "mongoid > 3.0.19 please" unless Gem.loaded_specs['mongoid'].version >= Gem::Version.new('3.0.19')
+raise "moped > 1.3.2 please"    unless Gem.loaded_specs['moped'].version   >= Gem::Version.new('1.3.2')
+
 class Moped::PromiscuousCollectionWrapper < Moped::Collection
   class PromiscuousCollectionOperation < Promiscuous::Publisher::Operation::Base
     def initialize(options={})
@@ -45,7 +48,7 @@ end
 
 class Moped::PromiscuousQueryWrapper < Moped::Query
   class PromiscuousQueryOperation < Promiscuous::Publisher::Operation::Base
-    attr_accessor :new_raw_instance
+    attr_accessor :raw_instance, :new_raw_instance
 
     def initialize(options={})
       super
@@ -163,7 +166,9 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     # TODO If the the user is using something like .only(), we need to make
     # sure that we add the id, otherwise we may not be able to perform the
     # dependency optimization by resolving the selector to an id.
-    promiscuous_operation(:read).commit { super }
+    promiscuous_operation(:read).commit do |operation|
+      operation ? operation.raw_instance : super
+    end
   end
 
   def update(change, flags=nil)
@@ -192,18 +197,27 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 end
 
 class Moped::PromiscuousCursorWrapper < Moped::Cursor
-  def promiscuous_operation(operation, options={})
+  def promiscuous_operation(op, options={})
     Moped::PromiscuousQueryWrapper::PromiscuousQueryOperation.new(
-      options.merge(:query => @query, :operation => operation))
+      options.merge(:query => @query, :operation => op))
   end
 
   # Moped::Cursor
 
-  def each
-    promiscuous_operation(:read, :multi => true).commit { super }
+  def fake_single_read(operation)
+    @cursor_id = 0
+    [operation.raw_instance].compact
+  end
+
+  def load_docs
+    should_fake_single_read = @limit == 1
+    promiscuous_operation(:read, :multi => !should_fake_single_read).commit do |operation|
+      operation && should_fake_single_read ? fake_single_read(operation) : super
+    end.to_a
   end
 
   def get_more
+    # TODO support batch_size
     promiscuous_operation(:read, :multi => true).commit { super }
   end
 
@@ -220,8 +234,6 @@ class Mongoid::Validations::UniquenessValidator
   end
 end
 
-raise "mongoid > 3.0.19 please" unless Gem.loaded_specs['mongoid'].version >= Gem::Version.new('3.0.19')
-raise "moped > 1.3.2 please"    unless Gem.loaded_specs['moped'].version   >= Gem::Version.new('1.3.2')
 Moped.__send__(:remove_const, :Collection)
 Moped.__send__(:const_set,    :Collection, Moped::PromiscuousCollectionWrapper)
 Moped.__send__(:remove_const, :Query)

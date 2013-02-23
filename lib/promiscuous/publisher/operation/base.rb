@@ -152,13 +152,7 @@ class Promiscuous::Publisher::Operation::Base
           use_id_selector
         end
 
-        if read? && single?
-          # For a single read, we don't need to redo the read when we have a
-          # perfectly valid instance.
-          result = @raw_instance
-        else
-          result = db_operation.call(self)
-        end
+        result = db_operation.call(self)
 
         if operation == :create
           # For auto generated ids, we must have a valid id to have the
@@ -217,7 +211,7 @@ class Promiscuous::Publisher::Operation::Base
   def fetch_instance
     # This method is overridden to use the original query selector.
     # Not used in the case of a create operation.
-    @raw_instance = @instance
+    @instance
   end
 
   def use_id_selector

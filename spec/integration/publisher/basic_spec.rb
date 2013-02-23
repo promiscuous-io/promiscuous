@@ -153,5 +153,29 @@ if ORM.has(:mongoid)
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
       end
     end
+
+    context 'when using limit(1).each' do
+      it 'skips the query' do
+        pub1 = pub2 = nil
+        Promiscuous.transaction do
+          pub1 = PublisherModel.create(:field_1 => 123)
+          PublisherModel.all.limit(1).each do |pub|
+            pub.id.should      == pub1.id
+            pub.field_1.should == pub1.field_1
+          end
+          pub2 = PublisherModel.create(:field_1 => 123)
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub1.id}:1"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == "publisher_models:id:#{pub1.id}:1"
+        dep['read'].should  == ["publisher_models:id:#{pub1.id}:1"]
+        dep['write'].should == ["publisher_models:id:#{pub2.id}:1"]
+      end
+    end
   end
 end
