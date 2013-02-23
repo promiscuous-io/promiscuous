@@ -72,12 +72,23 @@ module Promiscuous::Redis
   end
 
   class Null
+    def pipelined(&block)
+      @pipelined = true
+      res = block.call if block
+      @pipelined = false
+      res
+    end
+
     def client
       return self.class.new
     end
 
     def method_missing(name, *args, &block)
-      0
+      @pipelined ? Future.new : 0
+    end
+
+    class Future
+      def value; 0; end
     end
   end
 end
