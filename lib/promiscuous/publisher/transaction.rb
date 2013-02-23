@@ -59,7 +59,7 @@ class Promiscuous::Publisher::Transaction
   def initialize(*args)
     options = args.extract_options!
     @name = args.first
-    @name ||= 'noname'
+    @name ||= 'anonymous'
     @active = options[:active]
     @operations = []
     @closed = false
