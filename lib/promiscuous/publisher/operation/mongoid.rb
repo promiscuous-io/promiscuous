@@ -103,7 +103,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
           # specific id, (or we would have to do the count ourselves, which is
           # not desirable).
           e.dependency_solutions = selector.keys
-          e.query = @query
           raise e
         else
           # in the case of a single read, we can resolve the selector to an id
@@ -120,7 +119,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
       # We cannot do multi update/destroy
       if (operation == :update || operation == :destroy) && multi?
-        raise Promiscuous::Error::Dependency.new(:operation => operation, :query => @query)
+        raise Promiscuous::Error::Dependency.new(:operation => self)
       end
 
       super
@@ -146,7 +145,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   # Moped::Query
 
   def count(*args)
-    promiscuous_operation(:read, :multi => true).commit { super }.to_i
+    promiscuous_operation(:read, :multi => true, :operation_ext => :count).commit { super }.to_i
   end
 
   def distinct(key)

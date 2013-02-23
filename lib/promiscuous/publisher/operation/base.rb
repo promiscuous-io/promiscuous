@@ -2,16 +2,17 @@ class Promiscuous::Publisher::Operation::Base
   Transaction = Promiscuous::Publisher::Transaction
   class TryAgain < RuntimeError; end
 
-  attr_accessor :operation, :multi,
+  attr_accessor :operation, :operation_ext, :multi,
                 :old_instance, :instance,
                 :dependencies, :commited_dependencies
 
   def initialize(options={})
     # XXX instance is not always an instance, it can be a selector
     # representation.
-    @instance  = options[:instance]
-    @operation = options[:operation]
-    @multi     = options[:multi]
+    @instance      = options[:instance]
+    @operation     = options[:operation]
+    @operation_ext = options[:operation_ext]
+    @multi         = options[:multi]
   end
 
   def read?
@@ -92,7 +93,7 @@ class Promiscuous::Publisher::Operation::Base
       # is that :id always comes first
       best_dependency = @instance.promiscuous.tracked_dependencies.first
       unless best_dependency
-        raise Promiscuous::Error::Dependency.new(:operation => operation)
+        raise Promiscuous::Error::Dependency.new(:operation => self)
       end
       [best_dependency]
     else
