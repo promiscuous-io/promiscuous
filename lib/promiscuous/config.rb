@@ -57,6 +57,7 @@ module Promiscuous::Config
           # TODO should we reconnect the parent?
           # Promiscuous.connect
         end
+        pid
       end
     end
 

@@ -33,8 +33,9 @@ class Promiscuous::Error::Dependency < RuntimeError
     when :destroy
       msg = "Promiscuous cannot track dependencies of a multi delete operation.\n" +
              "This is what you can do:\n" +
-            "   - Instead of doing a multi delete, delete each instance separatly\n"
-            "   - Use destroy_all instead of destroy_all."
+            "   - Instead of doing a multi delete, delete each instance separatly.\n" +
+            "   - Use destroy_all instead of destroy_all.\n" +
+            "   - Declare your has_many relationships with :dependent => :destroy instead of :delete."
     end
 
     msg + "\n\nThe offending query is: #{query}.\n " if query

@@ -145,7 +145,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
   # Moped::Query
 
-  def count(limit = false)
+  def count(*args)
     promiscuous_operation(:read, :multi => true).commit { super }.to_i
   end
 

@@ -184,12 +184,11 @@ class Promiscuous::Publisher::Operation::Base
 
   def ensure_transaction
     transaction = Transaction.current
-    transaction ||= Transaction.new('__anonymous__') unless Promiscuous::Config.use_transactions
+    transaction ||= Transaction.new('__anonymous__', :active => write?) unless Promiscuous::Config.use_transactions
 
     if write?
       raise Promiscuous::Error::MissingTransaction  unless transaction
       raise Promiscuous::Error::ClosedTransaction   if     transaction.closed?
-      transaction.active = true if transaction.name == '__anonymous__'
       raise Promiscuous::Error::InactiveTransaction unless transaction.active?
     end
 
