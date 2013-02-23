@@ -105,5 +105,37 @@ if ORM.has(:mongoid)
                                 # FIXME "publisher_models:field_2:blah:1",
       end
     end
+
+    context 'when using each' do
+      it 'publishes proper dependencies' do
+        PublisherModel.track_dependencies_of :field_1
+
+        pub1 = pub2 = nil
+        Promiscuous.transaction do
+          pub1 = PublisherModel.create(:field_1 => 123)
+          pub2 = PublisherModel.create(:field_1 => 123)
+          PublisherModel.where(:field_1 => 123).each.to_a
+          pub1.update_attributes(:field_2 => 456)
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub1.id}:1",
+                                "publisher_models:field_1:123:1"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == "publisher_models:id:#{pub1.id}:1"
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub2.id}:1",
+                                "publisher_models:field_1:123:2"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == "publisher_models:id:#{pub2.id}:1"
+        dep['read'].should  == ["publisher_models:field_1:123:2"]
+        dep['write'].should == ["publisher_models:id:#{pub1.id}:2",
+                                "publisher_models:field_1:123:4"]
+      end
+    end
   end
 end

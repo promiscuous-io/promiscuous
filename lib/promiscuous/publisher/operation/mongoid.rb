@@ -153,6 +153,13 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     promiscuous_operation(:read, :multi => true).commit { super }
   end
 
+  def each
+    old_moped_query, Thread.current[:moped_query] = Thread.current[:moped_query], self
+    super
+  ensure
+    Thread.current[:moped_query] = old_moped_query
+  end
+
   def first
     # TODO If the the user is using something like .only(), we need to make
     # sure that we add the id, otherwise we may not be able to perform the
@@ -203,7 +210,7 @@ class Moped::PromiscuousCursorWrapper < Moped::Cursor
 
   def initialize(session, query_operation)
     super
-    @query = query_operation
+    @query = Thread.current[:moped_query]
   end
 end
 
