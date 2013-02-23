@@ -88,7 +88,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
         # an even better hint.
 
         # We only support == selectors, no $in, or $gt.
-        selector = selector.reject { |k,v| v.is_a?(Hash) }
+        original_selector, selector = selector, selector.select { |k,v| k =~ /^[^$]/ && !v.is_a?(Hash) }
 
         # @instance is not really a proper instance of a model, it's just a
         # convenient representation of a selector as explain in base.rb,
@@ -105,6 +105,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
           # When doing the multi read, we cannot resolve the selector to a
           # specific id, (or we would have to do the count ourselves, which is
           # not desirable).
+          @instance = model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, original_selector) }
           e.dependency_solutions = selector.keys
           raise e
         else
