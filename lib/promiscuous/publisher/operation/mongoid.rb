@@ -214,6 +214,13 @@ class Moped::PromiscuousCursorWrapper < Moped::Cursor
   end
 end
 
+class Mongoid::Validations::UniquenessValidator
+  alias_method :validate_root_without_promisucous, :validate_root
+  def validate_root(*args)
+    without_promiscuous { validate_root_without_promisucous(*args) }
+  end
+end
+
 raise "mongoid > 3.0.19 please" unless Gem.loaded_specs['mongoid'].version >= Gem::Version.new('3.0.19')
 raise "moped > 1.3.2 please"    unless Gem.loaded_specs['moped'].version   >= Gem::Version.new('1.3.2')
 Moped.__send__(:remove_const, :Collection)

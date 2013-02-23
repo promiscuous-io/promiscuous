@@ -137,5 +137,21 @@ if ORM.has(:mongoid)
                                 "publisher_models:field_1:123:4"]
       end
     end
+
+    context 'when using a uniqueness validator' do
+      it 'skips the query' do
+        PublisherModel.validates_uniqueness_of :field_1
+
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModel.create(:field => 123)
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
+      end
+    end
   end
 end
