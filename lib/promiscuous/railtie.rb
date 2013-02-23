@@ -1,7 +1,14 @@
 class Promiscuous::Railtie < Rails::Railtie
   module TransactionMiddleware
+    def cleanup_controller
+      self.instance_variables.grep(/^@[^:_]/).each do |var|
+        instance_variable_set(var, nil)
+      end
+    end
+
     def process_action(*args)
       Promiscuous.transaction("#{self.class.controller_name}/#{self.action_name}") do
+        cleanup_controller
         super
       end
     rescue Exception => e
