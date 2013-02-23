@@ -2,8 +2,12 @@ class Promiscuous::Publisher::Transaction
   # XXX Transactions are not sharable among threads
 
   def self.open(*args)
-    raise 'Already in a transaction, nesting is not supported yet' if self.current
-    self.current = new(*args)
+    raise Promiscuous::Error::NestedTransaction if self.current
+
+    old_disable_flag = Thread.current[:promiscuous_disabled]
+    Thread.current[:promiscuous_disabled] = false
+
+    transaction = self.current = new(*args)
     self.current.active = true if should_assume_write?(self.current)
     begin
       yield
@@ -13,7 +17,8 @@ class Promiscuous::Publisher::Transaction
       retry
     end
   ensure
-    if current
+    if transaction
+      Thread.current[:promiscuous_disabled] = old_disable_flag
       self.current.commit
       self.current = nil
     end

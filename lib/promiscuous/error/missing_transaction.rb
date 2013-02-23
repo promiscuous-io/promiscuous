@@ -12,6 +12,13 @@ class Promiscuous::Error::MissingTransaction < RuntimeError
     "  - Disable Promiscuous transactions (dangerous):\n\n" +
     "      Promiscuous::Config.use_transactions = false\n" +
     "      # Code including all your read and write queries\n\n" +
-    "    The Rails console runs in this mode in development mode."
+    "    The Rails console runs in this mode in development mode.\n\n" +
+    "  - Disable Promiscuous completely (only for testing):\n\n" +
+    "      RSpec.configure do |config|\n" +
+    "        config.around do |example|\n" +
+    "          without_promiscuous { example.run }\n" +
+    "        end\n" +
+    "      end\n\n" +
+    "    Note that if you hit your controllers, Promiscuous will activate due to the presence of a transaction."
   end
 end
