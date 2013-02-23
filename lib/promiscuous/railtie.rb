@@ -12,22 +12,29 @@ class Promiscuous::Railtie < Rails::Railtie
         super
       end
     rescue Exception => e
+      highlight_indent = false
+      msg = e.to_s.split("\n").map do |line|
+        highlight_indent = true if line =~ /The problem comes from the following/ ||
+                                   line =~ /Promiscuous is tracking this read/
+        highlight_indent && line =~ /^  / ?  "\e[1;#{31}m#{line}\e[0;#{31}m" : line
+      end.join("\n")
+
       STDERR.puts "\e[0;#{36}m----[ Promiscuous ]---------------------------------------------------------------------------------\e[0m"
       STDERR.puts
-      STDERR.puts "\e[0;#{31}m#{e}\e[0m"
+      STDERR.puts "\e[0;#{31}m#{msg}\e[0m"
       STDERR.puts
       STDERR.puts "\e[0;#{36}m----[  Backtrace  ]---------------------------------------------------------------------------------\e[0m"
 
       backtrace = e.backtrace
-      .take_while { |line| line !~ /#{__FILE__}/ }
-      .map do |line|
-        case line
-        when /`(count|distinct|each|first|last)'$/                     then "\e[1;32m#{line}\e[0m"
-        when /`(create|insert|save|update|modify|remove|remove_all)'$/ then "\e[1;31m#{line}\e[0m"
-        when /#{Rails.root}/                                           then "\e[1;36m#{line}\e[0m"
-        else                                                                "\e[1;30m#{line}\e[0m"
+        .take_while { |line| line !~ /#{__FILE__}/ }
+        .map do |line|
+          case line
+          when /`(count|distinct|each|first|last)'$/                     then "\e[1;32m#{line}\e[0m"
+          when /`(create|insert|save|update|modify|remove|remove_all)'$/ then "\e[1;31m#{line}\e[0m"
+          when /#{Rails.root}/                                           then "\e[1;36m#{line}\e[0m"
+          else                                                                "\e[1;30m#{line}\e[0m"
+          end
         end
-      end
       STDERR.puts backtrace.join("\n")
 
       raise e

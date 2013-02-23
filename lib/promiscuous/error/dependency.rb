@@ -1,9 +1,10 @@
 class Promiscuous::Error::Dependency < RuntimeError
-  attr_accessor :dependency_solutions, :operation
+  attr_accessor :dependency_solutions, :operation, :transaction
 
   def initialize(options={})
     self.dependency_solutions = options[:dependency_solutions]
     self.operation = options[:operation]
+    self.transaction = Promiscuous::Publisher::Transaction.current
   end
 
   def message
@@ -48,15 +49,43 @@ class Promiscuous::Error::Dependency < RuntimeError
             "   - Declare your has_many relationships with :dependent => :destroy instead of :delete.\n\n"
     end
 
+    if operation.operation == :read
+      if transaction.commited_writes.present?
+        msg += "Promiscuous is tracking this read because of these earlier writes:\n\n"
+        msg += transaction.commited_writes.map { |operation| "  #{explain_operation(operation)}" }.join("\n")
+      else
+        msg += "Promiscuous is tracking this read because this controller (#{transaction.name}) used to write.\n\n"
+      end
+    end
+
     msg += "The problem comes from the following "
     case operation.operation_ext || operation.operation
-    when :count   then msg += 'count' ;        verb = 'count'
-    when :read    then msg += 'each loop' ;    verb = 'each { ... }'
-    when :update  then msg += 'multi update';  verb = 'update_all'
-    when :destroy then msg += 'multi destroy'; verb = 'delete_all'
+    when :count   then msg += 'count'
+    when :read    then msg += 'each loop'
+    when :update  then msg += 'multi update'
+    when :destroy then msg += 'multi destroy'
     end
+    msg += ":\n\n  #{explain_operation(self.operation)}"
+
+    msg
+  rescue Exception => e
+    "#{e.to_s}\n#{e.backtrace.join("\n")}"
+  end
+
+  def explain_operation(operation)
     selector = operation.instance.attributes.map { |k,v| ":#{k} => #{v}" }.join(", ")
-    msg += ":\n\n  #{operation.instance.class}.where(#{selector}).#{verb}"
+    selector = "#{selector[0...(100-3)]}..." if selector.size > 100
+    if operation.operation == :create
+      "#{operation.instance.class}.create(#{selector})"
+    else
+      case operation.operation_ext || operation.operation
+      when :count   then verb = 'count'
+      when :read    then verb = 'each { ... }'
+      when :update  then verb = 'update_all'
+      when :destroy then verb = 'delete_all'
+      end
+      "#{operation.instance.class}.where(#{selector}).#{verb}"
+    end
   end
 
   def to_s

@@ -67,7 +67,7 @@ class Promiscuous::Publisher::Transaction
   end
 
   attr_accessor :name, :active, :operations
-  attr_accessor :last_written_dependency, :commited_childrens
+  attr_accessor :last_written_dependency, :commited_childrens, :commited_writes
 
   def initialize(*args)
     options = args.extract_options!
@@ -79,6 +79,7 @@ class Promiscuous::Publisher::Transaction
     @operations = []
     @closed = false
     @commited_childrens = []
+    @commited_writes = []
     Promiscuous::AMQP.ensure_connected
   end
 
@@ -160,6 +161,7 @@ class Promiscuous::Publisher::Transaction
         end
 
         write_operation.instance.promiscuous.publish(options)
+        self.commited_writes << write_operation
       else
         # We have to send the remaining read dependencies to the subscriber,
         # but we have no context, so we'll have to use a Dummy class to
