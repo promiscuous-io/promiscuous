@@ -14,7 +14,15 @@ class Promiscuous::Error::Dependency < RuntimeError
             "This is what you can do:\n\n" +
             "  - If you don't use the result of this operation in your following writes,\n" +
             "    you can wrap your read query in a 'without_promiscuous { }' block.\n\n" +
-            "  - Read each of the documents one by one (not implemented yet, it's a bad idea anyway).\n\n"
+            "  - Read each of the documents one by one (not implemented yet, it's a bad idea anyway).\n\n" +
+            "  - Wrap earlier writes in a transaction if they are seldom. Example:\n\n" +
+            "      class Member\n" +
+            "        def update_last_visited_at\n" +
+            "          Promiscuous.transaction(:update_last_visited_at) do\n" +
+            "            update_attributes(:last_visited_at => Time.now)\n" +
+            "          end\n" +
+            "        end\n" +
+            "      end\n\n"
       if dependency_solutions.present?
         msg += "  - Add a new dependency to track by adding #{dependency_solutions.count == 1 ?
                     "the following line" : "one of the following lines"} in the #{operation.instance.class} model:\n\n" +

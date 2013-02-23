@@ -2,25 +2,29 @@ class Promiscuous::Publisher::Transaction
   # XXX Transactions are not sharable among threads
 
   def self.open(*args)
-    raise Promiscuous::Error::NestedTransaction if self.current
+    old_disabled, self.disabled = self.disabled, false
+    old_current, self.current = self.current, new(*args)
 
-    old_disable_flag = Thread.current[:promiscuous_disabled]
-    Thread.current[:promiscuous_disabled] = false
-
-    transaction = self.current = new(*args)
-    self.current.active = true if should_assume_write?(self.current)
     begin
-      yield
+      # We skip already commited transactions when retrying to allow
+      # isolation within a transaction, useful for example when
+      # updating the last_visisted_at field on a member which can
+      # happen in any controller. We wouldn't want to start tracking
+      # all controllers because of this.
+      unless old_current && old_current.commited_childrens.include?(self.current.name)
+        self.current.active ||= should_assume_write?(self.current)
+        yield
+      end
     rescue Promiscuous::Error::InactiveTransaction
       self.current.active = true
       remember_write(self.current)
+      # Note that we will remember the last link, which can come from a child
+      # transaction, which is a good thing.
       retry
-    end
-  ensure
-    if transaction
-      Thread.current[:promiscuous_disabled] = old_disable_flag
+    ensure
       self.current.commit
-      self.current = nil
+      self.current = old_current
+      self.disabled = old_disabled
     end
   end
 
@@ -54,16 +58,27 @@ class Promiscuous::Publisher::Transaction
     Thread.current[:promiscuous_transaction] = value
   end
 
+  def self.disabled
+    Thread.current[:promiscuous_disabled]
+  end
+
+  def self.disabled=(value)
+    Thread.current[:promiscuous_disabled] = value
+  end
+
   attr_accessor :name, :active, :operations
+  attr_accessor :last_written_dependency, :commited_childrens
 
   def initialize(*args)
     options = args.extract_options!
-    @name = args.first
+    @parent = self.class.current
+    @last_written_dependency = @parent.try(:last_written_dependency)
+    @name = args.first.try(:to_s)
     @name ||= 'anonymous'
     @active = options[:active]
     @operations = []
     @closed = false
-
+    @commited_childrens = []
     Promiscuous::AMQP.ensure_connected
   end
 
@@ -79,6 +94,11 @@ class Promiscuous::Publisher::Transaction
     commit
     @active = false
     @closed = true
+  end
+
+  def commit_child(child)
+    @commited_childrens << child.name
+    @last_written_dependency = child.last_written_dependency if child.last_written_dependency
   end
 
   def with_next_batch
@@ -147,10 +167,12 @@ class Promiscuous::Publisher::Transaction
         # Note that we cannot have write_dependencies since write_operation
         # doesn't have an instance.
         Dummy.new.promiscuous.publish(options) if read_dependencies.present?
-        # FIXME We always need a link
-        @last_written_dependency = nil
+        # We don't need to send a link to the dummy to the next operation
+        # because we haven't written anything.
       end
     end
+
+    @parent.try(:commit_child, self)
   rescue Promiscuous::Error::Publisher => e
     # arh, publishing miserably failed, that's bad news.
     # Now we are out of sync...

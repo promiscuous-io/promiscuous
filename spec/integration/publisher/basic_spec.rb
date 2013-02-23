@@ -177,5 +177,62 @@ if ORM.has(:mongoid)
         dep['write'].should == ["publisher_models:id:#{pub2.id}:1"]
       end
     end
+
+    context 'when using nested transactions' do
+      it 'publishes proper dependencies' do
+        pub1 = without_promiscuous { PublisherModel.create }
+        pub2 = pub3 = pub4 = nil
+        @pre_run_count1 = @pre_run_count2 = @pre_run_count3 = 0
+        @post_run_count1 = @post_run_count2 = @post_run_count3 = 0
+
+        Promiscuous.transaction(:first) do
+          @pre_run_count1 += 1
+          PublisherModel.first
+          Promiscuous.transaction(:second) do
+            @pre_run_count2 += 1
+            Promiscuous.transaction(:third) do
+              @pre_run_count3 += 1
+              pub2 = PublisherModel.create
+              @post_run_count3 += 1
+            end
+            PublisherModel.first
+            pub3 = PublisherModel.create
+            @post_run_count2 += 1
+          end
+          pub4 = PublisherModel.create
+          @post_run_count1 += 1
+        end
+
+        @pre_run_count1.should == 2
+        @pre_run_count2.should == 2
+        @pre_run_count3.should == 2
+        @post_run_count1.should == 1
+        @post_run_count2.should == 1
+        @post_run_count3.should == 1
+
+        payload = Promiscuous::AMQP::Fake.get_next_payload
+        payload['transaction'].should == 'third'
+        dep = payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub2.id}:1"]
+
+        payload = Promiscuous::AMQP::Fake.get_next_payload
+        payload['transaction'].should == 'second'
+        dep = payload['dependencies']
+        dep['link'].should  == "publisher_models:id:#{pub2.id}:1"
+        dep['read'].should  == ["publisher_models:id:#{pub1.id}:0"]
+        dep['write'].should == ["publisher_models:id:#{pub3.id}:1"]
+
+        payload = Promiscuous::AMQP::Fake.get_next_payload
+        payload['transaction'].should == 'first'
+        dep = payload['dependencies']
+        dep['link'].should  == "publisher_models:id:#{pub3.id}:1"
+        dep['read'].should  == ["publisher_models:id:#{pub1.id}:0"]
+        dep['write'].should == ["publisher_models:id:#{pub4.id}:1"]
+
+        Promiscuous::AMQP::Fake.get_next_message.should == nil
+      end
+    end
   end
 end

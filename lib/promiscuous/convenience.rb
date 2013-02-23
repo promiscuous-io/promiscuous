@@ -1,8 +1,8 @@
 module Promiscuous::Convenience
   def without_promiscuous
-    old_value, Thread.current[:promiscuous_disabled] = Thread.current[:promiscuous_disabled], true
+    old_disabled, Promiscuous::Publisher::Transaction.disabled = Promiscuous::Publisher::Transaction.disabled, true
     yield
   ensure
-    Thread.current[:promiscuous_disabled] = old_value
+    Promiscuous::Publisher::Transaction.disabled = old_disabled
   end
 end
