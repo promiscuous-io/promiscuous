@@ -16,6 +16,8 @@ class Promiscuous::Publisher::Transaction
       else
         old_active = self.current.active
         self.current.active ||= should_assume_write?(self.current)
+        self.cleanup_state if self.current.active
+
         if ENV['TRACE']
           attr = self.current.active ? (old_active ? "" : "prediction") : "passive"
           self.current.trace ">>> open #{attr.present? ? "(#{attr}) " : ""}>>>", true
@@ -45,6 +47,10 @@ class Promiscuous::Publisher::Transaction
       self.current = old_current
       self.disabled = old_disabled
     end
+  end
+
+  def self.cleanup_state
+    Mongoid::IdentityMap.clear if defined?(Mongoid::IdentityMap) && self.current.active
   end
 
   cattr_accessor :write_predictions, :write_predictions_lock
