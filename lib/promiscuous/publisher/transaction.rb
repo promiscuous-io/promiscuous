@@ -42,7 +42,7 @@ class Promiscuous::Publisher::Transaction
     ensure
       self.current.commit
       if ENV['TRACE']
-        if self.current.active && !self.current.write_attempts.present?
+        if self.current.active && !self.current.write_attempts.present? && !self.current.without_dependencies
           self.current.alt_trace "<<< close \e[1;31m(mispredicted)\e[0m <<<", :backtrace => :none
         else
           self.current.alt_trace "<<< close <<<", :backtrace => :none
@@ -112,7 +112,7 @@ class Promiscuous::Publisher::Transaction
     @name = args.first.try(:to_s)
     @name ||= "#{@parent.next_child_name}" if @parent
     @name ||= 'anonymous'
-    @active = options[:active] || options[:force]
+    @active = options[:active] || options[:force] || options[:without_dependencies]
     @without_dependencies = options[:without_dependencies]
     @operations = []
     @closed = false
