@@ -128,11 +128,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
         else
           # in the case of a single read, we can resolve the selector to an id
           # one, which means that we have to pay an extra read.
-          instance = fetch_instance
-          return nil unless instance
-          # We set @instance only now because preserving it improves the error
-          # messages.
-          @instance = instance
+          return nil unless reload_instance
           super
         end
       end
@@ -260,7 +256,9 @@ class Moped::PromiscuousCursorWrapper < Moped::Cursor
   def load_docs
     should_fake_single_read = @limit == 1
     promiscuous_operation(:read, :multi => !should_fake_single_read).commit do |operation|
-      operation && should_fake_single_read ? fake_single_read(operation) : super
+      result = operation && should_fake_single_read ? fake_single_read(operation) : super
+      operation.missed = true if operation && result.blank?
+      result
     end.to_a
   end
 

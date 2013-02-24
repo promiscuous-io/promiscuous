@@ -131,6 +131,7 @@ class Promiscuous::Publisher::Transaction
   def trace_operation(operation)
     msg = Promiscuous::Error::Dependency.explain_operation(operation, 70)
     msg = operation.read? ? "\e[0;#{32}m#{msg}" : "\e[1;#{31}m#{msg}" if active?
+    msg = msg.gsub(/(\(missed\))$/, "\e[1;#{30}m\\1")
     trace(msg)
   end
 

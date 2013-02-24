@@ -50,6 +50,7 @@ module Promiscuous
       Publisher::Transaction.open(*args, &block)
     end
 
+    # maybe it's not useful, we'll see...
     def close_current_transaction
       Publisher::Transaction.current.try(:close)
     end

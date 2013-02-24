@@ -85,6 +85,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
         t = transaction
       else
         transaction.class.with_earlier_transaction(transaction.name) { |_t| t = _t }
+        return "" unless t
         call_distance = Promiscuous::Config.transaction_forget_rate - t[:counter]
         t = t[:transaction]
         msg += "Promiscuous is tracking this read because this controller (#{transaction.name}) used to write.\n" +
@@ -114,6 +115,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
       if operation.operation == :update && operation.respond_to?(:change) && operation.change
         msg += "(#{get_selector(operation.change, limit)})"
       end
+      msg += " (missed)" if operation.missed?
       msg
     end
   end

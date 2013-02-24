@@ -3,7 +3,7 @@ class Promiscuous::Publisher::Operation::Base
   class TryAgain < RuntimeError; end
 
   attr_accessor :operation, :operation_ext, :multi,
-                :old_instance, :instance,
+                :old_instance, :instance, :missed,
                 :dependencies, :commited_dependencies
 
   def initialize(options={})
@@ -33,6 +33,10 @@ class Promiscuous::Publisher::Operation::Base
 
   def failed?
     !@completed
+  end
+
+  def missed?
+    !!@missed
   end
 
   def update_dependencies_read
@@ -122,11 +126,21 @@ class Promiscuous::Publisher::Operation::Base
     true
   end
 
+  def reload_instance
+    # We make sure to leave @instance intact if the fetch returns nothing to
+    # improve error messages.
+    instance = without_promiscuous { fetch_instance }
+    if instance
+      @instance = instance
+    else
+      @missed = true
+      nil
+    end
+  end
+
   # --- the following methods can be overridden if needed --- #
 
   def _commit(transaction, &db_operation)
-    transaction.add_operation(self) unless @operation_added
-    @operation_added = true
     # @instance is already set when entering the commit method. It's not
     # necessarily a proper instance, as it can represent any selector with a
     # {:field => value} hash type.
@@ -136,16 +150,11 @@ class Promiscuous::Publisher::Operation::Base
       result = nil
       lock_dependencies do
         if operation != :create && single?
-          # We want to fetch the instance to make sure we have all the locked
+          # We want to reload the instance to make sure we have all the locked
           # dependencies that we need.
-          instance = without_promiscuous { fetch_instance }
-
-          # The selector doesn't fetch any instance, the query has no effect so
-          # we can bypass it as if nothing happened.
-          return nil unless instance
-          # We set @instance only now because preserving it improves the error
-          # messages.
-          @instance = instance
+          # If the selector doesn't fetch any instance, the query has no effect
+          # so we can bypass it as if nothing happened.
+          return nil unless reload_instance
 
           # If we have stale dependencies locked (because of the instance
           # fetch), or have the opportunity to get a better dependency for a
@@ -208,13 +217,14 @@ class Promiscuous::Publisher::Operation::Base
     ensure_transaction do |transaction|
       return db_operation.call unless transaction.try(:active?)
 
-      result = _commit(transaction, &db_operation)
-      @completed = true
-
-      # TODO We commit immediately for now. It works with mongoid, but it's
-      # a very different story with ActiveRecord transactions.
-      transaction.commit if write?
-      result
+      begin
+        _commit(transaction, &db_operation).tap { @completed = true }
+      ensure
+        transaction.add_operation(self)
+        # TODO We commit immediately for now. It works with mongoid, but it's
+        # a very different story with ActiveRecord transactions.
+        transaction.commit if write? && @completed
+      end
     end
   end
 
