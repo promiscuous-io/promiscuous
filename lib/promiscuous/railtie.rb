@@ -37,18 +37,22 @@ class Promiscuous::Railtie < Rails::Railtie
     STDERR.puts "\e[0;#{36}m|"
     STDERR.puts "\e[0;#{36}m+---[ Backtrace ]--------------------------------------------------------------------------------------\e[0m"
     STDERR.puts "\e[0;#{36}m|"
-    backtrace = e.backtrace
-    .take_while { |line| line !~ /#{__FILE__}/ }
-    .map do |line|
-      line = case line
-             when /`(count|distinct|each|first|last)'$/                     then "\e[1;32m#{line}\e[0m"
-             when /`(create|insert|save|update|modify|remove|remove_all)'$/ then "\e[1;31m#{line}\e[0m"
-             when /#{Rails.root}/                                           then "\e[1;36m#{line}\e[0m"
-             else                                                                "\e[1;30m#{line}\e[0m" if ENV['TRACE']
-             end
-      "\e[0;#{36}m|  #{line}" if line
-    end
-    STDERR.puts backtrace.compact.join("\n")
+
+    bold = ENV['TRACE'] ? 1 : 0
+    bt = e.backtrace
+      .take_while { |line| line !~ /#{__FILE__}/ }
+      .map do |line|
+        line = case line
+               when /`(count|distinct|each|first|last)'$/                     then "\e[#{bold};32m#{line}\e[0m"
+               when /`(create|insert|save|update|modify|remove|remove_all)'$/ then "\e[#{bold};31m#{line}\e[0m"
+               when /#{Rails.root}/                                           then "\e[#{bold};36m#{line}\e[0m"
+               else                                                                "\e[#{bold};30m#{line}\e[0m" if ENV['TRACE']
+               end
+        "\e[0;#{36}m|  #{line}" if line
+      end
+      .compact
+      .join("\n")
+    STDERR.puts bt
     STDERR.puts "\e[0;#{36}m|"
     STDERR.puts "\e[0;#{36}m\\------------------------------------------------------------------------------------------------------\e[0m"
     STDERR.puts

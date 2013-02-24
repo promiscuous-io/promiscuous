@@ -21,12 +21,11 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
             "     This is the preferred solution when you are sure that the read doesn't\n" +
             "     influence the value of a published attribute.\n\n" +
             "  2. Use a Nested Transaction\n\n" +
-            "     a) Some earlier writes may have had happen in in this controller.\n"+
-            "        Try to identify offening writes (TRACE=1), and wrap them with a transaction.\n"+
-            "        A typical pattern is the update of the 'last_visited_at'.\n"+
-            "     b) Nested transaction can also be used as a subtitute of 1. when you\n"+
-            "        are not sure if you should discard the writes, but you know that you\n"+
-            "        have isolation on a block of code\n\n" +
+            "     a) Nested transaction can be used to optimize performance by identifying\n"+
+            "        blocks of code that do not depend on each other. A typical pattern is the\n"+
+            "        'last_visited_at' update in a before filter of all controllers\n" +
+            "     b) Some earlier writes may have had happen in in this controller.\n"+
+            "        Try to identify offening writes (TRACE=2), and reevaluate a).\n\n"+
             "     Promiscuous will adjust its write predictions and dependencies accordingly\n" +
             "     when using transactions.\n" +
             "     Refer to the wiki for details of the black magic (TODO).\n\n"
