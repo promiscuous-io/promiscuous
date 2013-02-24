@@ -12,7 +12,7 @@ class Promiscuous::Publisher::Transaction
       # happen in any controller. We wouldn't want to start tracking
       # all controllers because of this.
       if old_current && old_current.commited_childrens.include?(self.current.name)
-        self.current.trace "**** Skipping Execution ****", true if ENV['TRACE']
+        self.current.alt_trace "**** Skipping Execution ****" if ENV['TRACE']
       else
         old_active = self.current.active
         self.current.active ||= should_assume_write?(self.current)
@@ -20,7 +20,7 @@ class Promiscuous::Publisher::Transaction
 
         if ENV['TRACE']
           attr = self.current.active ? (old_active ? "" : "prediction") : "passive"
-          self.current.trace ">>> open #{attr.present? ? "(#{attr}) " : ""}>>>", true
+          self.current.alt_trace ">>> open #{attr.present? ? "(#{attr}) " : ""}>>>", :backtrace => :none
         end
         yield
       end
@@ -31,17 +31,17 @@ class Promiscuous::Publisher::Transaction
       # Note that we will remember the last link, which can come from a child
       # transaction, which is a good thing.
       if ENV['TRACE']
-        self.current.trace "**** Restarting transaction with dependency tracking ****", true
-        self.current.trace_operation(e.operation)
+        self.current.alt_trace "**** Restarting transaction with dependency tracking ****", :backtrace => :none
+        self.current.trace_operation(e.operation, :backtrace => e.backtrace)
       end
       retry
     ensure
       self.current.commit
       if ENV['TRACE']
         if self.current.active && !self.current.write_attempts.present?
-          self.current.trace "<<< close \e[1;31m(mispredicted)\e[0m <<<", true
+          self.current.alt_trace "<<< close \e[1;31m(mispredicted)\e[0m <<<", :backtrace => :none
         else
-          self.current.trace "<<< close <<<", true
+          self.current.alt_trace "<<< close <<<", :backtrace => :none
         end
       end
       self.current = old_current
@@ -134,20 +134,35 @@ class Promiscuous::Publisher::Transaction
     trace_operation(operation) if ENV['TRACE']
   end
 
-  def trace_operation(operation)
+  def trace_operation(operation, options={})
     msg = Promiscuous::Error::Dependency.explain_operation(operation, 70)
-    msg = operation.read? ? "\e[0;#{32}m#{msg}" : "\e[1;#{31}m#{msg}" if active?
     msg = msg.gsub(/(\(missed\))$/, "\e[1;#{30}m\\1")
-    trace(msg)
+    trace(msg, options.merge(:color => operation.read? ? '0;32' : '1;31'))
   end
 
-  def trace(msg, alt_fmt=false)
-    name = "(#{self.name})#{' ' * ([0,25 - self.name.size].max)}"
-    nesting = @nesting
-    if active?
-      STDERR.puts "\e[1;#{33}m#{'  ' * nesting}#{name}#{alt_fmt ? '':'  '} \e[1;#{36}m#{msg}\e[0m"
-    else
-      STDERR.puts "\e[1;#{30}m#{'  ' * nesting}#{name}#{alt_fmt ? '':'  '} #{msg}\e[0m"
+  def alt_trace(msg, options={})
+    trace(msg, options.merge(:alt_fmt => true))
+  end
+
+  def trace(msg, options={})
+    backtrace = options[:backtrace]
+    alt_fmt = options[:alt_fmt]
+    color = alt_fmt ? "1;36" : options[:color]
+    color = "1;30" unless active?
+
+    name = "(#{self.name})#{' ' * ([0, 25 - self.name.size].max)}"
+    name = '  ' * @nesting + name
+    STDERR.puts "\e[#{color}m#{name}#{alt_fmt ? '':'  '} #{msg}\e[0m"
+
+    level = ENV['TRACE'].to_i
+    if level > 1 && defined?(Rails) && backtrace != :none
+      bt = (backtrace || caller)
+        .grep(/#{Rails.root}/)
+        .map { |line| line.gsub(/#{Rails.root}/, '') }
+        .take(level-1)
+        .map { |line| "\e[1;#{30}m#{name}     #{line}\e[0m" }
+        .join("\n")
+      STDERR.puts bt
     end
   end
 

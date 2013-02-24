@@ -70,7 +70,8 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
     when :destroy   then msg += 'multi destroy'
     end
     msg += ":\n\n  #{self.class.explain_operation(self.operation)}"
-    msg += "\n\nProTip: Try again with TRACE=1 in the shell or ENV['TRACE']='1' in the console." unless ENV['TRACE']
+    msg += "\n\nProTip: Try again with TRACE=1 in the shell or ENV['TRACE']='1' in the console.\n" unless ENV['TRACE']
+    msg += "You may use TRACE=N to print N-1 lines of backtraces for each operation."  unless ENV['TRACE']
     msg
   rescue Exception => e
     "#{e.to_s}\n#{e.backtrace.join("\n")}"
