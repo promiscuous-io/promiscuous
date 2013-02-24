@@ -52,11 +52,7 @@ module Promiscuous::Config
           Promiscuous.connect
           block.call if block
         end
-
-        if pid
-          # TODO should we reconnect the parent?
-          # Promiscuous.connect
-        end
+        Promiscuous.connect if pid
         pid
       end
     end

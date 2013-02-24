@@ -49,10 +49,6 @@ module Promiscuous::ZK
   end
 
   def self.ensure_connected
-    raise lost_connection_exception unless master.ping?
-  end
-
-  def self.ensure_connected
     Promiscuous::ZK.master.ping?
   rescue
     raise lost_connection_exception
