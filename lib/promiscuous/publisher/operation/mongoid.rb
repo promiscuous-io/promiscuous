@@ -136,8 +136,31 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       end
     end
 
+    def fields_in_query(change)
+      # We are going to extract all the keys in any nested hashes, this will be the
+      # list of fields that can potentially change during the update.
+      if change.is_a?(Hash)
+        fields = change.keys + change.values.map(&method(:fields_in_query)).flatten
+        # The split on . is for embedded documents, we don't look further down.
+        fields.map { |f| f.to_s.split('.').first}.select { |k| k =~ /^[^$]/ }.uniq
+      else
+        []
+      end
+    end
+
+    def any_published_field_changed?
+      return true unless @change
+
+      # TODO maybe we should cache these things
+      # TODO discover field dependencies automatically (hard)
+      aliases = Hash[model.aliased_fields.map { |k,v| [v,k] }]
+      attributes = fields_in_query(@change).map { |f| (aliases[f.to_s] || f).to_sym }
+      (attributes & model.published_db_fields).present?
+    end
+
     def commit(&db_operation)
       return db_operation.call unless model
+      return db_operation.call unless any_published_field_changed?
 
       # We cannot do multi update/destroy
       if (operation == :update || operation == :destroy) && multi?

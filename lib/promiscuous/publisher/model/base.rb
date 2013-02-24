@@ -3,8 +3,10 @@ module Promiscuous::Publisher::Model::Base
 
   included do
     class_attribute :publish_to, :published_attrs, :tracked_attrs
+    cattr_accessor  :published_db_fields # There is one on each root class, none on the subclasses
     self.published_attrs = []
     self.tracked_attrs = []
+    self.published_db_fields = []
     track_dependencies_of :id
     Promiscuous::Publisher::Model.publishers << self
   end
@@ -91,7 +93,15 @@ module Promiscuous::Publisher::Model::Base
       @publish_as = options[:as].to_s if options[:as]
       Promiscuous::ZK.ensure_valid_backend unless publish_to =~ /^__promiscuous__\//
 
-      ([self] + descendants).each { |klass| klass.published_attrs |= attributes }
+      ([self] + descendants).each do |klass|
+        # When the user passes :use => [:f1, :f2] for example, operation/mongoid.rb
+        # can track f1 and f2 as fields important for the publishing.
+        # It's important for virtual attributes. The published_db_fields is global
+        # for the entire subclass tree.
+        klass.published_db_fields |= [options[:use]].flatten.map(&:to_sym) if options[:use]
+        klass.published_db_fields |= attributes.map(&:to_sym) # aliased fields are resolved later
+        klass.published_attrs     |= attributes.map(&:to_sym)
+      end
     end
 
     def track_dependencies_of(*attributes)
@@ -110,6 +120,7 @@ module Promiscuous::Publisher::Model::Base
       super
       subclass.published_attrs = self.published_attrs.dup
       subclass.tracked_attrs   = self.tracked_attrs.dup
+      # no copy for published_db_fields
     end
 
     class None; end

@@ -256,5 +256,30 @@ if ORM.has(:mongoid)
         dep['write'].should == ["publisher_models:id:#{pub2.id}:1"]
       end
     end
+
+    context 'when updating a field that is not published' do
+      it "doesn't track the write" do
+        PublisherModel.field :not_published
+
+        pub = nil
+        Promiscuous.transaction do
+          pub = PublisherModel.create
+          pub.update_attributes(:not_published => 'hello')
+          pub.update_attributes(:field_1 => 'ohai')
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == "publisher_models:id:#{pub.id}:1"
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
+
+        Promiscuous::AMQP::Fake.get_next_message.should == nil
+      end
+    end
   end
 end
