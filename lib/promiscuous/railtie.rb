@@ -7,7 +7,7 @@ class Promiscuous::Railtie < Rails::Railtie
     end
 
     def process_action(*args)
-      Promiscuous.transaction("#{self.class.controller_name}/#{self.action_name}") do
+      Promiscuous.transaction("#{self.class.controller_path}/#{self.action_name}") do
         cleanup_controller
         super
       end
