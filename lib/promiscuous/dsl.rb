@@ -25,6 +25,11 @@ module Promiscuous::DSL
     def attributes(*fields)
       @model_class.__send__(@mode, *fields, @options)
     end
+
+    def track_dependencies_of(field)
+      @model_class.track_dependencies_of(field)
+    end
+
     alias attribute attributes
   end
 end
