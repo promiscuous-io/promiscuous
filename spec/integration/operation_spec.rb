@@ -235,10 +235,10 @@ if ORM.has(:mongoid)
       end
     end
 
-    context 'when used with without_cross_dependencies' do
+    context 'when used with without_dependencies' do
       it "doens't track reads" do
         pub1 = pub2 = nil
-        Promiscuous.transaction :without_cross_dependencies => true do
+        Promiscuous.transaction :without_dependencies => true do
           pub1 = PublisherModel.create
           PublisherModel.first
           pub2 = PublisherModel.create

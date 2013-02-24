@@ -98,7 +98,7 @@ class Promiscuous::Publisher::Transaction
     Thread.current[:promiscuous_disabled] = value
   end
 
-  attr_accessor :name, :active, :operations, :retried, :nesting, :without_cross_dependencies
+  attr_accessor :name, :active, :operations, :retried, :nesting, :without_dependencies
   attr_accessor :last_written_dependency, :commited_childrens, :write_attempts
 
   def initialize(*args)
@@ -110,7 +110,7 @@ class Promiscuous::Publisher::Transaction
     @name ||= "#{@parent.next_child_name}" if @parent
     @name ||= 'anonymous'
     @active = options[:active] || options[:force]
-    @without_cross_dependencies = options[:without_cross_dependencies]
+    @without_dependencies = options[:without_dependencies]
     @operations = []
     @closed = false
     @commited_childrens = []
@@ -218,7 +218,7 @@ class Promiscuous::Publisher::Transaction
       # TODO increment the link counter, and treat it as a real read dependency
       options[:dependencies] = {}
 
-      unless without_cross_dependencies
+      unless without_dependencies
         options[:dependencies][:link] = @last_written_dependency if @last_written_dependency
         options[:dependencies][:read] = read_dependencies        if read_dependencies.present?
       end
@@ -242,7 +242,7 @@ class Promiscuous::Publisher::Transaction
         if write_dependencies.present?
           options[:dependencies][:write] = write_dependencies
           # The best dependency (id) will always be first
-          @last_written_dependency = write_dependencies.first unless without_cross_dependencies
+          @last_written_dependency = write_dependencies.first unless without_dependencies
         end
 
         write_operation.instance.promiscuous.publish(options)

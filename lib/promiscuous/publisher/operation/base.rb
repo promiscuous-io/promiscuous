@@ -212,7 +212,7 @@ class Promiscuous::Publisher::Operation::Base
   def commit(&db_operation)
     db_operation ||= proc {}
     return db_operation.call if Thread.current[:promiscuous_disabled]
-    return db_operation.call if Transaction.current.try(:without_cross_dependencies) && read?
+    return db_operation.call if Transaction.current.try(:without_dependencies) && read?
 
     ensure_transaction do |transaction|
       return db_operation.call unless transaction.try(:active?)
