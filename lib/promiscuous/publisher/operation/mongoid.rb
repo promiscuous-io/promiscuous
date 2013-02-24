@@ -89,7 +89,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       # an even better hint.
 
       # We only support == selectors, no $in, or $gt.
-      @selector = selector.select { |k,v| k =~ /^[^$]/ && !v.is_a?(Hash) }
+      @selector = selector.select { |k,v| k.to_s =~ /^[^$]/ && !v.is_a?(Hash) }
 
       # @instance is not really a proper instance of a model, it's just a
       # convenient representation of a selector as explain in base.rb,
@@ -140,7 +140,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       if change.is_a?(Hash)
         fields = change.keys + change.values.map(&method(:fields_in_query)).flatten
         # The split on . is for embedded documents, we don't look further down.
-        fields.map { |f| f.to_s.split('.').first}.select { |k| k =~ /^[^$]/ }.uniq
+        fields.map { |f| f.to_s.split('.').first}.select { |k| k.to_s =~ /^[^$]/ }.uniq
       else
         []
       end
