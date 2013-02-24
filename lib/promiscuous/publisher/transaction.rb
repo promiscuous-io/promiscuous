@@ -71,11 +71,14 @@ class Promiscuous::Publisher::Transaction
   end
 
   def self.should_assume_write?(transaction)
+    # Setting Promiscuous::Config.transaction_forget_rate to 0 is the least
+    # optimistic setting, which means that transactions are always retried.
+    # Perfect for tests.
     with_earlier_transaction(transaction.name) do |t|
       if t
         t[:counter] -= 1
         write_predictions.delete(transaction.name) if t[:counter] <= 0
-        true
+        write_predictions.has_key?(transaction.name)
       else
         false
       end
