@@ -60,7 +60,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
 
     msg += self.class.explain_transaction(transaction) if operation.operation == :read
 
-    msg += "The query promiscuous cannot execute is the following "
+    msg += "Promiscuous cannot allow the following "
     case operation.operation_ext || operation.operation
     when :count     then msg += 'count'
     when :mapreduce then msg += 'mapreduce'
