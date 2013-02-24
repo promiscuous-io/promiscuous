@@ -165,7 +165,7 @@ class Promiscuous::Publisher::Transaction
     if level > 1 && defined?(Rails) && backtrace != :none
       bt = (backtrace || caller)
         .grep(/#{Rails.root}/)
-        .map { |line| line.gsub(/#{Rails.root}/, '') }
+        .map { |line| line.gsub(/#{Rails.root}\/?/, '') }
         .take(level-1)
         .map { |line| "\e[1;#{30}m#{name}     #{line}\e[0m" }
         .join("\n")
