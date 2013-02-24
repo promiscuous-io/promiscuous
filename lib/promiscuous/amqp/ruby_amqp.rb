@@ -148,8 +148,6 @@ module Promiscuous::AMQP::RubyAMQP
   end
 
   module CelluloidSubscriber
-    attr_accessor :closed
-
     def subscribe(options={}, &block)
       queue_name    = options[:queue_name]
       bindings      = options[:bindings]
@@ -172,6 +170,7 @@ module Promiscuous::AMQP::RubyAMQP
         end
       end
       wait_for_subscription
+      @closed = false
     end
 
     class MetaData
@@ -181,12 +180,16 @@ module Promiscuous::AMQP::RubyAMQP
       end
 
       def ack
-        @raw_metadata.ack unless subscriber.closed
+        @raw_metadata.ack unless @subscriber.closed?
       end
     end
 
     def wait_for_subscription
       @subscribe_sync.wait
+    end
+
+    def closed?
+      !!@closed
     end
 
     def finalize

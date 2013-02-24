@@ -2,8 +2,8 @@ require 'spec_helper'
 
 if ORM.has(:mongoid)
   describe Promiscuous do
-    before { load_models }
     before { use_real_backend }
+    before { load_models }
     before { record_callbacks(SubscriberModel) }
 
     before { run_subscriber_worker! }
