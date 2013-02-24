@@ -58,9 +58,9 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
 
     msg += "#{"-" * 100}\n\n"
 
-    msg += explain_transaction(transaction)
+    msg += self.class.explain_transaction(transaction) if operation.operation == :read
 
-    msg += "The problem comes from the following "
+    msg += "The query promiscuous cannot execute is the following "
     case operation.operation_ext || operation.operation
     when :count     then msg += 'count'
     when :mapreduce then msg += 'mapreduce'
@@ -76,23 +76,21 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
     "#{e.to_s}\n#{e.backtrace.join("\n")}"
   end
 
-  def explain_transaction(transaction)
+  def self.explain_transaction(transaction)
+    t = nil
     msg = ""
-    if operation.operation == :read
-      t = nil
-      if transaction.write_attempts.present?
-        msg += "Promiscuous is tracking this read because of these earlier writes:\n\n"
-        t = transaction
-      else
-        transaction.class.with_earlier_transaction(transaction.name) { |_t| t = _t }
-        return "" unless t
-        call_distance = Promiscuous::Config.transaction_forget_rate - t[:counter]
-        t = t[:transaction]
-        msg += "Promiscuous is tracking this read because this controller (#{transaction.name}) used to write.\n" +
-               "#{call_distance == 1 ? 'One call' : "#{call_distance} calls"} back, this controller wrote:\n\n"
-      end
-      msg += t.write_attempts.map { |operation| "  #{self.class.explain_operation(operation)}" }.join("\n") + "\n\n"
+    if transaction.write_attempts.present?
+      msg += "Promiscuous is tracking this read because of these earlier writes:\n\n"
+      t = transaction
+    else
+      transaction.class.with_earlier_transaction(transaction.name) { |_t| t = _t }
+      return "" unless t
+      call_distance = Promiscuous::Config.transaction_forget_rate - t[:counter]
+      t = t[:transaction]
+      msg += "Promiscuous is tracking this read because this transaction (#{transaction.name}) used to write.\n" +
+             "#{call_distance == 1 ? 'One call' : "#{call_distance} calls"} back, this transaction wrote:\n\n"
     end
+    msg += t.write_attempts.map { |operation| "  #{explain_operation(operation)}" }.join("\n") + "\n\n"
     msg
   end
 

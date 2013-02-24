@@ -16,20 +16,24 @@ class Promiscuous::Publisher::Transaction
       else
         old_active = self.current.active
         self.current.active ||= should_assume_write?(self.current)
-        self.cleanup_state if self.current.active
+        self.current.reset
 
         if ENV['TRACE']
           attr = self.current.active ? (old_active ? "" : "prediction") : "passive"
           self.current.alt_trace ">>> open #{attr.present? ? "(#{attr}) " : ""}>>>", :backtrace => :none
         end
-        yield
+
+        yield.tap do
+          if self.current.retried && self.current.write_attempts.size == 1
+            raise Promiscuous::Error::IdempotentViolation
+          end
+        end
       end
     rescue Promiscuous::Error::InactiveTransaction => e
       self.current.retried = true
       self.current.active = true
       remember_write(self.current)
-      # Note that we will remember the last link, which can come from a child
-      # transaction, which is a good thing.
+
       if ENV['TRACE']
         self.current.alt_trace "**** Restarting transaction with dependency tracking ****", :backtrace => :none
         self.current.trace_operation(e.operation, :backtrace => e.backtrace)
@@ -47,10 +51,6 @@ class Promiscuous::Publisher::Transaction
       self.current = old_current
       self.disabled = old_disabled
     end
-  end
-
-  def self.cleanup_state
-    Mongoid::IdentityMap.clear if defined?(Mongoid::IdentityMap) && self.current.active
   end
 
   cattr_accessor :write_predictions, :write_predictions_lock
@@ -107,6 +107,7 @@ class Promiscuous::Publisher::Transaction
     @last_written_dependency = @parent.try(:last_written_dependency)
     @nesting = @parent.try(:nesting).to_i + 1
     @name = args.first.try(:to_s)
+    @name ||= "#{@parent.next_child_name}" if @parent
     @name ||= 'anonymous'
     @active = options[:active] || options[:force]
     @without_cross_dependencies = options[:without_cross_dependencies]
@@ -117,16 +118,22 @@ class Promiscuous::Publisher::Transaction
     Promiscuous::AMQP.ensure_connected
   end
 
+  def reset
+    Mongoid::IdentityMap.clear if active? && defined?(Mongoid::IdentityMap)
+    @next_child = 0
+  end
+
+  def next_child_name
+    @next_child += 1
+    "#{name}/#{@next_child}"
+  end
+
   def active?
     !!@active
   end
 
   def closed?
     !!@closed
-  end
-
-  def retried?
-    !!@retried
   end
 
   def add_operation(operation)

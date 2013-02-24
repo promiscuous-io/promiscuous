@@ -58,5 +58,17 @@ describe Promiscuous do
         expect { PublisherModel.create }.to raise_error(Promiscuous::Error::ClosedTransaction)
       end
     end
+
+    it 'throws exception when non idempotent' do
+      expect do
+        @do_write = true
+        Promiscuous.transaction('test') do
+          if @do_write
+            @do_write = false
+            PublisherModel.create
+          end
+        end
+      end.to raise_error(Promiscuous::Error::IdempotentViolation)
+    end
   end
 end
