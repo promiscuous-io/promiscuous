@@ -205,6 +205,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   ensure
     Thread.current[:moped_query] = old_moped_query
   end
+  alias :cursor :each
 
   def first
     # TODO If the the user is using something like .only(), we need to make
@@ -214,6 +215,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       operation ? operation.raw_instance : super
     end
   end
+  alias :one :first
 
   def update(change, flags=nil)
     multi = flags && flags.include?(:multi)
