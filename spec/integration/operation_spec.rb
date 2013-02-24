@@ -234,5 +234,27 @@ if ORM.has(:mongoid)
         Promiscuous::AMQP::Fake.get_next_message.should == nil
       end
     end
+
+    context 'when used with without_cross_dependencies' do
+      it "doens't track reads" do
+        pub1 = pub2 = nil
+        Promiscuous.transaction :without_cross_dependencies => true do
+          pub1 = PublisherModel.create
+          PublisherModel.first
+          pub2 = PublisherModel.create
+          PublisherModel.first
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub1.id}:1"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub2.id}:1"]
+      end
+    end
   end
 end
