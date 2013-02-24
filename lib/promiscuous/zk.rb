@@ -59,6 +59,7 @@ module Promiscuous::ZK
   end
 
   def self.method_missing(name, *args, &block)
+    raise lost_connection_exception unless self.master
     self.master.__send__(name, *args, &block)
   end
 
