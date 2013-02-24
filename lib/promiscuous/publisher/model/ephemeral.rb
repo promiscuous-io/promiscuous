@@ -49,6 +49,10 @@ module Promiscuous::Publisher::Model::Ephemeral
     save
   end
 
+  def attributes
+    Hash[self.class.published_attrs.map { |attr| [attr, __send__(attr)] }]
+  end
+
   module ClassMethods
     def publish(*args)
       super
