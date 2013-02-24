@@ -16,6 +16,10 @@ class Promiscuous::Railtie < Rails::Railtie
       Promiscuous::Railtie.pretty_print_exception(e)
       raise e
     end
+
+    def render(*args)
+      without_promiscuous { super }
+    end
   end
 
   def self.pretty_print_exception(e)
