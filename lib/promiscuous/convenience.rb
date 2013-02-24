@@ -5,4 +5,9 @@ module Promiscuous::Convenience
   ensure
     Promiscuous::Publisher::Transaction.disabled = old_disabled
   end
+
+  # alias for Promiscuous.transaction
+  def with_promiscuous(*args, &block)
+    Promiscuous::Publisher::Transaction.open(*args, &block)
+  end
 end
