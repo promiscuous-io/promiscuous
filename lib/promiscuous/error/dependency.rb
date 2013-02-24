@@ -63,10 +63,11 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
 
     msg += "The problem comes from the following "
     case operation.operation_ext || operation.operation
-    when :count   then msg += 'count'
-    when :read    then msg += 'each loop'
-    when :update  then msg += 'multi update'
-    when :destroy then msg += 'multi destroy'
+    when :count     then msg += 'count'
+    when :mapreduce then msg += 'mapreduce'
+    when :read      then msg += 'each loop'
+    when :update    then msg += 'multi update'
+    when :destroy   then msg += 'multi destroy'
     end
     msg += ":\n\n  #{self.class.explain_operation(self.operation)}"
     msg += "\n\nProTip: Try again with TRACE=1 in the shell or ENV['TRACE']='1' in the console." unless ENV['TRACE']
@@ -103,10 +104,11 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
       "#{instance.class}.create(#{selector})"
     else
       case operation.operation_ext || operation.operation
-      when :count   then verb = 'count'
-      when :read    then verb = operation.multi? ? 'each { ... }' : 'first'
-      when :update  then verb = operation.multi? ? 'update_all'   : 'update'
-      when :destroy then verb = operation.multi? ? 'delete_all'   : 'delete'
+      when :count     then verb = 'count'
+      when :mapreduce then verb = 'mapreduce(...)'
+      when :read      then verb = operation.multi? ? 'each { ... }' : 'first'
+      when :update    then verb = operation.multi? ? 'update_all'   : 'update'
+      when :destroy   then verb = operation.multi? ? 'delete_all'   : 'delete'
       end
       msg = "#{class_name}#{selector.present? ? ".where(#{selector})" : ""}.#{verb}"
       if operation.operation == :update && operation.respond_to?(:change) && operation.change

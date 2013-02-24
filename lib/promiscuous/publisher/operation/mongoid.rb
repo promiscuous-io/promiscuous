@@ -49,6 +49,8 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
       promiscuous_create_operation(:document => doc).commit { super(doc, flags) }
     end
   end
+
+  # TODO aggregate
 end
 
 class Moped::PromiscuousQueryWrapper < Moped::Query
@@ -273,6 +275,27 @@ class Moped::PromiscuousCursorWrapper < Moped::Cursor
   end
 end
 
+class Moped::PromiscuousDatabase < Moped::Database
+  # TODO it might be safer to use the alias attribute method because promiscuous
+  # may come late in the loading.
+  def promiscuous_operation(op, options={})
+    Moped::PromiscuousQueryWrapper::PromiscuousQueryOperation.new(
+      options.merge(:operation => op))
+  end
+
+  # Moped::Database
+
+  def command(command)
+    if command[:mapreduce]
+      query = Moped::Query.new(self[command[:mapreduce]], command[:query])
+      promiscuous_operation(:read, :query => query,
+                            :operation_ext => :mapreduce, :multi => true).commit { super }
+    else
+      super
+    end
+  end
+end
+
 class Mongoid::Validations::UniquenessValidator
   alias_method :validate_root_without_promisucous, :validate_root
   def validate_root(*args)
@@ -286,3 +309,5 @@ Moped.__send__(:remove_const, :Query)
 Moped.__send__(:const_set,    :Query, Moped::PromiscuousQueryWrapper)
 Moped.__send__(:remove_const, :Cursor)
 Moped.__send__(:const_set,    :Cursor, Moped::PromiscuousCursorWrapper)
+Moped.__send__(:remove_const, :Database)
+Moped.__send__(:const_set,    :Database, Moped::PromiscuousDatabase)

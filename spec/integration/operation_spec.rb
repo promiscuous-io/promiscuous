@@ -281,5 +281,25 @@ if ORM.has(:mongoid)
         Promiscuous::AMQP::Fake.get_next_message.should == nil
       end
     end
+
+    context 'when using map reduce' do
+      it 'track the read' do
+        PublisherModel.track_dependencies_of :field_1
+        without_promiscuous do
+          PublisherModel.create(:field_1 => 123)
+          PublisherModel.create(:field_1 => 123)
+        end
+        Promiscuous.transaction :force => true do
+          PublisherModel.where(:field_1 => 123).sum(:field_2)
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == nil
+        # Mongoid does an extra count.
+        dep['read'].should  == ["publisher_models:field_1:123:0",
+                                "publisher_models:field_1:123:0"]
+        dep['write'].should == nil
+      end
+    end
   end
 end
