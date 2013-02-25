@@ -11,11 +11,8 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     end
 
     def model
-      return @model if @model
-      @model = @document.try(:[], '_type').try(:constantize) ||
-               Promiscuous::Publisher::Model::Mongoid.collection_mapping[@collection.name]
-      @model = nil unless @model < Promiscuous::Publisher::Model::Mongoid
-      @model
+      @model ||= @document.try(:[], '_type').try(:constantize) ||
+                 Promiscuous::Publisher::Model::Mongoid.collection_mapping[@collection.name]
     rescue NameError
     end
 
@@ -25,11 +22,16 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     end
 
     def commit(&db_operation)
-      return db_operation.call unless model
+      if Promiscuous::Config.transaction_safety_level == :track_all_writes
+        ensure_valid_transaction if Promiscuous::Publisher::Transaction.current
+      end
+
+      return db_operation.call unless model && model < Promiscuous::Publisher::Model::Mongoid
       super
     rescue Promiscuous::Error::InactiveTransaction => e
       # Because we do lazy binding on @instance, the instance is still not
       # set at this point. It's useful to set it for error messages.
+      @model ||= @collection.name.singularize.camelize.constantize
       @instance = Mongoid::Factory.from_db(model, @document)
       raise e
     end
@@ -63,8 +65,11 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       @change = options[:change]
     end
 
+    def collection_name
+      @collection_name ||= @query.collection.is_a?(String) ? @query.collection : @query.collection.name
+    end
+
     def model
-      collection_name = @query.collection.is_a?(String) ? @query.collection : @query.collection.name
       @model ||= Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection_name]
     end
 
@@ -157,6 +162,10 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def commit(&db_operation)
+      if Promiscuous::Config.transaction_safety_level == :track_all_writes
+        ensure_valid_transaction if Promiscuous::Publisher::Transaction.current
+      end
+
       return db_operation.call if @query.without_promiscuous?
       return db_operation.call unless model
       return db_operation.call unless any_published_field_changed?
@@ -169,6 +178,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     rescue Promiscuous::Error::InactiveTransaction => e
       # Because we do lazy binding on @instance, the instance is still not
       # set at this point. It's useful to set it for error messages.
+      @model ||= collection_name.singularize.camelize.constantize
       @instance = get_selector_instance
       raise e
     end
@@ -317,7 +327,7 @@ class Mongoid::Contextual::Mongo
 end
 
 module Origin::Optional
-  def without_read_dependencies
+  def without_promiscuous
     clone.tap { |criteria| criteria.options.store(:without_promiscuous, true) }
   end
 end

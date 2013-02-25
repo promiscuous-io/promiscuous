@@ -302,7 +302,7 @@ if ORM.has(:mongoid)
       end
     end
 
-    context 'when using one_by_one.each' do
+    context 'when using without_promiscuous.each' do
       it 'track the reads one by one' do
         pub1 = pub2 = nil
         without_promiscuous do
@@ -311,7 +311,7 @@ if ORM.has(:mongoid)
         end
         Promiscuous.transaction :force => true do
           expect do
-            PublisherModel.all.without_read_dependencies.where(:field_1 => 123).each do |p|
+            PublisherModel.all.without_promiscuous.where(:field_1 => 123).each do |p|
               p.reload
             end
           end.to_not raise_error

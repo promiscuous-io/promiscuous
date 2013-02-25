@@ -191,7 +191,7 @@ class Promiscuous::Publisher::Operation::Base
     end
   end
 
-  def ensure_transaction
+  def ensure_valid_transaction
     transaction = Transaction.current
     # We wrap all writes in transactions if the user doesn't want to deal with
     # them. It can be used in the development console.
@@ -205,7 +205,7 @@ class Promiscuous::Publisher::Operation::Base
       raise Promiscuous::Error::InactiveTransaction.new(self) unless transaction.active?
     end
 
-    yield(transaction)
+    yield(transaction) if block_given?
   end
 
   def commit(&db_operation)
@@ -213,7 +213,7 @@ class Promiscuous::Publisher::Operation::Base
     return db_operation.call if Thread.current[:promiscuous_disabled]
     return db_operation.call if Transaction.current.try(:without_read_dependencies) && read?
 
-    ensure_transaction do |transaction|
+    ensure_valid_transaction do |transaction|
       return db_operation.call unless transaction.try(:active?)
 
       begin

@@ -13,8 +13,9 @@ module Promiscuous::Convenience
   end
 end
 
-module Enumerable
-  def without_read_dependencies
+class ::Array
+  def without_promiscuous
+    raise "what is this block?" if block_given?
     self
   end
 end

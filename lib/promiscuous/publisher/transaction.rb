@@ -83,6 +83,8 @@ class Promiscuous::Publisher::Transaction
   end
 
   def self.should_assume_write?(transaction)
+    return true if Promiscuous::Config.transaction_safety_level == :track_all
+
     # Setting Promiscuous::Config.transaction_forget_rate to 0 is the least
     # optimistic setting, which means that transactions are always retried.
     # Perfect for tests.
@@ -230,11 +232,8 @@ class Promiscuous::Publisher::Transaction
       # of the first write when publishing the second write.
       # TODO increment the link counter, and treat it as a real read dependency
       options[:dependencies] = {}
-
       options[:dependencies][:link] = @last_written_dependency if @last_written_dependency
-      unless without_read_dependencies
-        options[:dependencies][:read] = read_dependencies if read_dependencies.present?
-      end
+      options[:dependencies][:read] = read_dependencies if read_dependencies.present?
 
       if write_operation && write_operation.instance
         if write_operation.failed?
