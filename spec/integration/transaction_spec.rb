@@ -52,14 +52,6 @@ describe Promiscuous do
       @run_count.should == 2
     end
 
-    it 'throws exception if closed' do
-      Promiscuous.transaction('test') do
-        PublisherModel.first
-        Promiscuous.close_current_transaction
-        expect { PublisherModel.create }.to raise_error(Promiscuous::Error::ClosedTransaction)
-      end
-    end
-
     it 'throws exception when non idempotent' do
       expect do
         @do_write = true

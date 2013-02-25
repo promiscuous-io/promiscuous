@@ -118,7 +118,6 @@ class Promiscuous::Publisher::Transaction
     @active = options[:active] || options[:force] || options[:without_dependencies]
     @without_dependencies = options[:without_dependencies]
     @operations = []
-    @closed = false
     @commited_childrens = []
     @write_attempts = []
     Promiscuous::AMQP.ensure_connected
@@ -136,10 +135,6 @@ class Promiscuous::Publisher::Transaction
 
   def active?
     !!@active
-  end
-
-  def closed?
-    !!@closed
   end
 
   def had_operations?
@@ -186,12 +181,6 @@ class Promiscuous::Publisher::Transaction
         .join("\n")
       STDERR.puts bt
     end
-  end
-
-  def close
-    commit
-    @active = false
-    @closed = true
   end
 
   def commit_child(child)
