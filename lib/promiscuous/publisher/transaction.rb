@@ -45,6 +45,8 @@ class Promiscuous::Publisher::Transaction
       if ENV['TRACE']
         if self.current.active && self.current.had_operations? && !self.current.write_attempts.present?
           self.current.alt_trace "<<< close \e[1;31m(mispredicted)\e[0m <<<", :backtrace => :none
+        elsif self.current.sent_dummy?
+          self.current.alt_trace "<<< close \e[1;31m(trailing reads)\e[0m <<<", :backtrace => :none
         else
           self.current.alt_trace "<<< close <<<", :backtrace => :none
         end
@@ -142,6 +144,10 @@ class Promiscuous::Publisher::Transaction
 
   def had_operations?
     !!@had_operations
+  end
+
+  def sent_dummy?
+    !!@sent_dummy
   end
 
   def add_operation(operation)
@@ -262,6 +268,7 @@ class Promiscuous::Publisher::Transaction
         # Note that we cannot have write_dependencies since write_operation
         # doesn't have an instance.
         Dummy.new.promiscuous.publish(options) if read_dependencies.present?
+        @sent_dummy = true
         # We don't need to send a link to the dummy to the next operation
         # because we haven't written anything.
       end
