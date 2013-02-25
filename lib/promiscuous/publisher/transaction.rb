@@ -11,7 +11,8 @@ class Promiscuous::Publisher::Transaction
       # updating the last_visisted_at field on a member which can
       # happen in any controller. We wouldn't want to start tracking
       # all controllers because of this.
-      if old_current && old_current.commited_childrens.include?(self.current.name)
+      # TODO the retried check is not super correct, but it works
+      if old_current.try(:retried) && old_current.commited_childrens.include?(self.current.name)
         self.current.alt_trace "**** Skipping Execution ****" if ENV['TRACE']
       else
         old_active = self.current.active

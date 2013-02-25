@@ -71,5 +71,15 @@ describe Promiscuous do
         end
       end.to raise_error(Promiscuous::Error::IdempotentViolation)
     end
+
+    it 'supports transactions with the same name' do
+      @count = 0
+      Promiscuous.transaction do
+        Promiscuous.transaction(:test) { @count += 1 }
+        Promiscuous.transaction(:test) { @count += 1 }
+        Promiscuous.transaction(:test) { @count += 1 }
+      end
+      @count.should == 3
+    end
   end
 end
