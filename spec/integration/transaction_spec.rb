@@ -4,6 +4,7 @@ describe Promiscuous do
   before { use_real_backend }
   before { load_models }
   before { run_subscriber_worker! }
+  before { Promiscuous::Publisher::Transaction.write_predictions.clear }
 
   context 'when doing a write in a transaction' do
     it 'learns' do
