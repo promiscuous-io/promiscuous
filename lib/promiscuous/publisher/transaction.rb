@@ -2,9 +2,11 @@ class Promiscuous::Publisher::Transaction
   # XXX Transactions are not sharable among threads
 
   def self.open(*args, &block)
+    options = args.extract_options!
+    options[:active] ||= options[:not_retriable]
+
     if !block
       if self.current
-        options = args.extract_options!
         self.current.active = options[:active] if options[:active]
         self.current.without_read_dependencies = options[:without_read_dependencies] if options[:without_read_dependencies]
       end
@@ -12,7 +14,7 @@ class Promiscuous::Publisher::Transaction
     end
 
     old_disabled, self.disabled = self.disabled, false
-    old_current, self.current = self.current, new(*args)
+    old_current, self.current = self.current, new(*args, options)
 
     begin
       # We skip already commited transactions when retrying to allow
@@ -126,7 +128,7 @@ class Promiscuous::Publisher::Transaction
     @name = args.first.try(:to_s)
     @name ||= "#{@parent.next_child_name}" if @parent
     @name ||= 'anonymous'
-    @active = options[:active] || options[:force] || options[:without_read_dependencies]
+    @active = options[:active] || options[:without_read_dependencies]
     @without_read_dependencies = options[:without_read_dependencies]
     @operations = []
     @commited_childrens = []

@@ -289,7 +289,7 @@ if ORM.has(:mongoid)
           PublisherModel.create(:field_1 => 123)
           PublisherModel.create(:field_1 => 123)
         end
-        Promiscuous.transaction :force => true do
+        Promiscuous.transaction :active => true do
           PublisherModel.where(:field_1 => 123).sum(:field_2)
         end
 
@@ -309,7 +309,7 @@ if ORM.has(:mongoid)
           pub1 = PublisherModel.create(:field_1 => 123)
           pub2 = PublisherModel.create(:field_1 => 123)
         end
-        Promiscuous.transaction :force => true do
+        Promiscuous.transaction :active => true do
           expect do
             PublisherModel.all.without_promiscuous.where(:field_1 => 123).each do |p|
               p.reload
