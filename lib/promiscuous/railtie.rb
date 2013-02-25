@@ -1,5 +1,12 @@
+require 'set'
+
 class Promiscuous::Railtie < Rails::Railtie
   module TransactionMiddleware
+    extend ActiveSupport::Concern
+
+    mattr_accessor :not_retriable
+    self.not_retriable = Set.new
+
     def cleanup_controller
       self.instance_variables.each do |var|
         remove_instance_variable(var) unless var.in?(@_prestine_vars)
@@ -9,7 +16,11 @@ class Promiscuous::Railtie < Rails::Railtie
     def process_action(*args)
       @_prestine_vars = []
       @_prestine_vars = self.instance_variables
-      Promiscuous.transaction("#{self.class.controller_path}/#{self.action_name}") do
+
+      full_name = "#{self.class.controller_path}/#{self.action_name}"
+      options = {}
+      options[:active] = full_name.in?(Promiscuous::Railtie::TransactionMiddleware.not_retriable)
+      Promiscuous.transaction(full_name, options) do
         cleanup_controller
         super
       end
@@ -21,6 +32,15 @@ class Promiscuous::Railtie < Rails::Railtie
 
     def render(*args)
       without_promiscuous { super }
+    end
+
+    module ClassMethods
+      def not_retriable(*args)
+        args.each do |action|
+          full_name = "#{controller_path}/#{action}"
+          Promiscuous::Railtie::TransactionMiddleware.not_retriable << full_name
+        end
+      end
     end
   end
 
@@ -66,10 +86,13 @@ class Promiscuous::Railtie < Rails::Railtie
   end
 
   initializer 'load promiscuous' do
+    config.before_initialize do
+      ActionController::Base.__send__(:include, TransactionMiddleware)
+    end
+
     config.after_initialize do
       Promiscuous::Config.configure unless Promiscuous::Config.configured?
       Promiscuous::Loader.prepare
-      ActionController::Base.__send__(:include, TransactionMiddleware)
 
       ActionDispatch::Reloader.to_prepare do
         Promiscuous::Loader.prepare
