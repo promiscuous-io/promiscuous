@@ -1,12 +1,14 @@
 class Promiscuous::Railtie < Rails::Railtie
   module TransactionMiddleware
     def cleanup_controller
-      self.instance_variables.grep(/^@[^:_]/).each do |var|
-        instance_variable_set(var, nil)
+      self.instance_variables.each do |var|
+        remove_instance_variable(var) unless var.in?(@_prestine_vars)
       end
     end
 
     def process_action(*args)
+      @_prestine_vars = []
+      @_prestine_vars = self.instance_variables
       Promiscuous.transaction("#{self.class.controller_path}/#{self.action_name}") do
         cleanup_controller
         super
