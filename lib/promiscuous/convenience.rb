@@ -12,3 +12,9 @@ module Promiscuous::Convenience
     Promiscuous::Publisher::Transaction.open(*args, &block)
   end
 end
+
+module Enumerable
+  def without_dependencies
+    self
+  end
+end
