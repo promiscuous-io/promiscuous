@@ -301,5 +301,28 @@ if ORM.has(:mongoid)
         dep['write'].should == nil
       end
     end
+
+    context 'when using one_by_one.each' do
+      it 'track the reads one by one' do
+        pub1 = pub2 = nil
+        without_promiscuous do
+          pub1 = PublisherModel.create(:field_1 => 123)
+          pub2 = PublisherModel.create(:field_1 => 123)
+        end
+        Promiscuous.transaction :force => true do
+          expect do
+            PublisherModel.all.without_dependencies.where(:field_1 => 123).each do |p|
+              p.reload
+            end
+          end.to_not raise_error
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == ["publisher_models:id:#{pub1.id}:0",
+                                "publisher_models:id:#{pub2.id}:0"]
+        dep['write'].should == nil
+      end
+    end
   end
 end

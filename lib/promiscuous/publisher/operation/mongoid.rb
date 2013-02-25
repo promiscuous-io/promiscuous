@@ -157,6 +157,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def commit(&db_operation)
+      return db_operation.call if @query.without_promiscuous?
       return db_operation.call unless model
       return db_operation.call unless any_published_field_changed?
 
@@ -189,6 +190,14 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     @session = session.with(:consistency => :strong)
   end
 
+  def without_promiscuous!
+    @without_promiscuous = true
+  end
+
+  def without_promiscuous?
+    !!@without_promiscuous
+  end
+
   # Moped::Query
 
   def count(*args)
@@ -200,6 +209,8 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   end
 
   def each
+    # The TLS is used to pass arguments to the Cursor so we don't hijack more than
+    # necessary.
     old_moped_query, Thread.current[:moped_query] = Thread.current[:moped_query], self
     super
   ensure
@@ -293,6 +304,21 @@ class Moped::PromiscuousDatabase < Moped::Database
     else
       super
     end
+  end
+end
+
+class Mongoid::Contextual::Mongo
+  alias_method :each_hijacked, :each
+
+  def each(&block)
+    query.without_promiscuous! if criteria.options[:without_promiscuous]
+    each_hijacked(&block)
+  end
+end
+
+module Origin::Optional
+  def without_dependencies
+    clone.tap { |criteria| criteria.options.store(:without_promiscuous, true) }
   end
 end
 

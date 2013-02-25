@@ -1,5 +1,6 @@
 module Promiscuous::Convenience
   def without_promiscuous
+    raise "No block given" unless block_given?
     old_disabled, Promiscuous::Publisher::Transaction.disabled = Promiscuous::Publisher::Transaction.disabled, true
     yield
   ensure
