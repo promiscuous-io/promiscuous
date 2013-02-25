@@ -13,24 +13,36 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
     msg = nil
     case operation.operation
     when :read
-      msg = "Promiscuous doesn't have any tracked dependencies to perform this multi read operation.\n" +
-            "This is what you can do:\n\n" +
-            "  1. Bypass Promiscuous\n\n" +
-            "     If you don't use the result of this operation in your following writes,\n" +
-            "     you can wrap your read query in a 'without_promiscuous { }' block.\n" +
-            "     This is the preferred solution when you are sure that the read doesn't\n" +
-            "     influence the value of a published attribute.\n\n" +
-            "  2. Use a Nested Transaction\n\n" +
-            "     a) Nested transaction can be used to optimize performance by identifying\n"+
-            "        blocks of code that do not depend on each other. A typical pattern is the\n"+
-            "        'last_visited_at' update in a before filter of all controllers\n" +
-            "     b) Some earlier writes may have had happen in in this controller.\n"+
-            "        Try to identify offening writes (TRACE=2), and reevaluate a).\n\n"+
-            "     Promiscuous will adjust its write predictions and dependencies accordingly\n" +
-            "     when using transactions.\n" +
-            "     Refer to the wiki for details of the black magic (TODO).\n\n"
+      msg =  "Promiscuous doesn't have any tracked dependencies to perform this multi read operation.\n" +
+             "This is what you can do:\n\n" +
+             "  1. Bypass Promiscuous\n\n" +
+             "     If you don't use the result of this operation in your following writes,\n" +
+             "     you can wrap your read query in a 'without_promiscuous { }' block.\n" +
+             "     This is the preferred solution when you are sure that the read doesn't\n" +
+             "     influence the value of a published attribute.\n\n" +
+             "  2. Use a Nested Transaction\n\n" +
+             "     a) Nested transaction can be used to optimize performance by identifying\n"+
+             "        blocks of code that do not depend on each other. A typical pattern is the\n"+
+             "        'last_visited_at' update in a before filter of all controllers\n" +
+             "     b) Some earlier writes may have had happen in in this controller.\n"+
+             "        Try to identify offening writes (TRACE=2), and reevaluate a).\n\n"+
+             "     Promiscuous will adjust its write predictions and dependencies accordingly\n" +
+             "     when using transactions.\n\n"
+      cnt = 3
+      if operation.operation_ext != :count
+        msg += "  #{cnt}. Synchronize on individual instances\n\n" +
+               "     If the collection you are iterating through is small (<10), it becomes intersting\n" +
+               "     to track instances through their ids instead of the query selector. Example:\n\n" +
+               "          criteria.without_dependencies.each do |doc|\n" +
+               "            next if doc.should_do_something?\n" +
+               "            doc.reload # tell promiscuous to track the instance\n" +
+               "            doc.do_something!\n" +
+               "          end\n\n" +
+               "     It's also interesting to wrap the whole thing in a transaction to isolate the block.\n\n"
+        cnt += 1
+      end
       if dependency_solutions.present?
-        msg += "  3. Track New Dependencies\n\n" +
+        msg += "  #{cnt}. Track New Dependencies\n\n" +
                "     Add #{dependency_solutions.count == 1 ? "the following line" : "one of the following lines"} " +
                     "in the #{operation.instance.class} model:\n\n" +
                "       class #{operation.instance.class}\n" +
