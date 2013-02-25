@@ -8,6 +8,7 @@ class Promiscuous::Railtie < Rails::Railtie
     self.not_retriable = Set.new
 
     def cleanup_controller
+      request.body.rewind
       self.instance_variables.each do |var|
         remove_instance_variable(var) unless var.in?(@_prestine_vars)
       end
