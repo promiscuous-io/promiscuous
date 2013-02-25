@@ -235,10 +235,10 @@ if ORM.has(:mongoid)
       end
     end
 
-    context 'when used with without_dependencies' do
+    context 'when used with without read dependencies' do
       it "doens't track reads" do
         pub1 = pub2 = nil
-        Promiscuous.transaction :without_dependencies => true do
+        Promiscuous.transaction :without_read_dependencies => true do
           pub1 = PublisherModel.create
           PublisherModel.first
           pub2 = PublisherModel.create
@@ -251,7 +251,7 @@ if ORM.has(:mongoid)
         dep['write'].should == ["publisher_models:id:#{pub1.id}:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
+        dep['link'].should  == "publisher_models:id:#{pub1.id}:1"
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub2.id}:1"]
       end
@@ -311,7 +311,7 @@ if ORM.has(:mongoid)
         end
         Promiscuous.transaction :force => true do
           expect do
-            PublisherModel.all.without_dependencies.where(:field_1 => 123).each do |p|
+            PublisherModel.all.without_read_dependencies.where(:field_1 => 123).each do |p|
               p.reload
             end
           end.to_not raise_error

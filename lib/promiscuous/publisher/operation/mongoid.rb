@@ -317,7 +317,7 @@ class Mongoid::Contextual::Mongo
 end
 
 module Origin::Optional
-  def without_dependencies
+  def without_read_dependencies
     clone.tap { |criteria| criteria.options.store(:without_promiscuous, true) }
   end
 end

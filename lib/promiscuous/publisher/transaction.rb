@@ -6,7 +6,7 @@ class Promiscuous::Publisher::Transaction
       if self.current
         options = args.extract_options!
         self.current.active = options[:active] if options[:active]
-        self.current.without_dependencies = options[:without_dependencies] if options[:without_dependencies]
+        self.current.without_read_dependencies = options[:without_read_dependencies] if options[:without_read_dependencies]
       end
       return true
     end
@@ -113,7 +113,7 @@ class Promiscuous::Publisher::Transaction
     Thread.current[:promiscuous_disabled] = value
   end
 
-  attr_accessor :name, :active, :operations, :retried, :nesting, :without_dependencies
+  attr_accessor :name, :active, :operations, :retried, :nesting, :without_read_dependencies
   attr_accessor :last_written_dependency, :commited_childrens, :write_attempts
 
   def initialize(*args)
@@ -124,8 +124,8 @@ class Promiscuous::Publisher::Transaction
     @name = args.first.try(:to_s)
     @name ||= "#{@parent.next_child_name}" if @parent
     @name ||= 'anonymous'
-    @active = options[:active] || options[:force] || options[:without_dependencies]
-    @without_dependencies = options[:without_dependencies]
+    @active = options[:active] || options[:force] || options[:without_read_dependencies]
+    @without_read_dependencies = options[:without_read_dependencies]
     @operations = []
     @commited_childrens = []
     @write_attempts = []
@@ -231,9 +231,9 @@ class Promiscuous::Publisher::Transaction
       # TODO increment the link counter, and treat it as a real read dependency
       options[:dependencies] = {}
 
-      unless without_dependencies
-        options[:dependencies][:link] = @last_written_dependency if @last_written_dependency
-        options[:dependencies][:read] = read_dependencies        if read_dependencies.present?
+      options[:dependencies][:link] = @last_written_dependency if @last_written_dependency
+      unless without_read_dependencies
+        options[:dependencies][:read] = read_dependencies if read_dependencies.present?
       end
 
       if write_operation && write_operation.instance
@@ -255,7 +255,7 @@ class Promiscuous::Publisher::Transaction
         if write_dependencies.present?
           options[:dependencies][:write] = write_dependencies
           # The best dependency (id) will always be first
-          @last_written_dependency = write_dependencies.first unless without_dependencies
+          @last_written_dependency = write_dependencies.first
         end
 
         write_operation.instance.promiscuous.publish(options)

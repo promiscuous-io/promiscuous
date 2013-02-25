@@ -33,7 +33,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
         msg += "  #{cnt}. Synchronize on individual instances\n\n" +
                "     If the collection you are iterating through is small (<10), it becomes intersting\n" +
                "     to track instances through their ids instead of the query selector. Example:\n\n" +
-               "          criteria.without_dependencies.each do |doc|\n" +
+               "          criteria.without_read_dependencies.each do |doc|\n" +
                "            next if doc.should_do_something?\n" +
                "            doc.reload # tell promiscuous to track the instance\n" +
                "            doc.do_something!\n" +

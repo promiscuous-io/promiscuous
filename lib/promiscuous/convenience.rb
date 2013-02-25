@@ -14,7 +14,7 @@ module Promiscuous::Convenience
 end
 
 module Enumerable
-  def without_dependencies
+  def without_read_dependencies
     self
   end
 end
