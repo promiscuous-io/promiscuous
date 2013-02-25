@@ -1,7 +1,16 @@
 class Promiscuous::Publisher::Transaction
   # XXX Transactions are not sharable among threads
 
-  def self.open(*args)
+  def self.open(*args, &block)
+    if !block
+      if self.current
+        options = args.extract_options!
+        self.current.active = options[:active] if options[:active]
+        self.current.without_dependencies = options[:without_dependencies] if options[:without_dependencies]
+      end
+      return true
+    end
+
     old_disabled, self.disabled = self.disabled, false
     old_current, self.current = self.current, new(*args)
 
