@@ -1,11 +1,9 @@
-require 'set'
-
 class Promiscuous::Railtie < Rails::Railtie
   module TransactionMiddleware
     extend ActiveSupport::Concern
 
-    mattr_accessor :not_retriable
-    self.not_retriable = Set.new
+    mattr_accessor :with_transactions
+    self.with_transactions = {}
 
     def cleanup_controller
       request.body.rewind
@@ -19,11 +17,14 @@ class Promiscuous::Railtie < Rails::Railtie
       @_prestine_vars = self.instance_variables
 
       full_name = "#{self.class.controller_path}/#{self.action_name}"
-      options = {}
-      options[:active] = full_name.in?(Promiscuous::Railtie::TransactionMiddleware.not_retriable)
-      Promiscuous.transaction(full_name, options) do
-        cleanup_controller
-        super
+      options = Promiscuous::Railtie::TransactionMiddleware.with_transactions[full_name]
+      if options
+        Promiscuous.transaction(full_name, options) do
+          cleanup_controller
+          super
+        end
+      else
+        with_promiscuous { super }
       end
     rescue Exception => e
       $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
@@ -36,10 +37,11 @@ class Promiscuous::Railtie < Rails::Railtie
     end
 
     module ClassMethods
-      def not_retriable(*args)
+      def with_transaction(*args)
+        options = args.extract_options!
         args.each do |action|
           full_name = "#{controller_path}/#{action}"
-          Promiscuous::Railtie::TransactionMiddleware.not_retriable << full_name
+          Promiscuous::Railtie::TransactionMiddleware.with_transactions[full_name] = options
         end
       end
     end

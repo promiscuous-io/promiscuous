@@ -195,27 +195,24 @@ class Promiscuous::Publisher::Operation::Base
     transaction = Transaction.current
     # We wrap all writes in transactions if the user doesn't want to deal with
     # them. It can be used in the development console.
-    unless Promiscuous::Config.use_transactions
-      transaction ||= Transaction.new('anonymous', :active => write?)
+    unless transaction
+      if Promiscuous::Config.use_transactions
+        raise Promiscuous::Error::MissingTransaction if write?
+      else
+        # The user doesn't want to deal with transactions, so we'll use our own.
+        transaction = Transaction.new 'anonymous'
+      end
     end
 
-    if write?
-      raise Promiscuous::Error::MissingTransaction unless transaction
-      transaction.write_attempts << self # That's just for tracing and debugging
-      raise Promiscuous::Error::InactiveTransaction.new(self) unless transaction.active?
-    end
-
-    yield(transaction) if block_given?
+    yield(transaction)
   end
 
   def commit(&db_operation)
     db_operation ||= proc {}
     return db_operation.call if Thread.current[:promiscuous_disabled]
-    return db_operation.call if Transaction.current.try(:without_read_dependencies) && read?
+    return db_operation.call if !Transaction.current && read?
 
     ensure_valid_transaction do |transaction|
-      return db_operation.call unless transaction.try(:active?)
-
       begin
         _commit(transaction, &db_operation).tap { @completed = true }
       ensure

@@ -13,6 +13,9 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     def model
       @model ||= @document.try(:[], '_type').try(:constantize) ||
                  Promiscuous::Publisher::Model::Mongoid.collection_mapping[@collection.name]
+      # Double check because of the _type lookup
+      @model = nil unless @model < Promiscuous::Publisher::Model::Mongoid
+      @model
     rescue NameError
     end
 
@@ -22,18 +25,8 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     end
 
     def commit(&db_operation)
-      if Promiscuous::Config.transaction_safety_level == :track_all_writes
-        ensure_valid_transaction if Promiscuous::Publisher::Transaction.current
-      end
-
-      return db_operation.call unless model && model < Promiscuous::Publisher::Model::Mongoid
+      return db_operation.call unless model
       super
-    rescue Promiscuous::Error::InactiveTransaction => e
-      # Because we do lazy binding on @instance, the instance is still not
-      # set at this point. It's useful to set it for error messages.
-      @model ||= @collection.name.singularize.camelize.constantize rescue nil
-      @instance = Mongoid::Factory.from_db(model, @document) if model
-      raise e
     end
   end
 
@@ -162,10 +155,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def commit(&db_operation)
-      if Promiscuous::Config.transaction_safety_level == :track_all_writes
-        ensure_valid_transaction if Promiscuous::Publisher::Transaction.current
-      end
-
       return db_operation.call if @query.without_promiscuous?
       return db_operation.call unless model
       return db_operation.call unless any_published_field_changed?
@@ -175,12 +164,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
         raise Promiscuous::Error::Dependency.new(:operation => self)
       end
       super
-    rescue Promiscuous::Error::InactiveTransaction => e
-      # Because we do lazy binding on @instance, the instance is still not
-      # set at this point. It's useful to set it for error messages.
-      @model ||= collection_name.singularize.camelize.constantize rescue nil
-      @instance = get_selector_instance if model
-      raise e
     end
   end
 

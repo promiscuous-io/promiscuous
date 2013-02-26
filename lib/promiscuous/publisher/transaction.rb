@@ -2,102 +2,22 @@ class Promiscuous::Publisher::Transaction
   # XXX Transactions are not sharable among threads
 
   def self.open(*args, &block)
-    options = args.extract_options!
-    options[:active] ||= options[:not_retriable]
-
-    if !block
-      if self.current
-        self.current.active = options[:active] if options[:active]
-        self.current.without_read_dependencies = options[:without_read_dependencies] if options[:without_read_dependencies]
-      end
-      return true
-    end
-
     old_disabled, self.disabled = self.disabled, false
-    old_current, self.current = self.current, new(*args, options)
+    old_current, self.current = self.current, new(*args)
 
     begin
-      # We skip already commited transactions when retrying to allow
-      # isolation within a transaction, useful for example when
-      # updating the last_visisted_at field on a member which can
-      # happen in any controller. We wouldn't want to start tracking
-      # all controllers because of this.
-      # TODO the retried check is not super correct, but it works
-      if old_current.try(:retried) && old_current.commited_childrens.include?(self.current.name)
-        self.current.alt_trace "**** Skipping Execution ****" if ENV['TRACE']
-      else
-        old_active = self.current.active
-        self.current.active ||= should_assume_write?(self.current)
-        self.current.reset
-
-        if ENV['TRACE']
-          attr = self.current.active ? (old_active ? "" : "prediction") : "passive"
-          self.current.alt_trace ">>> open #{attr.present? ? "(#{attr}) " : ""}>>>", :backtrace => :none
-        end
-
-        yield.tap do
-          if self.current.retried && self.current.write_attempts.size == 1
-            raise Promiscuous::Error::IdempotentViolation
-          end
-        end
-      end
-    rescue Promiscuous::Error::InactiveTransaction => e
-      self.current.retried = true
-      self.current.active = true
-      remember_write(self.current)
-
-      if ENV['TRACE']
-        self.current.alt_trace "**** Restarting transaction with dependency tracking ****", :backtrace => :none
-        self.current.trace_operation(e.operation, :backtrace => e.backtrace)
-      end
-      retry
+      self.current.reset
+      self.current.alt_trace ">>> open >>>", :backtrace => :none if ENV['TRACE']
+      yield
     ensure
-      self.current.commit
       if ENV['TRACE']
-        if self.current.sent_dummy?
-          self.current.alt_trace "<<< close \e[1;31m(trailing reads)\e[0m <<<", :backtrace => :none
-        elsif self.current.active && !self.current.write_attempts.present?
-          self.current.alt_trace "<<< close \e[1;31m(mispredicted)\e[0m <<<", :backtrace => :none
-        else
-          self.current.alt_trace "<<< close <<<", :backtrace => :none
-        end
+        extra = "\e[1;31m(trailing reads)\e[0m " if self.current.sent_dummy?
+        self.current.alt_trace "<<< close #{extra} <<<", :backtrace => :none
       end
+
+      self.current.commit
       self.current = old_current
       self.disabled = old_disabled
-    end
-  end
-
-  cattr_accessor :write_predictions, :write_predictions_lock
-  self.write_predictions = {}
-  self.write_predictions_lock = Mutex.new
-
-  def self.remember_write(transaction)
-    write_predictions_lock.synchronize do
-      write_predictions[transaction.name] = {:transaction => transaction,
-                                             :counter => Promiscuous::Config.transaction_forget_rate}
-    end
-  end
-
-  def self.with_earlier_transaction(transaction_name)
-    write_predictions_lock.synchronize do
-      yield write_predictions[transaction_name]
-    end
-  end
-
-  def self.should_assume_write?(transaction)
-    return true if Promiscuous::Config.transaction_safety_level == :track_all
-
-    # Setting Promiscuous::Config.transaction_forget_rate to 0 is the least
-    # optimistic setting, which means that transactions are always retried.
-    # Perfect for tests.
-    with_earlier_transaction(transaction.name) do |t|
-      if t
-        t[:counter] -= 1
-        write_predictions.delete(transaction.name) if t[:counter] <= 0
-        write_predictions.has_key?(transaction.name)
-      else
-        false
-      end
     end
   end
 
@@ -117,37 +37,28 @@ class Promiscuous::Publisher::Transaction
     Thread.current[:promiscuous_disabled] = value
   end
 
-  attr_accessor :name, :active, :operations, :retried, :nesting, :without_read_dependencies
-  attr_accessor :last_written_dependency, :commited_childrens, :write_attempts
+  attr_accessor :name, :operations, :retried, :nesting, :without_read_dependencies
+  attr_accessor :last_written_dependency, :commited_childrens
 
   def initialize(*args)
-    options = args.extract_options!
     @parent = self.class.current
-    @last_written_dependency = @parent.try(:last_written_dependency)
     @nesting = @parent.try(:nesting).to_i + 1
     @name = args.first.try(:to_s)
     @name ||= "#{@parent.next_child_name}" if @parent
     @name ||= 'anonymous'
-    @active = options[:active] || options[:without_read_dependencies]
-    @without_read_dependencies = options[:without_read_dependencies]
     @operations = []
     @commited_childrens = []
-    @write_attempts = []
     Promiscuous::AMQP.ensure_connected
   end
 
   def reset
-    Mongoid::IdentityMap.clear if active? && defined?(Mongoid::IdentityMap)
+    Mongoid::IdentityMap.clear if defined?(Mongoid::IdentityMap)
     @next_child = 0
   end
 
   def next_child_name
     @next_child += 1
     "#{name}/#{@next_child}"
-  end
-
-  def active?
-    !!@active
   end
 
   def sent_dummy?
@@ -173,7 +84,6 @@ class Promiscuous::Publisher::Transaction
     backtrace = options[:backtrace]
     alt_fmt = options[:alt_fmt]
     color = alt_fmt ? "1;36" : options[:color]
-    color = "1;30" unless active?
 
     name = "(#{self.name})#{' ' * ([0, 25 - self.name.size].max)}"
     name = '  ' * @nesting + name

@@ -23,9 +23,7 @@ RSpec.configure do |config|
   config.include EphemeralsHelper
   config.include CallbacksHelper
 
-  config.after do
-    Promiscuous::Loader.cleanup
-  end
+  config.after { Promiscuous::Loader.cleanup }
 end
 
 load './debug.rb' if File.exists?('./debug.rb')

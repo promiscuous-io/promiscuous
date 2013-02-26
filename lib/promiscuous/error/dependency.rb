@@ -20,20 +20,17 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
              "     you can wrap your read query in a 'without_promiscuous { }' block.\n" +
              "     This is the preferred solution when you are sure that the read doesn't\n" +
              "     influence the value of a published attribute.\n\n" +
+             "     Rule of thumb: Predicates (methods ending with ?) are often suitable for this use case.\n\n" +
              "  2. Use a Nested Transaction\n\n" +
-             "     a) Nested transaction can be used to optimize performance by identifying\n"+
-             "        blocks of code that do not depend on each other. A typical pattern is the\n"+
-             "        'last_visited_at' update in a before filter of all controllers\n" +
-             "     b) Some earlier writes may have had happen in in this controller.\n"+
-             "        Try to identify offening writes (TRACE=2), and reevaluate a).\n\n"+
-             "     Promiscuous will adjust its write predictions and dependencies accordingly\n" +
-             "     when using transactions.\n\n"
+             "     Nested transaction can be used to optimize performance by identifying\n"+
+             "     blocks of code that do not depend on each other. A typical pattern is the\n"+
+             "     'last_visited_at' update in a before filter of all controllers.\n\n" +
       cnt = 3
       if operation.operation_ext != :count
         msg += "  #{cnt}. Synchronize on individual instances\n\n" +
                "     If the collection you are iterating through is small (<10), it becomes intersting\n" +
                "     to track instances through their ids instead of the query selector. Example:\n\n" +
-               "          criteria.without_read_dependencies.each do |doc|\n" +
+               "          criteria.without_promiscuous.each do |doc|\n" +
                "            next if doc.should_do_something?\n" +
                "            doc.reload # tell promiscuous to track the instance\n" +
                "            doc.do_something!\n" +
@@ -70,8 +67,6 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
 
     msg += "#{"-" * 100}\n\n"
 
-    msg += self.class.explain_transaction(transaction) if operation.operation == :read
-
     msg += "Promiscuous cannot allow the following "
     case operation.operation_ext || operation.operation
     when :count     then msg += 'count'
@@ -80,31 +75,13 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
     when :update    then msg += 'multi update'
     when :destroy   then msg += 'multi destroy'
     end
-    msg += ":\n\n  #{self.class.explain_operation(self.operation)}"
+    msg += " in the '#{transaction.name}' transaction:\n\n"
+    msg += "  #{self.class.explain_operation(self.operation)}"
     msg += "\n\nProTip: Try again with TRACE=1 in the shell or ENV['TRACE']='1' in the console.\n" unless ENV['TRACE']
     msg += "You may use TRACE=N to print N-1 lines of backtraces for each operation."  unless ENV['TRACE']
     msg
   rescue Exception => e
     "#{e.to_s}\n#{e.backtrace.join("\n")}"
-  end
-
-  def self.explain_transaction(transaction)
-    t = nil
-    msg = ""
-    if transaction.write_attempts.present?
-      msg += "Promiscuous is tracking this read because of these earlier writes:\n\n"
-      t = transaction
-    else
-      transaction.class.with_earlier_transaction(transaction.name) { |_t| t = _t }
-      return "" unless t
-      call_distance = Promiscuous::Config.transaction_forget_rate - t[:counter]
-      t = t[:transaction]
-      msg += "Promiscuous is tracking this read because this transaction (#{transaction.name}) used to write.\n" +
-             "#{call_distance == 1 ? 'One call' : "#{call_distance} calls"} back, this transaction wrote:\n\n"
-    end
-    write_attempts = transaction.write_attempts.reject { |op| op.instance.nil? }
-    msg += write_attempts.map { |operation| "  #{explain_operation(operation)}" }.join("\n") + "\n\n"
-    msg
   end
 
   def self.explain_operation(operation, limit=100)
