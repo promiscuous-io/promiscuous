@@ -1,8 +1,16 @@
 require 'active_support/core_ext'
 
 module Promiscuous
+  def self.require_for(gem, file)
+    require gem
+    require file
+  rescue LoadError
+  end
+
   require 'promiscuous/autoload'
-  require 'promiscuous/railtie' if defined?(Rails)
+  require_for 'rails',  'promiscuous/railtie'
+  require_for 'resque', 'promiscuous/resque'
+
 
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
