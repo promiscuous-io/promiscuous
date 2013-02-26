@@ -31,8 +31,8 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     rescue Promiscuous::Error::InactiveTransaction => e
       # Because we do lazy binding on @instance, the instance is still not
       # set at this point. It's useful to set it for error messages.
-      @model ||= @collection.name.singularize.camelize.constantize
-      @instance = Mongoid::Factory.from_db(model, @document)
+      @model ||= @collection.name.singularize.camelize.constantize rescue nil
+      @instance = Mongoid::Factory.from_db(model, @document) if model
       raise e
     end
   end
@@ -178,8 +178,8 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     rescue Promiscuous::Error::InactiveTransaction => e
       # Because we do lazy binding on @instance, the instance is still not
       # set at this point. It's useful to set it for error messages.
-      @model ||= collection_name.singularize.camelize.constantize
-      @instance = get_selector_instance
+      @model ||= collection_name.singularize.camelize.constantize rescue nil
+      @instance = get_selector_instance if model
       raise e
     end
   end

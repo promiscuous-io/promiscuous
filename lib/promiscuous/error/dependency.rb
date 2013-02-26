@@ -102,7 +102,8 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
       msg += "Promiscuous is tracking this read because this transaction (#{transaction.name}) used to write.\n" +
              "#{call_distance == 1 ? 'One call' : "#{call_distance} calls"} back, this transaction wrote:\n\n"
     end
-    msg += t.write_attempts.map { |operation| "  #{explain_operation(operation)}" }.join("\n") + "\n\n"
+    write_attempts = transaction.write_attempts.reject { |op| op.instance.nil? }
+    msg += write_attempts.map { |operation| "  #{explain_operation(operation)}" }.join("\n") + "\n\n"
     msg
   end
 

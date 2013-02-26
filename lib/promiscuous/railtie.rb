@@ -65,23 +65,29 @@ class Promiscuous::Railtie < Rails::Railtie
     STDERR.puts "\e[0;#{36}m+---[ Backtrace ]--------------------------------------------------------------------------------------\e[0m"
     STDERR.puts "\e[0;#{36}m|"
 
-    bold = ENV['TRACE'] ? 1 : 0
+    expand = ENV['TRACE'].to_i > 2
     bt = e.backtrace.map do |line|
        line = case line
               when /(rspec-core|instrumentation)/
-                "\e[#{bold};30m#{line}\e[0m" if ENV['TRACE']
-              when /`(count|distinct|each|first|last)'$/
-                "\e[#{bold};32m#{line}\e[0m"
-              when /`(create|insert|save|update|modify|remove|remove_all)'$/
-                "\e[#{bold};31m#{line}\e[0m"
+                "\e[1;30m#{line}\e[0m" if expand
+              when /#{Rails.root}\/app\/controllers/
+                "\e[1;35m#{line}\e[0m"
+              when /#{Rails.root}\/app\/models/
+                "\e[1;33m#{line}\e[0m"
+              when /#{Rails.root}\/lib/
+                "\e[1;34m#{line}\e[0m"
+              when /(mongoid|active_record).*`(count|distinct|each|first|last)'$/
+                "\e[1;32m#{line}\e[0m"
+              when /(mongoid|active_record).*`(create|insert|save|update|modify|remove|remove_all)'$/
+                "\e[1;31m#{line}\e[0m"
               when /#{Rails.root}/
                 if line =~ /\/support\//
-                  "\e[#{bold};30m#{line}\e[0m" if ENV['TRACE']
+                  "\e[1;30m#{line}\e[0m" if expand
                 else
-                  "\e[#{bold};36m#{line}\e[0m"
+                  "\e[1;36m#{line}\e[0m"
                 end
               else
-                "\e[#{bold};30m#{line}\e[0m" if ENV['TRACE']
+                "\e[1;30m#{line}\e[0m" if expand
               end
        "\e[0;#{36}m|  #{line}" if line
       end

@@ -201,7 +201,7 @@ class Promiscuous::Publisher::Operation::Base
 
     if write?
       raise Promiscuous::Error::MissingTransaction unless transaction
-      transaction.write_attempts << self
+      transaction.write_attempts << self # That's just for tracing and debugging
       raise Promiscuous::Error::InactiveTransaction.new(self) unless transaction.active?
     end
 
