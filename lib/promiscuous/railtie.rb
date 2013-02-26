@@ -24,7 +24,13 @@ class Promiscuous::Railtie < Rails::Railtie
           super
         end
       else
-        with_promiscuous { super }
+        begin
+          # That's for generating better errors traces
+          Thread.current[:promiscuous_controller] = {:controller => self, :action => action_name}
+          with_promiscuous { super }
+        ensure
+          Thread.current[:promiscuous_controller] = nil
+        end
       end
     rescue Exception => e
       $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
@@ -67,7 +73,7 @@ class Promiscuous::Railtie < Rails::Railtie
     STDERR.puts "\e[0;#{36}m+---[ Backtrace ]--------------------------------------------------------------------------------------\e[0m"
     STDERR.puts "\e[0;#{36}m|"
 
-    expand = ENV['TRACE'].to_i > 2
+    expand = ENV['TRACE'].to_i > 1
     bt = e.backtrace.map do |line|
        line = case line
               when /(rspec-core|instrumentation)/
