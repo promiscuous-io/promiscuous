@@ -7,25 +7,12 @@ class Promiscuous::Middleware
     mattr_accessor :with_transactions
     self.with_transactions = {}
 
-    def cleanup_controller
-      request.body.rewind
-      self.instance_variables.each do |var|
-        remove_instance_variable(var) unless var.in?(@_prestine_vars)
-      end
-    end
-
     def process_action(*args)
-      @_prestine_vars = []
-      @_prestine_vars = self.instance_variables
-
       full_name = "#{self.class.controller_path}/#{self.action_name}"
       options = Promiscuous::Middleware::Controller.with_transactions[full_name]
 
       if options
-        Promiscuous::Middleware.with_promiscuous(full_name, options) do
-          cleanup_controller
-          super
-        end
+        Promiscuous::Middleware.with_promiscuous(full_name, options) { super }
       else
         Promiscuous::Middleware.without_promiscuous do
           begin
