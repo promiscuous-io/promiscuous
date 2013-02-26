@@ -30,7 +30,7 @@ class Promiscuous::Publisher::Transaction
   end
 
   def self.disabled
-    Thread.current[:promiscuous_disabled]
+    Thread.current[:promiscuous_disabled] || $promiscuous_disabled
   end
 
   def self.disabled=(value)

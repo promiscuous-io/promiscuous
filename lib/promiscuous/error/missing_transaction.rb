@@ -54,9 +54,9 @@ class Promiscuous::Error::MissingTransaction < Promiscuous::Error::Base
       <% if @controller -%>
         <% if @fixed_it -%>
 
-      \e[0;32mPromiscuous edited and reloaded \e[1m<%=full_path %>\e[0;32m to add this:
+      \e[0;32mPromiscuous edited and reloaded \e[1m<%= full_path %>\e[0;32m to add this:
         <% else -%>
-      Add this in \e[1m#{full_path}\e[0m
+      Add this in \e[1m<%= full_path %>\e[0m
         <% end -%>
 
         class <%= @controller[:controller].class %>
