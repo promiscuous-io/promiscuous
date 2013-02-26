@@ -24,7 +24,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
              "  2. Use a Nested Transaction\n\n" +
              "     Nested transaction can be used to optimize performance by identifying\n"+
              "     blocks of code that do not depend on each other. A typical pattern is the\n"+
-             "     'last_visited_at' update in a before filter of all controllers.\n\n" +
+             "     'last_visited_at' update in a before filter of all controllers.\n\n"
       cnt = 3
       if operation.operation_ext != :count
         msg += "  #{cnt}. Synchronize on individual instances\n\n" +
@@ -77,8 +77,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
     end
     msg += " in the '#{transaction.name}' transaction:\n\n"
     msg += "  #{self.class.explain_operation(self.operation)}"
-    msg += "\n\nProTip: Try again with TRACE=1 in the shell or ENV['TRACE']='1' in the console.\n" unless ENV['TRACE']
-    msg += "You may use TRACE=N to print N-1 lines of backtraces for each operation."  unless ENV['TRACE']
+    msg += "\n\nProTip: Try again with TRACE=2 in the shell or ENV['TRACE']='2' in the console.\n" unless ENV['TRACE']
     msg
   rescue Exception => e
     "#{e.to_s}\n#{e.backtrace.join("\n")}"

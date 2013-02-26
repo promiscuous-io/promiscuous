@@ -103,6 +103,18 @@ class Promiscuous::Railtie < Rails::Railtie
       .join("\n")
     STDERR.puts bt
     STDERR.puts "\e[0;#{36}m|"
+
+    if $cucumber_extra
+      STDERR.puts "\e[0;#{36}m+---[ Cucumber ]--------------------------------------------------------------------------------------\e[0m"
+      STDERR.puts "\e[0;#{36}m|"
+      $cucumber_extra.each_with_index do |line, i|
+        line = line.gsub(/([^:]*: )(.*)$/, "\\1\e[1;36m\\2")
+        STDERR.puts "\e[0;#{36}m| \e[0;36m#{line}\e[0m"
+        STDERR.puts "\e[0;#{36}m|" if i.zero?
+      end
+      STDERR.puts "\e[0;#{36}m|"
+    end
+
     STDERR.puts "\e[0;#{36}m\\------------------------------------------------------------------------------------------------------\e[0m"
     STDERR.puts
     $promiscuous_pretty_print_exception_once = :disable if $promiscuous_pretty_print_exception_once
