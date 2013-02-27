@@ -14,6 +14,10 @@ class Promiscuous::Subscriber::Worker::Message
     parsed_payload['__amqp__']
   end
 
+  def timestamp
+    parsed_payload['timestamp']
+  end
+
   def dependencies
     return @dependencies if @dependencies
     @dependencies = parsed_payload['dependencies'].try(:symbolize_keys) || {}
@@ -36,6 +40,10 @@ class Promiscuous::Subscriber::Worker::Message
   def has_dependencies?
     return false if Promiscuous::Config.bareback
     dependencies[:read].present? || dependencies[:write].present?
+  end
+
+  def to_s
+    "Message: HB: #{([dependencies[:link]] + dependencies[:read]).join(", ")}, W: #{dependencies[:write].join(", ")}"
   end
 
   def ack
@@ -64,7 +72,6 @@ class Promiscuous::Subscriber::Worker::Message
       payload = Promiscuous::Subscriber::Payload.new(parsed_payload, self)
       Promiscuous::Subscriber::Operation.new(payload).commit
     end
-
     ack if metadata
   rescue Exception => e
     e = Promiscuous::Error::Subscriber.new(e, :payload => payload)

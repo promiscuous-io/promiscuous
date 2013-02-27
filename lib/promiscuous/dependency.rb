@@ -16,6 +16,10 @@ class Promiscuous::Dependency < Struct.new(:collection, :attribute, :value, :ver
     end
   end
 
+  def to_s
+    as_json
+  end
+
   # Note that we need the == method to function properly.
   # See the 'ensure_up_to_date_dependencies' method in publisher/operation/base.rb
 end

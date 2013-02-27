@@ -1,7 +1,7 @@
 class Promiscuous::CLI
   attr_accessor :options
 
-  def trap_signals
+  def trap_debug_signals
     Signal.trap 'SIGUSR2' do
       Thread.list.each do |thread|
         print_status '-' * 80
@@ -12,15 +12,24 @@ class Promiscuous::CLI
           print_status "Thread #{thread} #{thread['label']} -- no backtrace"
         end
       end
+      Celluloid::Actor[:message_synchronizer].try(:print_status)
     end
+  end
 
+  def trap_exit_signals
     %w(SIGTERM SIGINT).each do |signal|
       Signal.trap(signal) do
+        exit 1 if @stop
         print_status "Exiting..."
         @worker.terminate if @worker.try(:alive?)
         @stop = true
       end
     end
+  end
+
+  def trap_signals
+    trap_debug_signals
+    trap_exit_signals
   end
 
   def publish
@@ -41,8 +50,9 @@ class Promiscuous::CLI
     require 'json'
     File.open(options[:log_file], 'r').each do |line|
       break if @stop
-      if line =~ /^\[promiscuous\] \[receive\] ({.*})$/
-        replay_payload($1)
+      case line
+      when /^\[promiscuous\] \[receive\] ({.*})$/ then replay_payload($1)
+      when /^\[promiscuous\] \[publish\] .* -> ({.*})$/ then replay_payload($1)
       end
     end
   end

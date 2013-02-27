@@ -18,9 +18,10 @@ class Promiscuous::Subscriber::Operation
       end
     end
 
-    synchronizer = Celluloid::Actor[:message_synchronizer]
-    futures.each do |key, future|
-      synchronizer.async.try_notify_key_change(key, future.value)
+    if synchronizer = Celluloid::Actor[:message_synchronizer]
+      futures.each do |key, future|
+        synchronizer.async.try_notify_key_change(key, future.value)
+      end
     end
 
     Promiscuous::Redis.pipelined do
@@ -30,7 +31,28 @@ class Promiscuous::Subscriber::Operation
     end
   end
 
+  def verify_dependencies
+    # XXX This only works with one worker. We could take a lock on it, but
+    # we should never process message twice.
+    # It's more or less some smoke test.
+    # It also doesn't work with dummies as they don't have write depenencies
+    # for now (no id).
+    values = nil
+    Promiscuous::Redis.pipelined do
+      values = message.dependencies[:write].map do |dep|
+        [dep, Promiscuous::Redis.get(dep.key(:sub).for(:redis))]
+      end
+    end
+
+    values.each do |dep, future|
+      if dep.version < future.value.to_i + 1
+        raise Promiscuous::Error::AlreadyProcessed
+      end
+    end
+  end
+
   def with_instance_dependencies
+    verify_dependencies if message && message.has_dependencies?
     result = yield
     update_dependencies if message && message.has_dependencies?
     result

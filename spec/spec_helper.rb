@@ -26,4 +26,5 @@ RSpec.configure do |config|
   config.after { Promiscuous::Loader.cleanup }
 end
 
+Promiscuous::CLI.new.trap_debug_signals
 load './debug.rb' if File.exists?('./debug.rb')

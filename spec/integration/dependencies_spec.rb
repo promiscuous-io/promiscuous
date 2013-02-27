@@ -58,11 +58,17 @@ if ORM.has(:mongoid)
       end
 
       it 'stays ordered' do
-        pub = Promiscuous.transaction { Publisher.create(:field => 0) }
-        10.times.map { Thread.new { Promiscuous.transaction { 10.times { pub.inc(:field, 1) } } } }.each(&:join)
+        pubs = 3.times.map { Promiscuous.transaction { Publisher.create(:field => 0) } }
+        pubs.map do |pub|
+          10.times.map { Thread.new { Promiscuous.transaction { 10.times { pub.inc(:field, 1) } } } }
+        end.flatten.each(&:join)
+
         eventually :timeout => 10.seconds do
-          Subscriber.first.field.should == 100
-          Subscriber.first.inc_by_one.should == 100
+          Subscriber.count.should == 3
+          Subscriber.all.each do |sub|
+            sub.field.should == 100
+            sub.inc_by_one.should == 100
+          end
         end
       end
     end
@@ -93,6 +99,31 @@ if ORM.has(:mongoid)
 
         eventually do
           SubscriberModel.count.should == 2
+        end
+      end
+    end
+
+    context 'when processing duplicate messages' do
+      before { config_logger :logger_level => Logger::FATAL }
+
+      it 'skips duplicates' do
+        pub = nil
+        pub = Promiscuous.transaction { PublisherModel.create }
+        Promiscuous.transaction { pub.inc(:field_1, 1) }
+        eventually { SubscriberModel.num_saves.should == 2 }
+
+        key = pub.promiscuous.tracked_dependencies.first.key(:pub)
+        Promiscuous::Redis.decr(key.join('rw').for(:redis))
+        Promiscuous::Redis.decr(key.join('w').for(:redis))
+
+        # Skipped update
+        Promiscuous.transaction { pub.inc(:field_1, 1) }
+        # processed update
+        Promiscuous.transaction { pub.inc(:field_1, 1) }
+
+        eventually do
+          SubscriberModel.num_saves.should == 3
+          SubscriberModel.first.field_1.should == 3
         end
       end
     end

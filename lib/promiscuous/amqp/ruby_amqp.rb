@@ -24,7 +24,6 @@ module Promiscuous::AMQP::RubyAMQP
       else
         _wait
       end
-    rescue Timeout::Error
     end
 
     def signal
@@ -199,6 +198,7 @@ module Promiscuous::AMQP::RubyAMQP
         channel_sync.signal
       end
       channel_sync.wait :timeout => 2.seconds
+    rescue Timeout::Error
     end
 
     def recover

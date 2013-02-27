@@ -20,7 +20,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def connect
-    @queued_messages = 0
+    @num_queued_messages = 0
     @subscriptions = {}
     self.redis = Promiscuous::Redis.new_celluloid_connection
   end
@@ -135,21 +135,21 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     deps << msg.dependencies[:link] if msg.dependencies[:link]
 
     deps.reduce(proc { process_message!(msg) }) do |chain, dep|
-      proc { on_version(dep.key(:sub).for(:redis), dep.version) { chain.call } }
+      proc { on_version(dep.key(:sub).for(:redis), dep.version, msg) { chain.call } }
     end.call
   end
 
   def bump_message_counter!
-    @queued_messages += 1
+    @num_queued_messages += 1
     maybe_recover
   end
 
   def maybe_recover
     return unless Promiscuous::Config.recovery
 
-    if @queued_messages == Promiscuous::Config.prefetch
+    if @num_queued_messages == Promiscuous::Config.prefetch
       # We've reached the amount of messages the amqp queue is willing to give us.
-      # We also know that we are not processing messages (@queued_messages is
+      # We also know that we are not processing messages (@num_queued_messages is
       # decremented before we send the message to the runners).
       recover
     end
@@ -160,20 +160,32 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def process_message!(msg)
-    @queued_messages -= 1
+    @num_queued_messages -= 1
     Celluloid::Actor[:runners].async.process(msg)
   end
 
-  def on_version(key, version, &callback)
+  def on_version(key, version, message, &callback)
     return unless @subscriptions
     sub = get_subscription(key).subscribe
-    cb = Subscription::Callback.new(version, callback)
+    cb = Subscription::Callback.new(version, callback, message)
 
     if sub.last_version && cb.can_perform?(sub.last_version)
       cb.perform
     else
       sub.add_callback(cb).signal_version(Promiscuous::Redis.get(key))
     end
+  end
+
+  def blocked_messages
+    @subscriptions.values.map(&:callbacks).map(&:next).map(&:message)
+  end
+
+  def print_status
+    STDERR.puts  '----[ Pending Dependencies ]----' + '-' * (80-32)
+    blocked_messages.each do |msg|
+      STDERR.puts msg
+    end
+    STDERR.puts  '-' * 80
   end
 
   def notify_key_change(key, version)
@@ -248,15 +260,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       self
     end
 
-    class Callback
-      attr_accessor :subscription, :version, :callback, :token
-
-      def initialize(version, callback)
-        self.version = version
-        self.callback = callback
-      end
-
+    class Callback < Struct.new(:version, :callback, :message, :subscription)
+      # message is just here for debugging, not used in the happy path
       def can_perform?(current_version)
+        # The message synchronizer takes care of happens before dependencies.
         current_version >= self.version
       end
 
