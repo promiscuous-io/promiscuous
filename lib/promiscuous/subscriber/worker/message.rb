@@ -10,7 +10,7 @@ class Promiscuous::Subscriber::Worker::Message
     @parsed_payload ||= JSON.parse(payload)
   end
 
-  def queue_name
+  def endpoint
     parsed_payload['__amqp__']
   end
 
@@ -37,13 +37,29 @@ class Promiscuous::Subscriber::Worker::Message
     @dependencies
   end
 
+  def happens_before_dependencies
+    read_increments = {}
+    dependencies[:read].each do |dep|
+      key = dep.key(:sub).for(:redis)
+      read_increments[key] ||= 0
+      read_increments[key] += 1
+    end
+
+    deps = dependencies[:write].map do |dep|
+      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key(:sub).for(:redis)].to_i }
+    end
+    deps << dependencies[:link] if dependencies[:link]
+    deps += dependencies[:read]
+    deps.uniq
+  end
+
   def has_dependencies?
     return false if Promiscuous::Config.bareback
     dependencies[:read].present? || dependencies[:write].present?
   end
 
   def to_s
-    "Message: HB: #{([dependencies[:link]] + dependencies[:read]).join(", ")}, W: #{dependencies[:write].join(", ")}"
+    "#{endpoint} -> #{happens_before_dependencies.join(', ')}"
   end
 
   def ack
@@ -68,7 +84,7 @@ class Promiscuous::Subscriber::Worker::Message
 
   def process
     Promiscuous.debug "[receive] #{payload}"
-    unit_of_work(queue_name) do
+    unit_of_work(endpoint) do
       payload = Promiscuous::Subscriber::Payload.new(parsed_payload, self)
       Promiscuous::Subscriber::Operation.new(payload).commit
     end

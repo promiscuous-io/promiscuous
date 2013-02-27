@@ -4,7 +4,7 @@ class Promiscuous::CLI
   def trap_debug_signals
     Signal.trap 'SIGUSR2' do
       Thread.list.each do |thread|
-        print_status '-' * 80
+        print_status  '----[ Threads ]----' + '-' * (100-19)
         if thread.backtrace
           print_status "Thread #{thread} #{thread['label']}"
           print_status thread.backtrace.join("\n")
@@ -12,7 +12,13 @@ class Promiscuous::CLI
           print_status "Thread #{thread} #{thread['label']} -- no backtrace"
         end
       end
-      Celluloid::Actor[:message_synchronizer].try(:print_status)
+
+      # XXX Not thread safe (msg has some "@xxx ||= xxx" patterns)
+      if blocked_messages = Celluloid::Actor[:message_synchronizer].try(:blocked_messages)
+        print_status  '----[ Pending Dependencies ]----' + '-' * (100-32)
+        blocked_messages.each { |msg| print_status msg }
+      end
+      print_status  '-' * 80
     end
   end
 

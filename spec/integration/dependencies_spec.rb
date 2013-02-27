@@ -127,5 +127,31 @@ if ORM.has(:mongoid)
         end
       end
     end
+
+    context 'when recovering' do
+      before do
+        config_logger :logger_level => Logger::FATAL
+        Promiscuous::Config.prefetch = 5
+        Promiscuous::Config.recovery_timeout = 0.1
+        Promiscuous::Config.recovery = true
+      end
+
+      it 'increments versions properly' do
+        pub = nil
+        pub = Promiscuous.transaction { PublisherModel.create }
+        Promiscuous.transaction { pub.inc(:field_1, 1) }
+        eventually { SubscriberModel.num_saves.should == 2 }
+
+        key = pub.promiscuous.tracked_dependencies.first.key(:pub)
+        Promiscuous::Redis.incr(key.join('rw').for(:redis))
+        Promiscuous::Redis.incr(key.join('w').for(:redis))
+
+        5.times { Promiscuous.transaction { pub.inc(:field_1, 1) } }
+
+        eventually do
+          SubscriberModel.num_saves.should == 7
+        end
+      end
+    end
   end
 end

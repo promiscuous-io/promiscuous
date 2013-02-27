@@ -7,10 +7,8 @@ class Promiscuous::Subscriber::Operation
     self.payload = payload
   end
 
-  def update_dependencies
+  def self.update_dependencies(dependencies)
     futures = nil
-    # link is not incremented
-    dependencies = message.dependencies[:read] + message.dependencies[:write]
     Promiscuous::Redis.multi do
       futures = dependencies.map do |dep|
         key = dep.key(:sub).for(:redis)
@@ -29,6 +27,12 @@ class Promiscuous::Subscriber::Operation
         Promiscuous::Redis.publish(key, future.value)
       end
     end
+  end
+
+  def update_dependencies
+    # link is not incremented
+    deps = message.dependencies[:read] + message.dependencies[:write]
+    self.class.update_dependencies(deps)
   end
 
   def verify_dependencies

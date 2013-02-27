@@ -98,16 +98,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 
-  def count_dependencies(deps)
-    increments = {}
-    deps.each do |dep|
-      key = dep.key(:sub).for(:redis)
-      increments[key] ||= 0
-      increments[key] += 1
-    end
-    increments
-  end
-
   # process_when_ready() is called by the AMQP pump. This is what happens:
   # 1. First, we subscribe to redis and wait for the confirmation.
   # 2. Then we check if the version in redis is old enough to process the message.
@@ -120,43 +110,14 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     bump_message_counter!
 
-    return process_message!(msg) unless msg.has_dependencies?
-
-    # We wait for each link/read versions to be equal to what we received.
-    # For write versions, since they represent the value of the corresponding
-    # counters after all the increments, we have to figure out the version that
-    # they would be before all the increments.
-    read_increments = count_dependencies(msg.dependencies[:read])
-    deps = []
-    deps += msg.dependencies[:write].map do |dep|
-      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key(:sub).for(:redis)].to_i }
+    process = proc { process_message!(msg) }
+    if msg.has_dependencies?
+      msg.happens_before_dependencies.reduce(process) do |chain, dep|
+        proc { on_version(dep.key(:sub).for(:redis), dep.version, msg) { chain.call } }
+      end.call
+    else
+      process_message!(msg)
     end
-    deps += msg.dependencies[:read]
-    deps << msg.dependencies[:link] if msg.dependencies[:link]
-
-    deps.reduce(proc { process_message!(msg) }) do |chain, dep|
-      proc { on_version(dep.key(:sub).for(:redis), dep.version, msg) { chain.call } }
-    end.call
-  end
-
-  def bump_message_counter!
-    @num_queued_messages += 1
-    maybe_recover
-  end
-
-  def maybe_recover
-    return unless Promiscuous::Config.recovery
-
-    if @num_queued_messages == Promiscuous::Config.prefetch
-      # We've reached the amount of messages the amqp queue is willing to give us.
-      # We also know that we are not processing messages (@num_queued_messages is
-      # decremented before we send the message to the runners).
-      recover
-    end
-  end
-
-  def recover
-    raise NotImplementedError
   end
 
   def process_message!(msg)
@@ -176,16 +137,81 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     end
   end
 
-  def blocked_messages
-    @subscriptions.values.map(&:callbacks).map(&:next).map(&:message)
+
+  def bump_message_counter!
+    @num_queued_messages += 1
+    maybe_recover
   end
 
-  def print_status
-    STDERR.puts  '----[ Pending Dependencies ]----' + '-' * (80-32)
-    blocked_messages.each do |msg|
-      STDERR.puts msg
+  def maybe_recover
+    return unless Promiscuous::Config.recovery
+
+    if @recover_timer
+      @recover_timer.cancel
+      @recover_timer = nil
+      not_recovering
+    elsif should_recover?
+      # We've reached the amount of messages the amqp queue is willing to give us.
+      # We also know that we are not processing messages (@num_queued_messages is
+      # decremented before we send the message to the runners).
+
+      timeout = Promiscuous::Config.recovery_timeout
+      Promiscuous.warn "[receive] Recovering in #{timeout} seconds..."
+      @recover_timer = after(timeout) do
+        @recover_timer = nil
+        should_recover? ? recover : not_recovering
+      end
     end
-    STDERR.puts  '-' * 80
+  end
+
+  def should_recover?
+    @num_queued_messages >= Promiscuous::Config.prefetch
+  end
+
+  def not_recovering
+    Promiscuous.warn "[receive] Nothing to recover from"
+  end
+
+  def recover
+    return unless should_recover?
+
+    # We are taking the earliest message to unblock, but in reality we should
+    # do the DAG of the happens before dependencies, take root nodes
+    # of the disconnected graphs, and sort by timestamps if needed.
+    msg = blocked_messages.first
+
+    versions_to_skip = msg.happens_before_dependencies.map do |dep|
+      key = dep.key(:sub).for(:redis)
+      to_skip = dep.version - Promiscuous::Redis.get(key).to_i
+      [dep, key, to_skip] if to_skip > 0
+    end.compact
+
+    return not_recovering if versions_to_skip.blank?
+
+    recovery_msg = "Skipping "
+    recovery_msg += versions_to_skip.map do |dep, key, to_skip|
+      "#{to_skip} message(s) on #{dep}"
+    end.join(", ")
+
+    e = Promiscuous::Error::Recover.new(recovery_msg)
+    Promiscuous.error "[receive] #{e}"
+    # TODO Don't report when doing the initial sync
+    Promiscuous::Config.error_notifier.try(:call, e)
+
+    versions_to_skip.each do |dep, key, to_skip|
+      v = Promiscuous::Redis.incrby(key, to_skip)
+      Promiscuous::Redis.publish(key, v)
+    end
+  end
+
+  def blocked_messages
+    @subscriptions.values
+      .map(&:callbacks)
+      .map(&:next)
+      .compact
+      .map(&:message)
+      .uniq
+      .sort_by { |msg| msg.timestamp }
   end
 
   def notify_key_change(key, version)

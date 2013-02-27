@@ -1,7 +1,7 @@
 module Promiscuous::Config
   mattr_accessor :app, :logger, :error_notifier, :backend, :amqp_url,
                  :redis_url, :zookeeper_hosts, :queue_options, :heartbeat, :bareback,
-                 :recovery, :prefetch, :use_transactions
+                 :recovery, :recovery_timeout, :prefetch, :use_transactions
 
   def self.backend=(value)
     @@backend = value
@@ -23,17 +23,18 @@ module Promiscuous::Config
   def self.configure(&block)
     block.call(self) if block
 
-    self.app             ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
-    self.amqp_url        ||= 'amqp://guest:guest@localhost:5672'
-    self.redis_url       ||= 'redis://localhost/'
-    self.zookeeper_hosts ||= nil
-    self.backend         ||= RUBY_PLATFORM == 'java' ? :hot_bunny : :rubyamqp
-    self.queue_options   ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
-    self.heartbeat       ||= 60
-    self.bareback        ||= false
-    self.recovery        ||= false
-    self.prefetch        ||= 1000
-    self.logger          ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
+    self.app              ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
+    self.amqp_url         ||= 'amqp://guest:guest@localhost:5672'
+    self.redis_url        ||= 'redis://localhost/'
+    self.zookeeper_hosts  ||= nil
+    self.backend          ||= RUBY_PLATFORM == 'java' ? :hot_bunny : :rubyamqp
+    self.queue_options    ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
+    self.heartbeat        ||= 60
+    self.bareback         ||= false
+    self.recovery         ||= false
+    self.recovery_timeout ||= 1
+    self.prefetch         ||= 1000
+    self.logger           ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.use_transactions = true if self.use_transactions.nil?
 
     unless self.app
