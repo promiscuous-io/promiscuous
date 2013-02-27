@@ -67,7 +67,7 @@ class Promiscuous::CLI
     @worker = Promiscuous::Subscriber::Worker.run!
     Celluloid::Actor[:pump].wait_for_subscription
     print_status "Replicating..."
-    sleep 1 until !@worker.alive?
+    sleep 0.2 until !@worker.alive?
   end
 
   def generate_mocks
