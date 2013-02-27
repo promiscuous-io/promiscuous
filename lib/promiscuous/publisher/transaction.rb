@@ -131,7 +131,14 @@ class Promiscuous::Publisher::Transaction
     end
   end
 
+  def get_timestamp
+    time = Time.now
+    time.to_i * 1000 + time.usec / 1000
+  end
+
   def commit
+    timestamp = get_timestamp
+
     for_all_batches do |write_operation, read_dependencies, write_dependencies|
       options = {:transaction => self.name}
       # We need to consider the last write operation as an implicit read
@@ -139,6 +146,7 @@ class Promiscuous::Publisher::Transaction
       # of the first write when publishing the second write.
       # TODO increment the link counter, and treat it as a real read dependency
       options[:dependencies] = {}
+      options[:timestamp] = timestamp
       options[:dependencies][:link] = @last_written_dependency if @last_written_dependency
       options[:dependencies][:read] = read_dependencies if read_dependencies.present?
 
@@ -154,6 +162,7 @@ class Promiscuous::Publisher::Transaction
         else
           options[:operation] = write_operation.operation
         end
+
 
         # Sometimes the write_dependencies are not present. update/destroy operations
         # can miss the selector in a race with another destroy for example. So there
@@ -198,6 +207,7 @@ class Promiscuous::Publisher::Transaction
         msg[:__amqp__]     = @instance.class.publish_to
         msg[:operation]    = :dummy
         msg[:dependencies] = options[:dependencies]
+        msg[:timestamp]    = options[:timestamp] if options[:timestamp]
         msg
       end
     end

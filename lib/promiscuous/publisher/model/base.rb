@@ -28,10 +28,11 @@ module Promiscuous::Publisher::Model::Base
       msg[:type]          = @instance.class.publish_as # for backward compatibility
       msg[:ancestors]     = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
       msg[:id]            = @instance.id.to_s
-      msg[:payload]       = self.attributes         if options[:operation].in?([nil, :create, :update])
-      msg[:operation]     = options[:operation]     if options[:operation]
-      msg[:dependencies]  = options[:dependencies]  if options[:dependencies]
-      msg[:transaction]   = options[:transaction]   if options[:transaction]
+      msg[:payload]       = self.attributes        if options[:operation].in?([nil, :create, :update])
+      msg[:operation]     = options[:operation]    if options[:operation]
+      msg[:dependencies]  = options[:dependencies] if options[:dependencies]
+      msg[:transaction]   = options[:transaction]  if options[:transaction]
+      msg[:timestamp]     = options[:timestamp]    if options[:timestamp]
       msg
     end
 
