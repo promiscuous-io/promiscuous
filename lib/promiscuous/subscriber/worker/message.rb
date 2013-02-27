@@ -63,7 +63,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def ack
-    metadata.ack
+    metadata.try(:ack)
   rescue
     # We don't care if we fail, the message will be redelivered at some point
   end
@@ -88,8 +88,11 @@ class Promiscuous::Subscriber::Worker::Message
       payload = Promiscuous::Subscriber::Payload.new(parsed_payload, self)
       Promiscuous::Subscriber::Operation.new(payload).commit
     end
-    ack if metadata
+    ack
+
   rescue Exception => e
+    ack if e.is_a? Promiscuous::Error::AlreadyProcessed && Promiscuous::Config.recovery
+
     e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
     Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.try(:call, e)
