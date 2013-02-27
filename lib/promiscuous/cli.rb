@@ -16,7 +16,7 @@ class Promiscuous::CLI
       # XXX Not thread safe (msg has some "@xxx ||= xxx" patterns)
       if blocked_messages = Celluloid::Actor[:message_synchronizer].try(:blocked_messages)
         print_status  '----[ Pending Dependencies ]----' + '-' * (100-32)
-        blocked_messages.each { |msg| print_status msg }
+        blocked_messages.reverse_each { |msg| print_status msg }
       end
       print_status  '-' * 80
     end

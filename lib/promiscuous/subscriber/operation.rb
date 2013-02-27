@@ -41,17 +41,9 @@ class Promiscuous::Subscriber::Operation
     # It's more or less some smoke test.
     # It also doesn't work with dummies as they don't have write depenencies
     # for now (no id).
-    values = nil
-    Promiscuous::Redis.pipelined do
-      values = message.dependencies[:write].map do |dep|
-        [dep, Promiscuous::Redis.get(dep.key(:sub).for(:redis))]
-      end
-    end
-
-    values.each do |dep, future|
-      if dep.version < future.value.to_i + 1
-        raise Promiscuous::Error::AlreadyProcessed
-      end
+    dep = message.dependencies[:write].first
+    if dep && Promiscuous::Redis.get(dep.key(:sub).for(:redis)).to_i != dep.version - 1
+      raise Promiscuous::Error::AlreadyProcessed
     end
   end
 

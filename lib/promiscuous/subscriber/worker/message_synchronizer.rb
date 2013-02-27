@@ -75,10 +75,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
       case type
       when 'subscribe'
-        find_subscription(subscription).finalize_subscription
+        async.notify_subscription(subscription)
       when 'unsubscribe'
       when 'message'
-        notify_key_change(subscription, arg)
+        async.notify_key_change(subscription, arg)
       end
     end
   rescue EOFError
@@ -110,9 +110,8 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     bump_message_counter!
 
-    process = proc { process_message!(msg) }
     if msg.has_dependencies?
-      msg.happens_before_dependencies.reduce(process) do |chain, dep|
+      msg.happens_before_dependencies.reduce(proc { process_message!(msg) }) do |chain, dep|
         proc { on_version(dep.key(:sub).for(:redis), dep.version, msg) { chain.call } }
       end.call
     else
@@ -128,15 +127,8 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   def on_version(key, version, message, &callback)
     return unless @subscriptions
     sub = get_subscription(key).subscribe
-    cb = Subscription::Callback.new(version, callback, message)
-
-    if sub.last_version && cb.can_perform?(sub.last_version)
-      cb.perform
-    else
-      sub.add_callback(cb).signal_version(Promiscuous::Redis.get(key))
-    end
+    sub.add_callback(Subscription::Callback.new(version, callback, message))
   end
-
 
   def bump_message_counter!
     @num_queued_messages += 1
@@ -190,6 +182,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     recovery_msg = "Skipping "
     recovery_msg += versions_to_skip.map do |dep, key, to_skip|
+      Promiscuous::Redis.set(key, dep.version)
+      Promiscuous::Redis.publish(key, dep.version)
+
+      # Note: the skipped message would have a write dependency with dep.to_s
       "#{to_skip} message(s) on #{dep}"
     end.join(", ")
 
@@ -197,11 +193,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Promiscuous.error "[receive] #{e}"
     # TODO Don't report when doing the initial sync
     Promiscuous::Config.error_notifier.try(:call, e)
-
-    versions_to_skip.each do |dep, key, to_skip|
-      v = Promiscuous::Redis.incrby(key, to_skip)
-      Promiscuous::Redis.publish(key, v)
-    end
   end
 
   def blocked_messages
@@ -212,6 +203,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       .map(&:message)
       .uniq
       .sort_by { |msg| msg.timestamp }
+  end
+
+  def notify_subscription(key)
+    find_subscription(key).finalize_subscription
   end
 
   def notify_key_change(key, version)
@@ -242,6 +237,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       @subscribed_to_redis = false
       # We use a priority queue that returns the smallest value first
       @callbacks = Containers::PriorityQueue.new { |x, y| x < y }
+      @last_version = 0
     end
 
     def subscribe
@@ -270,7 +266,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     end
 
     def signal_version(current_version)
-      @last_version = current_version = current_version.to_i
+      current_version = current_version.to_i
+      return if current_version < @last_version
+      @last_version = current_version
+
       loop do
         next_cb = @callbacks.next
         return unless next_cb && next_cb.can_perform?(current_version)
@@ -282,8 +281,13 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     def add_callback(callback)
       callback.subscription = self
-      @callbacks.push(callback, callback.version)
-      self
+
+      if callback.can_perform?(@last_version)
+        callback.perform
+      else
+        @callbacks.push(callback, callback.version)
+        signal_version(Promiscuous::Redis.get(key))
+      end
     end
 
     class Callback < Struct.new(:version, :callback, :message, :subscription)

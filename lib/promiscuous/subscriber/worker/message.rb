@@ -45,12 +45,15 @@ class Promiscuous::Subscriber::Worker::Message
       read_increments[key] += 1
     end
 
-    deps = dependencies[:write].map do |dep|
-      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key(:sub).for(:redis)].to_i }
-    end
+    deps = []
     deps << dependencies[:link] if dependencies[:link]
     deps += dependencies[:read]
-    deps.uniq
+    deps += dependencies[:write].map do |dep|
+      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key(:sub).for(:redis)].to_i }
+    end
+
+    # We return the most difficult condition to satisfy first
+    deps.uniq.reverse
   end
 
   def has_dependencies?
@@ -91,7 +94,7 @@ class Promiscuous::Subscriber::Worker::Message
     ack
 
   rescue Exception => e
-    ack if e.is_a? Promiscuous::Error::AlreadyProcessed && Promiscuous::Config.recovery
+    ack if e.is_a?(Promiscuous::Error::AlreadyProcessed) && Promiscuous::Config.recovery
 
     e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
     Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"
