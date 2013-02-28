@@ -123,9 +123,7 @@ module Promiscuous::AMQP::RubyAMQP
   end
 
   def self.disconnect
-    @connection.close { EM.stop if @event_machine_thread } if @connection
-    @event_machine_thread.join if @event_machine_thread
-    @event_machine_thread = nil
+    @connection.try(:close) rescue nil
     @connection = nil
     @channels = nil
     @exchanges = nil

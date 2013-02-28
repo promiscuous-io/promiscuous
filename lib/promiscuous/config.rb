@@ -55,15 +55,22 @@ module Promiscuous::Config
 
     Kernel.module_eval do
       alias_method :fork_without_promiscuous, :fork
+
       def fork(&block)
         Promiscuous.disconnect
-        pid = fork_without_promiscuous do
-          Promiscuous.connect
-          block.call if block
+        pid = if block
+          fork_without_promiscuous do
+            Promiscuous.connect
+            block.call
+          end
+        else
+          fork_without_promiscuous
         end
-        Promiscuous.connect if pid
+        Promiscuous.connect
         pid
       end
+
+      module_function :fork
     end
 
     @fork_hooked = true
