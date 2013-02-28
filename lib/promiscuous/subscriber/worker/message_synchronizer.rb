@@ -4,11 +4,16 @@ require 'containers/priority_queue'
 class Promiscuous::Subscriber::Worker::MessageSynchronizer
   include Celluloid::IO
 
-  attr_accessor :redis
+  RECONNECT_INTERVAL = 2.seconds
+  CLEANUP_INTERVAL   = 1.minute
+  QUEUE_MAX_AGE      = 10.minutes
+
+  attr_accessor :redis, :subscriptions
 
   def initialize
     connect
     async.main_loop
+    cleanup_later
   end
 
   def stop
@@ -44,6 +49,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     self.redis.client.connection.disconnect if connected?
   rescue
   ensure
+    @subscriptions = {}
     self.redis = nil
   end
 
@@ -63,7 +69,16 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def reconnect_later
-    @reconnect_timer ||= after(2.seconds) { reconnect }
+    @reconnect_timer ||= after(RECONNECT_INTERVAL) { reconnect }
+  end
+
+  def cleanup
+    @subscriptions.values.each(&:cleanup_if_old)
+    cleanup_later
+  end
+
+  def cleanup_later
+    after(CLEANUP_INTERVAL) { cleanup }
   end
 
   def main_loop
@@ -221,6 +236,24 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       # We use a priority queue that returns the smallest value first
       @callbacks = Containers::PriorityQueue.new { |x, y| x < y }
       @last_version = 0
+
+      refresh_activity
+    end
+
+    def refresh_activity
+      @last_activity_at = Time.now
+    end
+
+    def is_old?
+      delta = Time.now - @last_activity_at
+      @callbacks.empty? && delta > QUEUE_MAX_AGE
+    end
+
+    def cleanup_if_old
+      if is_old?
+        parent.redis.client.process([[:unsubscribe, key]])
+        parent.subscriptions.delete(key)
+      end
     end
 
     def subscribe
@@ -244,10 +277,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       parent.signal :subscription
     end
 
-    def destroy
-      # TODO parent.redis_client_call(:unsubscribe, key)
-    end
-
     def signal_version(current_version)
       current_version = current_version.to_i
       return if current_version < @last_version
@@ -266,6 +295,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     end
 
     def add_callback(callback)
+      refresh_activity
       callback.subscription = self
 
       if callback.can_perform?(@last_version)
