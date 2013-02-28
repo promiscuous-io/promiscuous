@@ -34,12 +34,10 @@ module Promiscuous::AMQP::RubyAMQP
     end
   end
 
-  def self.maybe_start_event_machine
-    return if EM.reactor_running?
-
+  def self.start_event_machine
     EM.error_handler { |e| Promiscuous::Config.error_notifier.try(:call, e) }
     em_sync = Synchronizer.new
-    @event_machine_thread = Thread.new { EM.run { em_sync.signal } }
+    Thread.new { EM.run { em_sync.signal } }
     em_sync.wait
   end
 
@@ -49,7 +47,7 @@ module Promiscuous::AMQP::RubyAMQP
     @channels = {}
     @exchanges = {}
 
-    maybe_start_event_machine
+    start_event_machine
 
     amqp_options = if Promiscuous::Config.amqp_url
       url = URI.parse(Promiscuous::Config.amqp_url)

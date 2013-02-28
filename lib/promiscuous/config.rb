@@ -68,6 +68,10 @@ module Promiscuous::Config
         end
         Promiscuous.connect
         pid
+      rescue Exception => e
+        puts e
+        puts e.backtrace.join("\n")
+        raise e
       end
 
       module_function :fork
