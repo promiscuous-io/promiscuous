@@ -23,7 +23,8 @@ module Promiscuous::DSL
     end
 
     def attributes(*fields)
-      @model_class.__send__(@mode, *fields, @options)
+      options = fields.extract_options!
+      @model_class.__send__(@mode, *fields, @options.merge(options))
     end
 
     def track_dependencies_of(field)
