@@ -108,7 +108,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     # when calling worker.pump.start
     return unless self.redis
 
-    bump_message_counter!
+    @num_queued_messages += 1
 
     if msg.has_dependencies?
       msg.happens_before_dependencies.reduce(proc { process_message!(msg) }) do |chain, dep|
@@ -130,43 +130,22 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     sub.add_callback(Subscription::Callback.new(version, callback, message))
   end
 
-  def bump_message_counter!
-    @num_queued_messages += 1
-    maybe_recover
-  end
-
   def maybe_recover
-    return unless Promiscuous::Config.recovery
-
-    if @recover_timer
-      @recover_timer.cancel
-      @recover_timer = nil
-      not_recovering
-    elsif should_recover?
+    if Promiscuous::Config.recovery && should_recover?
       # We've reached the amount of messages the amqp queue is willing to give us.
       # We also know that we are not processing messages (@num_queued_messages is
-      # decremented before we send the message to the runners).
-
-      timeout = Promiscuous::Config.recovery_timeout
-      Promiscuous.warn "[receive] Recovering in #{timeout} seconds..."
-      @recover_timer = after(timeout) do
-        @recover_timer = nil
-        should_recover? ? recover : not_recovering
-      end
+      # decremented before we send the message to the runners), and we are called
+      # after adding a pending callback.
+      recover
     end
   end
 
   def should_recover?
-    @num_queued_messages >= Promiscuous::Config.prefetch
-  end
-
-  def not_recovering
-    Promiscuous.warn "[receive] Nothing to recover from"
+    @num_queued_messages == Promiscuous::Config.prefetch
   end
 
   def recover
-    return unless should_recover?
-
+    # XXX This recovery mechanism only works with one worker.
     # We are taking the earliest message to unblock, but in reality we should
     # do the DAG of the happens before dependencies, take root nodes
     # of the disconnected graphs, and sort by timestamps if needed.
@@ -193,6 +172,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Promiscuous.error "[receive] #{e}"
     # TODO Don't report when doing the initial sync
     Promiscuous::Config.error_notifier.try(:call, e)
+  end
+
+  def not_recovering
+    Promiscuous.warn "[receive] Nothing to recover from"
   end
 
   def blocked_messages
@@ -270,13 +253,16 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       return if current_version < @last_version
       @last_version = current_version
 
+      performed = false
       loop do
         next_cb = @callbacks.next
-        return unless next_cb && next_cb.can_perform?(current_version)
+        break unless next_cb && next_cb.can_perform?(current_version)
 
         @callbacks.pop
         next_cb.perform
+        performed = true
       end
+      performed
     end
 
     def add_callback(callback)
@@ -286,7 +272,9 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
         callback.perform
       else
         @callbacks.push(callback, callback.version)
-        signal_version(Promiscuous::Redis.get(key))
+        unless signal_version(Promiscuous::Redis.get(key))
+          parent.maybe_recover
+        end
       end
     end
 

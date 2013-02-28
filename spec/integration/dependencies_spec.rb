@@ -132,7 +132,6 @@ if ORM.has(:mongoid)
       before do
         config_logger :logger_level => Logger::FATAL
         Promiscuous::Config.prefetch = 5
-        Promiscuous::Config.recovery_timeout = 0.1
         Promiscuous::Config.recovery = true
       end
 

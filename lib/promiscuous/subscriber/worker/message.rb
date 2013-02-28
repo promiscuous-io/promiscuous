@@ -15,7 +15,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def timestamp
-    parsed_payload['timestamp']
+    parsed_payload['timestamp'].to_i
   end
 
   def dependencies
