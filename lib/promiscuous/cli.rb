@@ -121,6 +121,10 @@ class Promiscuous::CLI
         options[:output] = file
       end
 
+      opts.on "-s", "--stat-interval [DURATION]", "Stats refresh rate (0 to disable)" do |duration|
+        Promiscuous::Config.stats_interval = duration.to_f
+      end
+
       opts.on("-h", "--help", "Show this message") do
         puts opts
         exit

@@ -13,11 +13,11 @@ module Promiscuous::Redis
     self.master = nil
   end
 
-  def self.new_connection
+  def self.new_connection(url=nil)
     return Null.new if Promiscuous::Config.backend == :null
 
-    redis = ::Redis.new(:url => Promiscuous::Config.redis_url,
-                        :tcp_keepalive => 60)
+    url ||= Promiscuous::Config.redis_url
+    redis = ::Redis.new(:url => url, :tcp_keepalive => 60)
     redis.client.connect
     redis
   end

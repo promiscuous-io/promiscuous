@@ -133,7 +133,8 @@ class Promiscuous::Publisher::Transaction
 
   def get_timestamp
     time = Time.now
-    time.to_i * 1000 + time.usec / 1000
+    time = time.to_i * 1000 + time.usec / 1000
+    time.to_i
   end
 
   def commit

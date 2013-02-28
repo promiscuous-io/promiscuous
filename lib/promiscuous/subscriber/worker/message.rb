@@ -66,7 +66,9 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def ack
+    time = Time.now
     metadata.try(:ack)
+    Celluloid::Actor[:stats].async.notify_processed_message(self, time)
   rescue
     # We don't care if we fail, the message will be redelivered at some point
   end

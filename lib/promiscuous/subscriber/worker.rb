@@ -3,11 +3,12 @@ require 'celluloid/io'
 
 class Promiscuous::Subscriber::Worker < Celluloid::SupervisionGroup
   extend Promiscuous::Autoload
-  autoload :Message, :Pump, :MessageSynchronizer, :Runner
+  autoload :Message, :Pump, :MessageSynchronizer, :Runner, :Stats
 
   pool      Runner,              :as => :runners, :size => 10
   supervise MessageSynchronizer, :as => :message_synchronizer
   supervise Pump,                :as => :pump
+  supervise Stats,               :as => :stats
 
   def finalize
     # The order matters as actors depend on each other.

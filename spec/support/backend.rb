@@ -46,6 +46,7 @@ module BackendHelper
   def config_logger(options={})
     Promiscuous::Config.logger.level = ENV["LOGGER_LEVEL"].to_i if ENV["LOGGER_LEVEL"]
     Promiscuous::Config.logger.level = options[:logger_level] if options[:logger_level]
+    Promiscuous::Config.stats_interval = 0
   end
 end
 
