@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency "activesupport",       ">= 3.0.0"
   s.add_dependency "activemodel",         ">= 3.0.0"
-  s.add_dependency "bunny",               "~> 0.8.0"
+  s.add_dependency "bunny",               ">= 0.9.0.pre7"
   s.add_dependency "amqp",                "~> 0.9.8"
   s.add_dependency "ruby-progressbar",    "~> 1.0.2"
   s.add_dependency "redis",               "~> 3.0.2"

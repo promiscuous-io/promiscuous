@@ -30,7 +30,7 @@ module Promiscuous::Config
     self.stats_redis_url ||= self.redis_url
     self.stats_interval  ||= 0
     self.zookeeper_hosts ||= nil
-    self.backend         ||= RUBY_PLATFORM == 'java' ? :hot_bunny : :rubyamqp
+    self.backend         ||= RUBY_PLATFORM == 'java' ? :hot_bunny : :bunny
     self.queue_options   ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.heartbeat       ||= 60
     self.bareback        ||= false

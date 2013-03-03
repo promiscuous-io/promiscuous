@@ -17,4 +17,8 @@ class Promiscuous::Subscriber::Worker::Pump
       Celluloid::Actor[:message_synchronizer].process_when_ready(msg)
     end
   end
+
+  def notify_processed_message(msg, time)
+    msg.metadata.ack
+  end
 end

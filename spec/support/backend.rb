@@ -1,6 +1,6 @@
 module BackendHelper
   def use_real_backend(options={})
-    real_backend = RUBY_PLATFORM == 'java' ? :hot_bunny : :rubyamqp
+    real_backend = RUBY_PLATFORM == 'java' ? :hot_bunny : :bunny
     if Promiscuous::Config.backend != real_backend
       Promiscuous.configure do |config|
         config.reset

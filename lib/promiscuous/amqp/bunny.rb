@@ -1,14 +1,22 @@
 module Promiscuous::AMQP::Bunny
-  mattr_accessor :connection
+  mattr_accessor :connection, :connection_lock
+  self.connection_lock = Mutex.new
 
   def self.connect
     require 'bunny'
+    return if connected?
     self.connection = ::Bunny.new(Promiscuous::Config.amqp_url, { :heartbeat => Promiscuous::Config.heartbeat })
     self.connection.start
+
+    @master_channel = self.connection.create_channel
+    @master_exchange = exchange(@master_channel)
   end
 
   def self.disconnect
-    self.connection.stop
+    connection_lock.synchronize do
+      return unless connected?
+      self.connection.stop
+    end
   end
 
   def self.connected?
@@ -16,15 +24,65 @@ module Promiscuous::AMQP::Bunny
   end
 
   def self.publish(options={})
-    exchange(options[:exchange_name]).
-      publish(options[:payload], :key => options[:key], :persistent => true)
+    connection_lock.synchronize do
+      @master_exchange.publish(options[:payload], :key => options[:key], :persistent => true)
+    end
   end
 
-  def self.open_queue(options={}, &block)
-    raise "Cannot open queue with bunny"
+  def self.exchange(channel)
+    channel.exchange(Promiscuous::AMQP::EXCHANGE, :type => :topic, :durable => true)
   end
 
-  def self.exchange(name)
-    connection.exchange(name, :type => :topic, :durable => true)
+  module CelluloidSubscriber
+    def subscribe(options={}, &block)
+      queue_name    = options[:queue_name]
+      bindings      = options[:bindings]
+      Promiscuous::AMQP.ensure_connected
+
+      Promiscuous::AMQP::Bunny.connection_lock.synchronize do
+        @channel = Promiscuous::AMQP::Bunny.connection.create_channel
+        @channel.prefetch(Promiscuous::Config.prefetch)
+        exchange = Promiscuous::AMQP::Bunny.exchange(@channel)
+        queue = @channel.queue(queue_name, Promiscuous::Config.queue_options)
+        bindings.each do |binding|
+          queue.bind(exchange, :routing_key => binding)
+          Promiscuous.debug "[bind] #{queue_name} -> #{binding}"
+        end
+        @subscription = queue.subscribe(:ack => true) do |delivery_info, metadata, payload|
+          block.call(MetaData.new(self, delivery_info), payload)
+        end
+      end
+    end
+
+    def ack_message(tag)
+      Promiscuous::AMQP::Bunny.connection_lock.synchronize do
+        @channel.ack(tag)
+      end
+    end
+
+    class MetaData
+      def initialize(subscriber, delivery_info)
+        @subscriber = subscriber
+        @delivery_info = delivery_info
+      end
+
+      def ack
+        @subscriber.ack_message(@delivery_info.delivery_tag)
+      end
+    end
+
+    def wait_for_subscription
+      # Nothing to do, things are synchronous.
+    end
+
+    def finalize
+      Promiscuous::AMQP::Bunny.connection_lock.synchronize do
+        @channel.close
+      end
+    end
+
+    def recover
+      @channel.recover
+    end
   end
 end
