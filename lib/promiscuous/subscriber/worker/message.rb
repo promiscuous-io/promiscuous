@@ -38,6 +38,8 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def happens_before_dependencies
+    return @happens_before_dependencies if @happens_before_dependencies
+
     read_increments = {}
     dependencies[:read].each do |dep|
       key = dep.key(:sub).for(:redis)
@@ -53,7 +55,7 @@ class Promiscuous::Subscriber::Worker::Message
     end
 
     # We return the most difficult condition to satisfy first
-    deps.uniq.reverse
+    @happens_before_dependencies = deps.uniq.reverse
   end
 
   def has_dependencies?

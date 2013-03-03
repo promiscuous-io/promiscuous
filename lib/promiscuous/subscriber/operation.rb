@@ -41,9 +41,12 @@ class Promiscuous::Subscriber::Operation
     # It's more or less some smoke test.
     # It also doesn't work with dummies as they don't have write depenencies
     # for now (no id).
-    dep = message.dependencies[:write].first
-    if dep && Promiscuous::Redis.get(dep.key(:sub).for(:redis)).to_i != dep.version - 1
-      raise Promiscuous::Error::AlreadyProcessed
+    if message.dependencies[:write].present?
+      # We take the first write depedency (adjusted with the read increments)
+      dep = message.happens_before_dependencies.first
+      if Promiscuous::Redis.get(dep.key(:sub).for(:redis)).to_i != dep.version
+        raise Promiscuous::Error::AlreadyProcessed
+      end
     end
   end
 
