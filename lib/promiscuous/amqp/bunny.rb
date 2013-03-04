@@ -1,11 +1,29 @@
 module Promiscuous::AMQP::Bunny
+  def self.hijack_bunny
+    return if @bunny_hijacked
+    ::Bunny::Session.class_eval do
+      alias_method :handle_network_failure_without_promiscuous, :handle_network_failure
+
+      def handle_network_failure(e)
+        Promiscuous.warn "[amqp] #{e}. Reconnecting..."
+        Promiscuous::Config.error_notifier.try(:call, e)
+        handle_network_failure_without_promiscuous(e)
+      end
+    end
+    @bunny_hijacked = true
+  end
+
   mattr_accessor :connection, :connection_lock
+  # The bunnet socket doesn't like when multiple threads access to it apparently
   self.connection_lock = Mutex.new
 
   def self.connect
     require 'bunny'
+    hijack_bunny
+
     return if connected?
-    self.connection = ::Bunny.new(Promiscuous::Config.amqp_url, { :heartbeat => Promiscuous::Config.heartbeat })
+    self.connection = ::Bunny.new(Promiscuous::Config.amqp_url,
+                                  :heartbeat_interval => Promiscuous::Config.heartbeat)
     self.connection.start
 
     @master_channel = self.connection.create_channel

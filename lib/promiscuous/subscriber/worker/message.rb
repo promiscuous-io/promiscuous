@@ -71,9 +71,9 @@ class Promiscuous::Subscriber::Worker::Message
     time = Time.now
     Celluloid::Actor[:pump].async.notify_processed_message(self, time)
     Celluloid::Actor[:stats].async.notify_processed_message(self, time)
-  rescue Exception => e
+  rescue Exception
     # We don't care if we fail, the message will be redelivered at some point
-    STDERR.puts "Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
+    #STDERR.puts "Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
   end
 
   def unit_of_work(type, &block)
