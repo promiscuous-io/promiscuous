@@ -1,13 +1,12 @@
 module Promiscuous::Convenience
-  Transaction = Promiscuous::Publisher::Transaction
   extend self
 
   def without_promiscuous
     raise "No block given" unless block_given?
-    old_disabled, Transaction.disabled = Transaction.disabled, true
+    old_disabled, Promiscuous.disabled = Promiscuous.disabled, true
     yield
   ensure
-    Transaction.disabled = old_disabled
+    Promiscuous.disabled = old_disabled
   end
 end
 

@@ -1,4 +1,5 @@
 require 'redis'
+require 'redis-mutex'
 
 module Promiscuous::Redis
   mattr_accessor :master
@@ -6,6 +7,7 @@ module Promiscuous::Redis
   def self.connect
     disconnect
     self.master = new_connection
+    Redis::Classy.db = self.master # XXX VERY SAD
   end
 
   def self.disconnect

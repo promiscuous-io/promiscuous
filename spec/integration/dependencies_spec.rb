@@ -10,31 +10,31 @@ if ORM.has(:mongoid)
 
     context 'when doing a blank update' do
       it 'passes through' do
-        pub1 = Promiscuous.transaction { PublisherModel.create(:field_1 => '1') }
+        pub1 = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         eventually { SubscriberModel.first.should_not == nil }
         Mongoid.purge!
-        expect { Promiscuous.transaction { pub1.update_attributes(:field_1 => '2') } }.to_not raise_error
+        expect { Promiscuous.context { pub1.update_attributes(:field_1 => '2') } }.to_not raise_error
       end
     end
 
     context 'when doing a blank destroy' do
       it 'passes through' do
-        pub1 = Promiscuous.transaction { PublisherModel.create(:field_1 => '1') }
+        pub1 = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         eventually { SubscriberModel.first.should_not == nil }
         Mongoid.purge!
-        expect { Promiscuous.transaction { pub1.destroy } }.to_not raise_error
+        expect { Promiscuous.context { pub1.destroy } }.to_not raise_error
       end
     end
 
     context 'when doing multi updates' do
       it 'fails immediately' do
-        expect { Promiscuous.transaction { PublisherModel.update_all(:field_1 => '1') } }.to raise_error
+        expect { Promiscuous.context { PublisherModel.update_all(:field_1 => '1') } }.to raise_error
       end
     end
 
     context 'when doing multi delete' do
       it 'fails immediately' do
-        expect { Promiscuous.transaction { PublisherModel.delete_all(:field_1 => '1') } }.to raise_error
+        expect { Promiscuous.context { PublisherModel.delete_all(:field_1 => '1') } }.to raise_error
       end
     end
 
@@ -58,9 +58,9 @@ if ORM.has(:mongoid)
       end
 
       it 'stays ordered' do
-        pubs = 3.times.map { Promiscuous.transaction { Publisher.create(:field => 0) } }
+        pubs = 3.times.map { Promiscuous.context { Publisher.create(:field => 0) } }
         pubs.map do |pub|
-          10.times.map { Thread.new { Promiscuous.transaction { 10.times { pub.inc(:field, 1) } } } }
+          10.times.map { Thread.new { Promiscuous.context { 10.times { pub.inc(:field, 1) } } } }
         end.flatten.each(&:join)
 
         eventually :timeout => 10.seconds do
@@ -75,7 +75,7 @@ if ORM.has(:mongoid)
 
     context 'when subscribing to a subset of models' do
       it 'replicates' do
-        Promiscuous.transaction do
+        Promiscuous.context do
           PublisherModel.create
           PublisherModelOther.create
           PublisherModel.create
@@ -89,7 +89,7 @@ if ORM.has(:mongoid)
 
     context 'when using : in the value' do
       it 'replicates' do
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = PublisherModel.create(:field_1 => ':hi')
           eventually { SubscriberModel.first.field_1.should == ':hi' }
           pub.update_attributes(:field_2 => ':hel:lo:')
@@ -100,14 +100,14 @@ if ORM.has(:mongoid)
           eventually { SubscriberModel.first.field_1.should == ':' }
 
           dep = pub.promiscuous.tracked_dependencies.first
-          Promiscuous::Redis.get(dep.key(:sub).for(:redis)).to_i.should == 4
+          Promiscuous::Redis.get(dep.key(:sub).to_s).to_i.should == 4
         end
       end
     end
 
     context 'when the publisher fails' do
       it 'replicates' do
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub1 = PublisherModel.create(:field_1 => '1')
           expect do
             PublisherModel.create({:id => pub1.id, :field_1 => '2'}, :without_protection => true)
@@ -126,18 +126,18 @@ if ORM.has(:mongoid)
 
       it 'skips duplicates' do
         pub = nil
-        pub = Promiscuous.transaction { PublisherModel.create }
-        Promiscuous.transaction { pub.inc(:field_1, 1) }
+        pub = Promiscuous.context { PublisherModel.create }
+        Promiscuous.context { pub.inc(:field_1, 1) }
         eventually { SubscriberModel.num_saves.should == 2 }
 
         key = pub.promiscuous.tracked_dependencies.first.key(:pub)
-        Promiscuous::Redis.decr(key.join('rw').for(:redis))
-        Promiscuous::Redis.decr(key.join('w').for(:redis))
+        Promiscuous::Redis.decr(key.join('rw').to_s)
+        Promiscuous::Redis.decr(key.join('w').to_s)
 
         # Skipped update
-        Promiscuous.transaction { pub.inc(:field_1, 1) }
+        Promiscuous.context { pub.inc(:field_1, 1) }
         # processed update
-        Promiscuous.transaction { pub.inc(:field_1, 1) }
+        Promiscuous.context { pub.inc(:field_1, 1) }
 
         eventually do
           SubscriberModel.num_saves.should == 3
@@ -155,15 +155,15 @@ if ORM.has(:mongoid)
 
       it 'increments versions properly' do
         pub = nil
-        pub = Promiscuous.transaction { PublisherModel.create }
-        Promiscuous.transaction { pub.inc(:field_1, 1) }
+        pub = Promiscuous.context { PublisherModel.create }
+        Promiscuous.context { pub.inc(:field_1, 1) }
         eventually { SubscriberModel.num_saves.should == 2 }
 
         key = pub.promiscuous.tracked_dependencies.first.key(:pub)
-        Promiscuous::Redis.incr(key.join('rw').for(:redis))
-        Promiscuous::Redis.incr(key.join('w').for(:redis))
+        Promiscuous::Redis.incr(key.join('rw').to_s)
+        Promiscuous::Redis.incr(key.join('w').to_s)
 
-        5.times { Promiscuous.transaction { pub.inc(:field_1, 1) } }
+        5.times { Promiscuous.context { pub.inc(:field_1, 1) } }
 
         eventually do
           SubscriberModel.num_saves.should == 7

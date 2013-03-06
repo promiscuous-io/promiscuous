@@ -9,7 +9,7 @@ describe Promiscuous do
     context 'with save' do
       it 'replicates' do
         pub = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = ModelEphemeral.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
           pub.save
         end
@@ -26,7 +26,7 @@ describe Promiscuous do
     context 'with create' do
       it 'replicates' do
         pub = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = ModelEphemeral.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
         end
 

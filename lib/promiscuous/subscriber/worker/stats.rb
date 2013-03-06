@@ -8,8 +8,8 @@ class Promiscuous::Subscriber::Worker::Stats
     unless @interval.zero?
       @redis = Promiscuous::Redis.new_connection(url)
       key = Promiscuous::Key.new(:sub).join(Socket.gethostname)
-      @key_processed_message = key.join('__stats__', 'processed_messages').for(:redis)
-      @key_total_response_time = key.join('__stats__', 'total_response_time').for(:redis)
+      @key_processed_message = key.join('__stats__', 'processed_messages').to_s
+      @key_total_response_time = key.join('__stats__', 'total_response_time').to_s
 
       @redis.set(@key_processed_message, 0)
       @redis.set(@key_total_response_time, 0)

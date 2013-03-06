@@ -8,7 +8,7 @@ class Promiscuous::Key
     self.class.new(@role, @nodes + nodes)
   end
 
-  def for(service)
+  def to_s
     path = []
     case @role
     when :pub then path << 'publishers'
@@ -16,9 +16,10 @@ class Promiscuous::Key
     end
     path << Promiscuous::Config.app
     path += @nodes.compact
-    case service
-    when :redis then path.join(':')
-    when :zk    then path.join('/')
-    end
+    path.join(':')
+  end
+
+  def as_json(options={})
+    to_s
   end
 end

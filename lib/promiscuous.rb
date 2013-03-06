@@ -35,27 +35,32 @@ module Promiscuous
     def connect
       AMQP.connect
       Redis.connect
-      ZK.connect
     end
 
     def disconnect
       AMQP.disconnect
       Redis.disconnect
-      ZK.disconnect
     end
 
     def healthy?
       AMQP.ensure_connected
       Redis.ensure_connected
-      ZK.ensure_connected
     rescue
       false
     else
       true
     end
 
-    def transaction(*args, &block)
-      Publisher::Transaction.open(*args, &block)
+    def disabled
+      Thread.current[:promiscuous_disabled] || $promiscuous_disabled
+    end
+
+    def disabled=(value)
+      Thread.current[:promiscuous_disabled] = value
+    end
+
+    def context(*args, &block)
+      Publisher::Context.open(*args, &block)
     end
   end
 

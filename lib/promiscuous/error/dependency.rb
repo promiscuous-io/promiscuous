@@ -1,10 +1,10 @@
 class Promiscuous::Error::Dependency < Promiscuous::Error::Base
-  attr_accessor :dependency_solutions, :operation, :transaction
+  attr_accessor :dependency_solutions, :operation, :context
 
   def initialize(options={})
     self.dependency_solutions = options[:dependency_solutions]
     self.operation = options[:operation]
-    self.transaction = Promiscuous::Publisher::Transaction.current
+    self.context = Promiscuous::Publisher::Context.current
   end
 
   # TODO Convert all that with Erb
@@ -21,8 +21,8 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
              "     This is the preferred solution when you are sure that the read doesn't\n" +
              "     influence the value of a published attribute.\n\n" +
              "     Rule of thumb: Predicates (methods ending with ?) are often suitable for this use case.\n\n" +
-             "  2. Use a Nested Transaction\n\n" +
-             "     Nested transaction can be used to optimize performance by identifying\n"+
+             "  2. Use a Nested context\n\n" +
+             "     Nested contexts can be used to optimize performance by identifying\n"+
              "     blocks of code that do not depend on each other. A typical pattern is the\n"+
              "     'last_visited_at' update in a before filter of all controllers.\n\n"
       cnt = 3
@@ -35,7 +35,6 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
                "            doc.reload # tell promiscuous to track the instance\n" +
                "            doc.do_something!\n" +
                "          end\n\n" +
-               "     It's also interesting to wrap the whole thing in a transaction to isolate the block.\n\n"
         cnt += 1
       end
       if dependency_solutions.present?
@@ -75,7 +74,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
     when :update    then msg += 'multi update'
     when :destroy   then msg += 'multi destroy'
     end
-    msg += " in the '#{transaction.name}' transaction:\n\n"
+    msg += " in the '#{context.name}' context:\n\n"
     msg += "  #{self.class.explain_operation(self.operation)}"
     msg += "\n\nProTip: Try again with TRACE=2 in the shell or ENV['TRACE']='2' in the console.\n" unless ENV['TRACE']
     msg
@@ -102,7 +101,6 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
       if operation.operation == :update && operation.respond_to?(:change) && operation.change
         msg += "(#{get_selector(operation.change, limit)})"
       end
-      msg += " (missed)" if operation.missed?
       msg
     end
   end

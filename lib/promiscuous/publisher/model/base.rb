@@ -18,21 +18,22 @@ module Promiscuous::Publisher::Model::Base
 
     def sync(options={}, &block)
       options = {:instance => @instance, :operation => :update}.merge(options)
-      Promiscuous::Publisher::Operation::Base.new(options).commit(&block)
+      Promiscuous::Publisher::Operation::Base.new(options).execute(&block)
     end
 
     def payload(options={})
       # It's nice to see the entire payload in one piece, not merged 36 times
+      # TODO migrate this format to something that makes more sense once the store is out
       msg = {}
-      msg[:__amqp__]      = @instance.class.publish_to
-      msg[:type]          = @instance.class.publish_as # for backward compatibility
-      msg[:ancestors]     = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
-      msg[:id]            = @instance.id.to_s
-      msg[:payload]       = self.attributes        if options[:operation].in?([nil, :create, :update])
-      msg[:operation]     = options[:operation]    if options[:operation]
-      msg[:dependencies]  = options[:dependencies] if options[:dependencies]
-      msg[:transaction]   = options[:transaction]  if options[:transaction]
-      msg[:timestamp]     = options[:timestamp]    if options[:timestamp]
+      msg[:__amqp__]     = @instance.class.publish_to
+      msg[:type]         = @instance.class.publish_as # for backward compatibility
+      msg[:ancestors]    = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+      msg[:id]           = @instance.id.to_s
+      msg[:payload]      = self.attributes        if options[:operation].in?([nil, :create, :update])
+      msg[:operation]    = options[:operation]    if options[:operation]
+      msg[:dependencies] = options[:dependencies] if options[:dependencies]
+      msg[:context]      = options[:context]      if options[:context]
+      msg[:timestamp]    = options[:timestamp]    if options[:timestamp]
       msg
     end
 
@@ -62,6 +63,7 @@ module Promiscuous::Publisher::Model::Base
     def tracked_dependencies(options={})
       # FIXME This is not sufficient, we need to consider the previous and next
       # values in case of an update.
+      # Note that the caller expect the id dependency to come first
       @instance.class.tracked_attrs
         .map { |attr| [attr, @instance.__send__(attr)]}
         .map { |attr, value| get_dependency(attr, value) }
@@ -98,7 +100,6 @@ module Promiscuous::Publisher::Model::Base
       end
       self.publish_to ||= options[:to] || "#{Promiscuous::Config.app}/#{self.name.underscore}"
       @publish_as = options[:as].to_s if options[:as]
-      Promiscuous::ZK.ensure_valid_backend unless publish_to =~ /^__promiscuous__\//
 
       ([self] + descendants).each do |klass|
         # When the user passes :use => [:f1, :f2] for example, operation/mongoid.rb

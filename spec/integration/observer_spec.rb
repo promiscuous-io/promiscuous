@@ -18,7 +18,7 @@ describe Promiscuous do
   context 'when creating' do
     it 'triggers the create callbacks' do
       pub = nil
-      Promiscuous.transaction do
+      Promiscuous.context do
         pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
         pub.save
       end
@@ -37,7 +37,7 @@ describe Promiscuous do
   context 'when updating' do
     it 'triggers the update callbacks' do
       pub = nil
-      Promiscuous.transaction do
+      Promiscuous.context do
         pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
         pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
       end
@@ -55,7 +55,7 @@ describe Promiscuous do
   context 'when destroying' do
     it 'triggers the destroy callbacks' do
       pub = nil
-      Promiscuous.transaction do
+      Promiscuous.context do
         pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
         pub.destroy
       end

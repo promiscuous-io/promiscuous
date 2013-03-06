@@ -1,6 +1,6 @@
 module Promiscuous::Publisher
   extend Promiscuous::Autoload
-  autoload :Model, :Operation, :MockGenerator, :Transaction
+  autoload :Model, :Operation, :MockGenerator, :Context
 
   extend ActiveSupport::Concern
 

@@ -1,20 +1,20 @@
 class Promiscuous::Middleware
-  Transaction = Promiscuous::Publisher::Transaction
+  Context = Promiscuous::Publisher::Context
 
   module Controller
     extend ActiveSupport::Concern
 
-    mattr_accessor :with_transactions
-    self.with_transactions = {}
+    mattr_accessor :with_promiscuous_contexts
+    self.with_promiscuous_contexts = {}
 
     def process_action(*args)
       full_name = "#{self.class.controller_path}/#{self.action_name}"
-      options = Promiscuous::Middleware::Controller.with_transactions[full_name]
+      options = Promiscuous::Middleware::Controller.with_promiscuous_contexts[full_name]
 
       if options
-        Promiscuous::Middleware.with_promiscuous(full_name, options) { super }
+        Promiscuous::Middleware.with_context(full_name, options) { super }
       else
-        Promiscuous::Middleware.without_promiscuous do
+        Promiscuous::Middleware.without_context do
           begin
             # That's for generating better errors traces
             Thread.current[:promiscuous_controller] = {:controller => self, :action => action_name}
@@ -27,41 +27,43 @@ class Promiscuous::Middleware
     end
 
     def render(*args)
-      Promiscuous::Middleware.without_promiscuous { super }
+      Promiscuous::Middleware.without_context { super }
     end
 
     module ClassMethods
-      def with_transaction(*args)
+      def with_promiscuous_context(*args)
         options = args.extract_options!
         args.each do |action|
           full_name = "#{controller_path}/#{action}"
-          Promiscuous::Middleware::Controller.with_transactions[full_name] = options
+          Promiscuous::Middleware::Controller.with_promiscuous_contexts[full_name] = options
         end
       end
     end
   end
 
-  def self.without_promiscuous
+  def self.with_context(*args, &block)
+    Promiscuous.context(*args, &block)
+  rescue Exception => e
+    $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
+    pretty_print_exception(e)
+    raise e
+  end
+
+  def self.without_context
+    # This is different from the method without_promiscuous in convenience.rb
+    # That's used for render() and things that are *not* supposed to write.
     # We actually force promiscuous to instrument queries, and make sure that
     # we don't do any write we shouldn't.
-    old_current, Transaction.current   = Transaction.current, nil
-    old_disabled, Transaction.disabled = Transaction.disabled, true
+    old_context, Context.current = Context.current, nil
+    old_disabled, Promiscuous.disabled = Promiscuous.disabled, true
     yield
   rescue Exception => e
     $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
     pretty_print_exception(e)
     raise e
   ensure
-    Transaction.current = old_current
-    Transaction.disabled = old_disabled
-  end
-
-  def self.with_promiscuous(*args, &block)
-    Promiscuous.transaction(*args, &block)
-  rescue Exception => e
-    $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
-    pretty_print_exception(e)
-    raise e
+    Context.current = old_context
+    Promiscuous.disabled = old_disabled
   end
 
   def self.pretty_print_exception(e)

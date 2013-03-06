@@ -9,7 +9,7 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
     context 'when creating' do
       it 'replicates' do
         pub = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = PublisherModelEmbed.new(:field_1 => '1')
           pub.model_embedded = PublisherModelEmbeddedChild.new(:embedded_field_1 => 'e1',
                                                                :embedded_field_2 => 'e2')
@@ -37,7 +37,7 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
     context 'when updating' do
       it 'replicates' do
         pub = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = PublisherModelEmbed.create(:field_1 => '1',
                                            :model_embedded => { :embedded_field_1 => 'e1',
                                                                 :embedded_field_2 => 'e2' })
@@ -66,14 +66,14 @@ if ORM.has(:embedded_documents) and ORM.has(:polymorphic)
     context 'when destroying' do
       it 'replicates' do
         pub = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = PublisherModelEmbed.create(:field_1 => '1',
                                            :model_embedded => { :embedded_field_1 => 'e1',
                                                                 :embedded_field_2 => 'e2' })
         end
 
         eventually { SubscriberModelEmbed.count.should == 1 }
-        Promiscuous.transaction { pub.destroy }
+        Promiscuous.context { pub.destroy }
         eventually { SubscriberModelEmbed.count.should == 0 }
       end
     end

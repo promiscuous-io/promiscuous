@@ -1,6 +1,4 @@
-require 'erb'
-
-class Promiscuous::Error::MissingTransaction < Promiscuous::Error::Base
+class Promiscuous::Error::MissingContext < Promiscuous::Error::Base
   def initialize
     @controller = Thread.current[:promiscuous_controller]
     be_smart if ENV['BE_SMART'] && @controller
@@ -14,7 +12,7 @@ class Promiscuous::Error::MissingTransaction < Promiscuous::Error::Base
 
       lines = f.read.split("\n")
       lines.each do |line|
-        if line =~ /^\s*with_transaction :.*/
+        if line =~ /^\s*with_promiscuous_context :.*/
           # append atomically
           line << ", :#{@controller[:action]}" unless line =~ /:#{@controller[:action]}(,| |$)/
           @fixed_it = true
@@ -26,7 +24,7 @@ class Promiscuous::Error::MissingTransaction < Promiscuous::Error::Base
         lines.each_with_index do |line, i|
           if line =~ /^(\s*)class.*#{@controller[:controller].class.name.split('::').last} /
             # add
-            lines.insert(i+1, "#{$1}  with_transaction :#{@controller[:action]}")
+            lines.insert(i+1, "#{$1}  with_promiscuous_context :#{@controller[:action]}")
             lines.insert(i+2, "") if lines[i+2] =~ /^\s*def\b/
             @fixed_it = true
             break
@@ -49,8 +47,9 @@ class Promiscuous::Error::MissingTransaction < Promiscuous::Error::Base
   end
 
   def to_s
+    require 'erb'
     ERB.new(<<-ERB.gsub(/^\s+<%/, '<%').gsub(/^ {6}/, ''), nil, '-').result(binding)
-      Promiscuous needs to execute all your write queries in a transaction for publishing.
+      Promiscuous needs to execute all your read/write queries in a context for publishing.
       <% if @controller -%>
         <% if @fixed_it -%>
 
@@ -60,7 +59,7 @@ class Promiscuous::Error::MissingTransaction < Promiscuous::Error::Base
         <% end -%>
 
         class <%= @controller[:controller].class %>
-          \e[1m with_transaction :<%= @controller[:action] %>\e[0m
+          \e[1m with_promiscuous_context :<%= @controller[:action] %>\e[0m
         end
 
         Protip: Run your test with BE_SMART=1 and Promiscuous will edit your files for you.
@@ -68,19 +67,13 @@ class Promiscuous::Error::MissingTransaction < Promiscuous::Error::Base
 
       <% else -%>
       This is what you can do:
-       1. Wrap your operations in a Promiscuous transaction yourself (jobs, etc.):
+       1. Wrap your operations in a Promiscuous context yourself (jobs, etc.):
 
-           Promiscuous.transaction do
+          Promiscuous::Middleware.with_context 'jobs/name' do
              # Code including all your read and write queries
            end
 
-       2. Disable Promiscuous transactions (dangerous):
-           Promiscuous::Config.use_transactions = false
-           # Code including all your read and write queries
-
-         The Rails console runs in this mode in development mode.
-
-       3. Disable Promiscuous completely (only for testing):
+       2. Disable Promiscuous completely (only for testing):
 
            RSpec.configure do |config|
              config.around do |example|
@@ -88,7 +81,8 @@ class Promiscuous::Error::MissingTransaction < Promiscuous::Error::Base
              end
            end
 
-         Note that opening a transaction will reactivate promiscuous during the transaction.
+         Note that opening a context will reactivate promiscuous temporarily
+         even if it was disabled.
       <% end -%>
     ERB
   end

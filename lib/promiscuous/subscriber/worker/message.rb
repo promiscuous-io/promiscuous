@@ -42,7 +42,7 @@ class Promiscuous::Subscriber::Worker::Message
 
     read_increments = {}
     dependencies[:read].each do |dep|
-      key = dep.key(:sub).for(:redis)
+      key = dep.key(:sub).to_s
       read_increments[key] ||= 0
       read_increments[key] += 1
     end
@@ -51,7 +51,7 @@ class Promiscuous::Subscriber::Worker::Message
     deps << dependencies[:link] if dependencies[:link]
     deps += dependencies[:read]
     deps += dependencies[:write].map do |dep|
-      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key(:sub).for(:redis)].to_i }
+      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key(:sub).to_s].to_i }
     end
 
     # We return the most difficult condition to satisfy first

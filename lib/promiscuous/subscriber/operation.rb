@@ -11,7 +11,7 @@ class Promiscuous::Subscriber::Operation
     futures = nil
     Promiscuous::Redis.multi do
       futures = dependencies.map do |dep|
-        key = dep.key(:sub).for(:redis)
+        key = dep.key(:sub).to_s
         [key, Promiscuous::Redis.incr(key)]
       end
     end
@@ -44,7 +44,7 @@ class Promiscuous::Subscriber::Operation
     if message.dependencies[:write].present?
       # We take the first write depedency (adjusted with the read increments)
       dep = message.happens_before_dependencies.first
-      if Promiscuous::Redis.get(dep.key(:sub).for(:redis)).to_i != dep.version
+      if Promiscuous::Redis.get(dep.key(:sub).to_s).to_i != dep.version
         raise Promiscuous::Error::AlreadyProcessed
       end
     end

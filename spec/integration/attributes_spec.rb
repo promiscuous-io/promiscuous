@@ -27,7 +27,7 @@ describe Promiscuous do
 
     it 'replicates' do
       pub = nil
-      Promiscuous.transaction do
+      Promiscuous.context do
         pub = PublisherModel.create(:field_1 => '1')
         pub.update_attributes(:field_1 => 'super')
       end

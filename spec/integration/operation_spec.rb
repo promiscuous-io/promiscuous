@@ -9,7 +9,7 @@ if ORM.has(:mongoid)
     context 'when using multi reads' do
       it 'publishes proper dependencies' do
         pub = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = PublisherModel.create
           PublisherModel.first
           PublisherModel.first
@@ -26,32 +26,24 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['link'].should  == "publisher_models:id:#{pub.id}:1"
-        dep['read'].should  == ["publisher_models:id:#{pub.id}:1",
-                                "publisher_models:id:#{pub.id}:1"]
-        dep['write'].should == ["publisher_models:id:#{pub.id}:4"]
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub.id}:4"
-        dep['read'].should  == ["publisher_models:id:#{pub.id}:4",
-                                "publisher_models:id:#{pub.id}:4"]
-        dep['write'].should == ["publisher_models:id:#{pub.id}:7"]
+        dep['link'].should  == "publisher_models:id:#{pub.id}:2"
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub.id}:3"]
       end
     end
 
     context 'when using only reads' do
       it 'publishes proper dependencies' do
         pub = without_promiscuous { PublisherModel.create }
-        Promiscuous.transaction(:active => true) do
+        Promiscuous.context do
           PublisherModel.first
         end
 
-        payload = Promiscuous::AMQP::Fake.get_next_payload
-        payload['__amqp__'].should == "__promiscuous__/dummy"
-        payload['operation'].should == "dummy"
-        dep = payload['dependencies']
-        dep['link'].should  == nil
-        dep['read'].should  == ["publisher_models:id:#{pub.id}:0"]
-        dep['write'].should == nil
+        Promiscuous::AMQP::Fake.get_next_message.should == nil
       end
     end
 
@@ -61,7 +53,7 @@ if ORM.has(:mongoid)
         PublisherModel.track_dependencies_of :field_2
 
         pub = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = PublisherModel.create(:field_1 => 123, :field_2 => 456)
           PublisherModel.where(:field_1 => 123).count
           PublisherModel.where(:field_1 => 'blah').count
@@ -84,24 +76,19 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['link'].should  == "publisher_models:id:#{pub.id}:1"
-        dep['read'].should  == ["publisher_models:field_1:123:1",
-                                "publisher_models:field_1:blah:0",
-                                "publisher_models:field_1:123:1",
-                                "publisher_models:field_1:blah:0",
-                                "publisher_models:field_2:456:1",
-                                "publisher_models:field_2:blah:0",
-                                "publisher_models:id:#{pub.id}:1"]
-        dep['write'].should == ["publisher_models:id:#{pub.id}:3",
-                                "publisher_models:field_1:123:4",
+        dep['read'].should  == ["publisher_models:field_1:blah:0",
+                                "publisher_models:field_2:blah:0"]
+        dep['write'].should == ["publisher_models:id:#{pub.id}:2",
+                                "publisher_models:field_1:123:2",
                                 # FIXME "publisher_models:field_1:blah:3",
-                                "publisher_models:field_2:456:3"]
+                                "publisher_models:field_2:456:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub.id}:3"
+        dep['link'].should  == "publisher_models:id:#{pub.id}:2"
         dep['read'].should  == nil
-        dep['write'].should == ["publisher_models:id:#{pub.id}:4",
-                                "publisher_models:field_1:blah:3",
-                                "publisher_models:field_2:456:4"]
+        dep['write'].should == ["publisher_models:id:#{pub.id}:3",
+                                "publisher_models:field_1:blah:2",
+                                "publisher_models:field_2:456:3"]
                                 # FIXME "publisher_models:field_2:blah:1",
       end
     end
@@ -111,7 +98,7 @@ if ORM.has(:mongoid)
         PublisherModel.track_dependencies_of :field_1
 
         pub1 = pub2 = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub1 = PublisherModel.create(:field_1 => 123)
           pub2 = PublisherModel.create(:field_1 => 123)
           PublisherModel.where(:field_1 => 123).each.to_a
@@ -132,9 +119,9 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['link'].should  == "publisher_models:id:#{pub2.id}:1"
-        dep['read'].should  == ["publisher_models:field_1:123:2"]
+        dep['read'].should  == nil # went on the write
         dep['write'].should == ["publisher_models:id:#{pub1.id}:2",
-                                "publisher_models:field_1:123:4"]
+                                "publisher_models:field_1:123:3"]
       end
     end
 
@@ -143,7 +130,7 @@ if ORM.has(:mongoid)
         PublisherModel.validates_uniqueness_of :field_1
 
         pub = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = PublisherModel.create(:field => 123)
         end
 
@@ -157,7 +144,7 @@ if ORM.has(:mongoid)
     context 'when using limit(1).each' do
       it 'skips the query' do
         pub1 = pub2 = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub1 = PublisherModel.create(:field_1 => 123)
           PublisherModel.all.limit(1).each do |pub|
             pub.id.should      == pub1.id
@@ -183,7 +170,7 @@ if ORM.has(:mongoid)
         PublisherModel.field :not_published
 
         pub = nil
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = PublisherModel.create
           pub.update_attributes(:not_published => 'hello')
           pub.update_attributes(:field_1 => 'ohai')
@@ -210,39 +197,41 @@ if ORM.has(:mongoid)
           PublisherModel.create(:field_1 => 123)
           PublisherModel.create(:field_1 => 123)
         end
-        Promiscuous.transaction :active => true do
+        pub = nil
+        Promiscuous.context do
           PublisherModel.where(:field_1 => 123).sum(:field_2)
+          pub = PublisherModel.create(:field_1 => '456')
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['link'].should  == nil
-        # Mongoid does an extra count.
-        dep['read'].should  == ["publisher_models:field_1:123:0",
-                                "publisher_models:field_1:123:0"]
-        dep['write'].should == nil
+        dep['read'].should  == ["publisher_models:field_1:123:0"]
+        dep['write'].should == ["publisher_models:id:#{pub.id}:1",
+                                "publisher_models:field_1:456:1"]
       end
     end
 
     context 'when using without_promiscuous.each' do
       it 'track the reads one by one' do
-        pub1 = pub2 = nil
+        pub1 = pub2 = pub3 = nil
         without_promiscuous do
           pub1 = PublisherModel.create(:field_1 => 123)
           pub2 = PublisherModel.create(:field_1 => 123)
         end
-        Promiscuous.transaction :active => true do
+        Promiscuous.context do
           expect do
             PublisherModel.all.without_promiscuous.where(:field_1 => 123).each do |p|
               p.reload
             end
           end.to_not raise_error
+          pub3 = PublisherModel.create(:field_1 => 456)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['link'].should  == nil
         dep['read'].should  == ["publisher_models:id:#{pub1.id}:0",
                                 "publisher_models:id:#{pub2.id}:0"]
-        dep['write'].should == nil
+        dep['write'].should == ["publisher_models:id:#{pub3.id}:1"]
       end
     end
   end

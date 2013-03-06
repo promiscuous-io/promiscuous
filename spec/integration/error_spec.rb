@@ -13,7 +13,7 @@ describe Promiscuous do
       before { SubscriberModel.class_eval { validates_format_of :field_1, :without => /death/ } }
 
       it 'calls the error_notifier with an exception' do
-        Promiscuous.transaction do
+        Promiscuous.context do
           pub = PublisherModel.create
           pub.update_attributes(:field_1 => 'death')
         end
@@ -30,7 +30,7 @@ describe Promiscuous do
     before { run_subscriber_worker! }
 
     it 'calls the error_notifier with an exception' do
-      Promiscuous.transaction { PublisherModel.create }
+      Promiscuous.context { PublisherModel.create }
       eventually { @error_notifier_called_with.should be_a(Exception) }
     end
   end

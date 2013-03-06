@@ -19,12 +19,12 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     rescue NameError
     end
 
-    def _commit(transaction, &db_operation)
+    def execute_persistent(&db_operation)
       @instance = Mongoid::Factory.from_db(model, @document)
       super
     end
 
-    def commit(&db_operation)
+    def execute(&db_operation)
       return db_operation.call unless model
       super
     end
@@ -41,7 +41,7 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
   def insert(documents, flags=nil)
     documents = [documents] unless documents.is_a?(Array)
     documents.each do |doc|
-      promiscuous_create_operation(:document => doc).commit { super(doc, flags) }
+      promiscuous_create_operation(:document => doc).execute { super(doc, flags) }
     end
   end
 
@@ -75,7 +75,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       @query.selector = @query.operation.selector = {'_id' => @instance.id}
     end
 
-    def fetch_instance_after_update
+    def reload_instance_after_update
       return Mongoid::Factory.from_db(model, @new_raw_instance) if @new_raw_instance
       super
     end
@@ -104,32 +104,17 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, selector) }
     end
 
-    def _commit(transaction, &db_operation)
-      # We need to operate on the primary from now on, because we need to make
-      # sure that the reads we are doing on the database match their dependencies.
-      @query.strong_consistency!
+    def execute_persistent(&db_operation)
+      # We are trying to be optimistic for the locking. We are trying to figure
+      # out our dependencies with the selector upfront to avoid an extra read
+      # from reload_instance.
+      @instance = get_selector_instance
+      super
+    end
 
-      begin
-        # We are trying to be optimistic for the locking. We are trying to figure
-        # out our dependencies with the selector upfront to avoid an extra read.
-        @instance = get_selector_instance
-        super
-      rescue Promiscuous::Error::Dependency => e
-        # Note that only read operations can throw such exceptions.
-        if multi?
-          # When doing the multi read, we cannot resolve the selector to a
-          # specific id, (or we would have to do the count ourselves, which is
-          # not desirable).
-          @instance = get_original_selector_instance
-          e.dependency_solutions = @selector.keys
-          raise e
-        else
-          # in the case of a single read, we can resolve the selector to an id
-          # one, which means that we have to pay an extra read.
-          return nil unless reload_instance
-          super
-        end
-      end
+    def execute_non_persistent(&db_operation)
+      @instance = get_selector_instance if multi?
+      super
     end
 
     def fields_in_query(change)
@@ -154,7 +139,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       (attributes & model.published_db_fields).present?
     end
 
-    def commit(&db_operation)
+    def execute(&db_operation)
       return db_operation.call if @query.without_promiscuous?
       return db_operation.call unless model
       return db_operation.call unless any_published_field_changed?
@@ -175,14 +160,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     @selector = value
   end
 
-  def session
-    @session || super
-  end
-
-  def strong_consistency!
-    @session = session.with(:consistency => :strong)
-  end
-
   def without_promiscuous!
     @without_promiscuous = true
   end
@@ -194,11 +171,11 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   # Moped::Query
 
   def count(*args)
-    promiscuous_operation(:read, :multi => true, :operation_ext => :count).commit { super }.to_i
+    promiscuous_operation(:read, :multi => true, :operation_ext => :count).execute { super }.to_i
   end
 
   def distinct(key)
-    promiscuous_operation(:read, :multi => true).commit { super }
+    promiscuous_operation(:read, :multi => true).execute { super }
   end
 
   def each
@@ -215,7 +192,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     # TODO If the the user is using something like .only(), we need to make
     # sure that we add the id, otherwise we may not be able to perform the
     # dependency optimization by resolving the selector to an id.
-    promiscuous_operation(:read).commit do |operation|
+    promiscuous_operation(:read).execute do |operation|
       operation ? operation.raw_instance : super
     end
   end
@@ -223,7 +200,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
   def update(change, flags=nil)
     multi = flags && flags.include?(:multi)
-    promiscuous_operation(:update, :change => change, :multi => multi).commit do |operation|
+    promiscuous_operation(:update, :change => change, :multi => multi).execute do |operation|
       if operation
         operation.new_raw_instance = without_promiscuous { modify(change, :new => true) }
         {'updatedExisting' => true, 'n' => 1, 'err' => nil, 'ok' => 1.0}
@@ -234,15 +211,15 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   end
 
   def modify(change, options={})
-    promiscuous_operation(:update, :change => change).commit { super }
+    promiscuous_operation(:update, :change => change).execute { super }
   end
 
   def remove
-    promiscuous_operation(:destroy).commit { super }
+    promiscuous_operation(:destroy).execute { super }
   end
 
   def remove_all
-    promiscuous_operation(:destroy, :multi => true).commit { super }
+    promiscuous_operation(:destroy, :multi => true).execute { super }
   end
 end
 
@@ -261,7 +238,7 @@ class Moped::PromiscuousCursorWrapper < Moped::Cursor
 
   def load_docs
     should_fake_single_read = @limit == 1
-    promiscuous_operation(:read, :multi => !should_fake_single_read).commit do |operation|
+    promiscuous_operation(:read, :multi => !should_fake_single_read).execute do |operation|
       result = operation && should_fake_single_read ? fake_single_read(operation) : super
       operation.missed = true if operation && result.blank?
       result
@@ -270,7 +247,7 @@ class Moped::PromiscuousCursorWrapper < Moped::Cursor
 
   def get_more
     # TODO support batch_size
-    promiscuous_operation(:read, :multi => true).commit { super }
+    promiscuous_operation(:read, :multi => true).execute { super }
   end
 
   def initialize(session, query_operation)
@@ -293,7 +270,7 @@ class Moped::PromiscuousDatabase < Moped::Database
     if command[:mapreduce]
       query = Moped::Query.new(self[command[:mapreduce]], command[:query])
       promiscuous_operation(:read, :query => query,
-                            :operation_ext => :mapreduce, :multi => true).commit { super }
+                            :operation_ext => :mapreduce, :multi => true).execute { super }
     else
       super
     end

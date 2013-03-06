@@ -27,7 +27,7 @@ describe Promiscuous do
     before { run_subscriber_worker! }
 
     it 'unsubscribe to idle queues' do
-      Promiscuous.transaction { PublisherModel.create }
+      Promiscuous.context { PublisherModel.create }
 
       eventually do
         SubscriberModel.num_saves.should == 1

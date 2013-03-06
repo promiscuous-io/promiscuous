@@ -8,7 +8,7 @@ describe Promiscuous do
   context 'when updating' do
     it 'replicates' do
       pub = nil
-      Promiscuous.transaction do
+      Promiscuous.context do
         pub_id = ORM.generate_id
         pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
         pub.id = pub_id
@@ -18,7 +18,7 @@ describe Promiscuous do
       eventually { SubscriberModel.first.should_not == nil }
 
       SubscriberModel.first.destroy
-      Promiscuous.transaction do
+      Promiscuous.context do
         pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
       end
 
@@ -35,14 +35,14 @@ describe Promiscuous do
   context 'when destroying' do
     it 'replicates' do
       pub1 = pub2 = nil
-      Promiscuous.transaction do
+      Promiscuous.context do
         pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       end
       eventually { SubscriberModel.first.should_not == nil }
 
       SubscriberModel.first.destroy
 
-      Promiscuous.transaction do
+      Promiscuous.context do
         pub2 = PublisherModel.create(:field_1 => 'a', :field_2 => 'b', :field_3 => 'c')
         pub1.destroy
       end

@@ -127,7 +127,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     if msg.has_dependencies?
       msg.happens_before_dependencies.reduce(proc { process_message!(msg) }) do |chain, dep|
-        proc { on_version(dep.key(:sub).for(:redis), dep.version, msg) { chain.call } }
+        proc { on_version(dep.key(:sub).to_s, dep.version, msg) { chain.call } }
       end.call
     else
       process_message!(msg)
@@ -167,7 +167,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     msg = blocked_messages.first
 
     versions_to_skip = msg.happens_before_dependencies.map do |dep|
-      key = dep.key(:sub).for(:redis)
+      key = dep.key(:sub).to_s
       to_skip = dep.version - Promiscuous::Redis.get(key).to_i
       [dep, key, to_skip] if to_skip > 0
     end.compact
