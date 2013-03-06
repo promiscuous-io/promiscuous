@@ -5,7 +5,6 @@ module BackendHelper
       Promiscuous.configure do |config|
         config.reset
         config.backend = real_backend
-        config.zookeeper_hosts = 'localhost:2181'
         config.app = options[:app] || 'test_subscriber'
         config.queue_options = {:auto_delete => true}
       end
@@ -36,7 +35,6 @@ module BackendHelper
     Promiscuous.configure do |config|
       config.reset
       config.backend = :fake
-      config.zookeeper_hosts = 'localhost:2181'
       config.app = options[:app] || 'test_publisher'
     end
     Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
