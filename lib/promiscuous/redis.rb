@@ -85,9 +85,6 @@ module Promiscuous::Redis
   end
 
   class Mutex
-    # XXX Copy/pasted from the redis-mutex gem, but without their auto
-    # namespacing feature. We want control over the keys.
-    # And we want the recovery notification
     def initialize(key, options={})
       @orig_key = key.to_s
       @key = "locks:#{key}"
@@ -120,13 +117,21 @@ module Promiscuous::Redis
       now = Time.now.to_i
       @expires_at = now + @expire
 
-      loop do
-        return true if Promiscuous::Redis.setnx(@key, @expires_at)
-      end until old_value = Promiscuous::Redis.get(@key)
+      # This script loading is not thread safe (touching a class variable), but
+      # that's okay, because the race is harmless.
+      @@lock_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
+        local key = KEYS[1]
+        local now = tonumber(ARGV[1])
+        local expires_at = tonumber(ARGV[2])
+        local old_value = redis.call('get', key)
 
-      return false if old_value.to_i > now
-      return :recovered if Promiscuous::Redis.getset(@key, @expires_at).to_i <= now
-      return false  # Dammit, it seems that someone else was even faster than us to remove the expired lock!
+        if old_value and tonumber(old_value) > now then return false end
+        redis.call('set', key, expires_at)
+        if old_value then return 'recovered' else return true end
+      SCRIPT
+      result = Promiscuous::Redis.evalsha(@@lock_script_sha, :keys => [@key], :argv => [now, @expires_at])
+      return :recovered if result == 'recovered'
+      !!result
     end
 
     def unlock
@@ -134,8 +139,6 @@ module Promiscuous::Redis
       # we can't just simply release the lock. The unlock method checks if @expires_at
       # remains the same, and do not release when the lock timestamp was overwritten.
 
-      # This script loading is not thread safe (touching a class variable), but
-      # that's okay, because the race is harmless.
       @@unlock_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
         local key = KEYS[1]
         local old_value = ARGV[1]
