@@ -87,12 +87,17 @@ module Promiscuous::Redis
   class Mutex
     # XXX Copy/pasted from the redis-mutex gem, but without their auto
     # namespacing feature. We want control over the keys.
-    # Also fixed a race due to a misimplementation.
+    # And we want the recovery notification
     def initialize(key, options={})
+      @orig_key = key.to_s
       @key = "locks:#{key}"
       @block = options[:block]
       @sleep = options[:sleep]
       @expire = options[:expire]
+    end
+
+    def key
+      @orig_key
     end
 
     def lock
@@ -120,7 +125,7 @@ module Promiscuous::Redis
       end until old_value = Promiscuous::Redis.get(@key)
 
       return false if old_value.to_i > now
-      return :expired if Promiscuous::Redis.getset(@key, @expires_at).to_i <= now
+      return :recovered if Promiscuous::Redis.getset(@key, @expires_at).to_i <= now
       return false  # Dammit, it seems that someone else was even faster than us to remove the expired lock!
     end
 

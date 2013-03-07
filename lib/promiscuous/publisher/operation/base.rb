@@ -47,7 +47,7 @@ class Promiscuous::Publisher::Operation::Base
     @timestamp = time.to_i * 1000 + time.usec / 1000
   end
 
-  def publish_payload
+  def publish_payload_in_rabbitmq_async
     # TODO Transactions with multi writes
     raise "no multi write yet" if previous_successful_operations.select(&:write?).size > 1
 
@@ -56,7 +56,7 @@ class Promiscuous::Publisher::Operation::Base
     options[:timestamp] = @timestamp
 
     # If the db operation has failed, so we publish a dummy operation on the
-    # failed instance. It's better than using the Dummy pulisher class
+    # failed instance. It's better than using the Dummy polisher class
     # because a subscriber can choose not to receive any of these messages.
     options[:operation] = self.failed? ? :dummy : self.operation
 
@@ -79,8 +79,68 @@ class Promiscuous::Publisher::Operation::Base
     self.instance.promiscuous.publish(options)
   end
 
-  def queue_payload_in_redis
+  def publish_payload_in_redis
     # TODO (for recovery)
+  end
+
+  def self.recover_payload_for(key)
+    # We happen to have acquired a never released lock.
+    # The database instance is thus still prestine.
+    # Three cases to consider:
+    # 1) the key is not an id dependency or the payload queue stage was passed
+    # 2) The write query was never executed, we must send a dummy operation
+    # 3) The write query was executed, but never passed the payload queue stage
+
+    recovery_data = Promiscuous::Redis.get("#{key}:recovery")
+    return unless recovery_data # case 3)
+
+    recovery_data = JSON.parse(recovery_data)
+    operation = recovery_data['operation'].to_sym
+
+    r = read_keys.zip(read_versions).map   { |k,v| Promiscuous::Dependency.parse("#{k}:#{v}") }
+    w = write_keys.zip(write_versions).map { |k,v| Promiscuous::Dependency.parse("#{k}:#{v}") }
+
+    instance_dep = w.first
+    raise 'assert' unless instance_dep.attribute == 'id'
+    id = instance_dep.value
+    instance_version_field = instance_dep.version_field_name_for_recovery
+    instance_version = instance_dep.version
+
+    # We figure out the model class from the first write dependency key name,
+    # which is the same as the lock name.
+    # TODO this should be abstracted since we get the collection name from an
+    # abstraction to begin with.
+    model = instance_dep.collection.camelize.singularize.constantize
+
+    if operation == :destroy
+      instance = model.where(:id => id).first
+      has_executed_query = !instance
+    else
+      # We fetch the instance from the database only if the version is matching
+      # what we have in redis.
+      instance = model.where(:id => id, instance_version_field => instance_version).first
+      has_executed_query = !!instance
+    end
+
+    # We send a dummy depending if the database query was executed
+    operation = has_executed_query ? operation : :dummy
+    instance ||= model.new(:id => id)
+
+    # We don't want to consider this operation as a dependency in our current
+    # context, which is why the recovery context runs as a root context.
+    Promiscuous.context :payload_recovery, :detached_from_parent => true do
+      self.new(:instance => instance, :operation => operation).instance_eval do
+        @committed_read_deps  = r
+        @committed_write_deps = w
+        record_timestamp
+        publish_payload_in_redis
+        publish_payload_in_rabbitmq_async
+      end
+    end
+  rescue Exception => e
+    # TODO Wrap this into a promiscuous exception
+    STDERR.puts "cannot recover #{key} -> #{recovery_data}"
+    raise e
   end
 
   def increment_read_and_write_dependencies
@@ -89,11 +149,15 @@ class Promiscuous::Publisher::Operation::Base
     # write in the transaction can have all the read dependencies.
     r = read_dependencies
     w = write_dependencies
-    r -= w # we don't need to do a read depedency if we are writing to it.
+    r -= w # we don't need to do a read dependency if we are writing to it.
 
     # Namespacing with publishers:app_name
     r_keys = r.map { |dep| dep.key(:pub) }
     w_keys = w.map { |dep| dep.key(:pub) }
+
+    # The recovery key must be deducted from the lock key name, which is
+    # w_keys.first.
+    recovery_key = w_keys.first.join('recovery')
 
     # We are going to store all the versions in redis, to be able to recover.
     # We store all our increments in a transaction_id key in JSON format.
@@ -103,8 +167,10 @@ class Promiscuous::Publisher::Operation::Base
     # that's okay, because the race is harmless.
     @@increment_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
       local args = cjson.decode(ARGV[1])
-      local read_keys = args[1]
-      local write_keys = args[2]
+      local operation = args[1]
+      local read_keys = args[2]
+      local write_keys = args[3]
+      local recovery_key = write_keys[1] .. ':recovery'
 
       local read_versions = {}
       for i, key in ipairs(read_keys) do
@@ -118,21 +184,22 @@ class Promiscuous::Publisher::Operation::Base
         redis.call('set', key .. ':w', write_versions[i])
       end
 
-      -- TODO recovery_data = {read_keys=read_keys, read_versions=read_versions,
-      --                       write_keys=write_keys, write_versions=write_versions}
-      -- TODO redis.call('set', transaction_id, cjson.encode(recovery_data))
+      redis.call('set', recovery_key, cjson.encode({
+        operation=operation,
+        read_keys=read_keys, read_versions=read_versions,
+        write_keys=write_keys, write_versions=write_versions}))
 
       return { read_versions, write_versions }
     SCRIPT
 
     keys_to_touch = (r_keys + w_keys).map { |key| [key.join('rw'), key.join('w')] }.flatten
-    # TODO keys_to_touch << transaction_id
+    keys_to_touch << recovery_key
 
     # Note that this script is run in a Redis transaction, which is something
     # we rely on.
     read_versions, write_versions = Promiscuous::Redis.evalsha(@@increment_script_sha,
                                       :keys => keys_to_touch.map(&:to_s),
-                                      :argv => [[r_keys,w_keys].to_json])
+                                      :argv => [[operation,r_keys,w_keys].to_json])
 
     r.zip(read_versions).map  { |dep, version| dep.version = version.to_i }
     w.zip(write_versions).map { |dep, version| dep.version = version.to_i }
@@ -142,7 +209,7 @@ class Promiscuous::Publisher::Operation::Base
 
   def lock_write_dependencies
     # returns true if we could get all the locks, false otherwise
-    options = { :block  => 10.seconds, # after 10 seconds, we give up and raise
+    options = { :block  => 10.seconds, # after 10 seconds, we give up
                 :sleep  => 0.01,       # polling every 10ms.
                 :expire => 1.minute }  # after one minute, we are considered dead
 
@@ -150,11 +217,22 @@ class Promiscuous::Publisher::Operation::Base
     locks = write_dependencies.map { |dep| dep.key(:pub).to_s }.sort
               .map { |key| Promiscuous::Redis::Mutex.new(key, options) }
 
+    start_at = Time.now
+    @recovered_locks = []
+
     # We acquire all the locks in order, and unlock everything if one come
     # to fail. lock/unlock return true/false when they succeed/fail
     # TODO recover if we expire a lock
     locks.reduce(->{ @locks = locks; true }) do |chain, l|
-      ->{ l.lock and (chain.call or (l.unlock; false)) }
+      lambda do
+        return false if Time.now - start_at > options[:block]
+        case l.lock
+        # Note that we do not unlock the recovered lock if the chain fails
+        when :recovered then @recovered_locks << l.key; chain.call
+        when true       then chain.call or (l.unlock; false)
+        when false      then false
+        end
+      end
     end.call
   end
 
@@ -240,7 +318,7 @@ class Promiscuous::Publisher::Operation::Base
 
     # We don't do any reload_instance_dependencies at this point (and thus we
     # won't raise an exception on a multi read that we cannot track).
-    # We'll wait until the commit, and hopefuly with tainting, we'll be able to
+    # We'll wait until the commit, and hopefully with tainting, we'll be able to
     # tell if we should depend the multi read operation in question.
     perform_db_operation_with_no_exceptions(&db_operation)
     # If the db_operation raises, we don't consider this failed operation when
@@ -260,9 +338,18 @@ class Promiscuous::Publisher::Operation::Base
     auto_unlock = true
 
     begin
-      lock_write_dependencies
-      # TODO Raise a promiscuous lock error if we couldn't get the lock
-      # TODO If we expired an id lock, we should recover the instance
+      unless lock_write_dependencies
+        # TODO Raise a promiscuous lock error if we couldn't get the lock
+        raise 'oops'
+      end
+
+      if @recovered_locks.present?
+        # When recovering locks, if we fail, we must not release the lock again
+        # to allow another one to do the recovery.
+        auto_unlock = false
+        @recovered_locks.each { |key| self.class.recover_payload_for(key) }
+        auto_unlock = true
+      end
 
       if operation != :create
         # We need to lock and update all the dependencies before any other
@@ -355,16 +442,17 @@ class Promiscuous::Publisher::Operation::Base
     # that the database instance is still pristine, and so we need to stash the
     # payload in redis. If redis dies, we don't care because it can be
     # reconstructed. Subscribers can see "compressed" updates.
-    queue_payload_in_redis
+    publish_payload_in_redis
 
     unless unlock_write_dependencies
       # TODO Our lock got expired by someone. What are we supposed to do?
       # This should never happen based on the timeouts we have.
     end
 
+    publish_payload_in_rabbitmq_async
+
     # If we die from this point on, a recovery worker can republish our payload
     # since we queued it in Redis.
-    publish_payload
   ensure
     # In case of an exception was raised before we updated the version in
     # redis, we can unlock because we don't need recovery.

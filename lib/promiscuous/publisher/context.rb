@@ -28,7 +28,10 @@ class Promiscuous::Publisher::Context
   attr_accessor :name, :operations, :nesting_level, :last_write_dependency
 
   def initialize(*args)
-    @parent = self.class.current
+    options = args.extract_options!
+    detached_from_parent = options[:detached_from_parent]
+    detached_from_parent = true if detached_from_parent.nil?
+    @parent = self.class.current unless detached_from_parent
     @nesting_level = @parent.try(:nesting_level).to_i + 1
     @name = args.first.try(:to_s)
     @name ||= "#{@parent.next_child_name}" if @parent

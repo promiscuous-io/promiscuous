@@ -65,7 +65,7 @@ module Promiscuous::Publisher::Model::Base
       # values in case of an update.
       # Note that the caller expect the id dependency to come first
       @instance.class.tracked_attrs
-        .map { |attr| [attr, @instance.__send__(attr)]}
+        .map { |attr| [attr, @instance.__send__(attr)] }
         .map { |attr, value| get_dependency(attr, value) }
         .compact
     end
