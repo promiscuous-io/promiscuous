@@ -22,7 +22,6 @@ Gem::Specification.new do |s|
   s.add_dependency "amqp",                "~> 0.9.8"
   s.add_dependency "ruby-progressbar",    "~> 1.0.2"
   s.add_dependency "redis",               "~> 3.0.2"
-  s.add_dependency "redis-mutex",         "~> 2.1.0"
   s.add_dependency "zk",                  "~> 1.7.5"
   s.add_dependency "celluloid",           "~> 0.12.4"
   s.add_dependency "celluloid-io",        "~> 0.12.1"

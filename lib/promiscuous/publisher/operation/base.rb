@@ -149,7 +149,7 @@ class Promiscuous::Publisher::Operation::Base
     # Note that we haven't added ourselves to the current context yet.
     # We sort the keys to avoid deadlocks due to different lock orderings.
     locks = write_dependencies.map { |dep| dep.key(:pub).to_s }.sort
-              .map { |key| Redis::Mutex.new(key, options) }
+              .map { |key| Promiscuous::Redis::Mutex.new(key, options) }
 
     # We acquire all the locks in order, and unlock everything if one come
     # to fail. lock/unlock return true/false when they succeed/fail

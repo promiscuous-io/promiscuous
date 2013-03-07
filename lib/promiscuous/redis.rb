@@ -1,5 +1,4 @@
 require 'redis'
-require 'redis-mutex'
 
 module Promiscuous::Redis
   mattr_accessor :master
@@ -7,7 +6,6 @@ module Promiscuous::Redis
   def self.connect
     disconnect
     self.master = new_connection
-    Redis::Classy.db = self.master # XXX VERY SAD
   end
 
   def self.disconnect
@@ -83,6 +81,60 @@ module Promiscuous::Redis
 
     class Future
       def value; 0; end
+    end
+  end
+
+  class Mutex
+    # XXX Copy/pasted from the redis-mutex gem, but without their auto
+    # namespacing feature. We want control over the keys.
+    # Also fixed a race due to a misimplementation.
+    def initialize(key, options={})
+      @key = "locks:#{key}"
+      @block = options[:block]
+      @sleep = options[:sleep]
+      @expire = options[:expire]
+    end
+
+    def lock
+      if @block > 0
+        # Blocking mode
+        result = false
+        start_at = Time.now
+        while Time.now - start_at < @block
+          break if result = try_lock
+          sleep @sleep
+        end
+        result
+      else
+        # Non-blocking mode
+        try_lock
+      end
+    end
+
+    def try_lock
+      now = Time.now.to_i
+      @expires_at = now + @expire
+
+      loop do
+        return true if Promiscuous::Redis.setnx(@key, @expires_at)
+      end until old_value = Promiscuous::Redis.get(@key)
+
+      return false if old_value.to_i > now
+      return :expired if Promiscuous::Redis.getset(@key, @expires_at).to_i <= now
+      return false  # Dammit, it seems that someone else was even faster than us to remove the expired lock!
+    end
+
+    def unlock(force = false)
+      # Since it's possible that the operations in the critical section took a long time,
+      # we can't just simply release the lock. The unlock method checks if @expires_at
+      # remains the same, and do not release when the lock timestamp was overwritten.
+
+      if Promiscuous::Redis.get(@key).to_i == @expires_at
+        # Redis#del with a single key returns '1' or nil
+        !!Promiscuous::Redis.del(@key)
+      else
+        false
+      end
     end
   end
 end
