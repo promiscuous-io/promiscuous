@@ -8,10 +8,10 @@ class Promiscuous::Dependency < Struct.new(:collection, :attribute, :value, :ver
   end
 
   def version_field_name_for_recovery
-    attribute == :id ? "_pv" : "_pv_#{attribute}"
+    attribute.to_sym == :id ? "_pv" : "_pv_#{attribute}"
   end
 
-  def self.from_json(payload)
+  def self.parse(payload)
     case payload
     when /^([^:]+):([^:]+):(.+):([0-9]+)$/ then new($1, $2, $3, $4.to_i)
     # TODO remove backward compatibility code

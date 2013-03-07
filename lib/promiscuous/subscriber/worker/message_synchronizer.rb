@@ -183,7 +183,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       "#{to_skip} message(s) on #{dep}"
     end.join(", ")
 
-    e = Promiscuous::Error::Recover.new(recovery_msg)
+    e = Promiscuous::Error::Recovery.new(recovery_msg)
     Promiscuous.error "[receive] #{e}"
     # TODO Don't report when doing the initial sync
     Promiscuous::Config.error_notifier.try(:call, e)

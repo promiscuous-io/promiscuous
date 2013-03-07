@@ -88,7 +88,7 @@ module Promiscuous::Redis
     def initialize(key, options={})
       @orig_key = key.to_s
       @key = "locks:#{key}"
-      @block = options[:block]
+      @timeout = options[:timeout]
       @sleep = options[:sleep]
       @expire = options[:expire]
       @token = Random.rand(1000000000)
@@ -99,11 +99,11 @@ module Promiscuous::Redis
     end
 
     def lock
-      if @block > 0
+      if @timeout > 0
         # Blocking mode
         result = false
         start_at = Time.now
-        while Time.now - start_at < @block
+        while Time.now - start_at < @timeout
           break if result = try_lock
           sleep @sleep
         end
@@ -116,7 +116,7 @@ module Promiscuous::Redis
 
     def try_lock
       now = Time.now.to_i
-      @expires_at = now + @expire
+      @expires_at = now + @expire + 1
 
       # This script loading is not thread safe (touching a class variable), but
       # that's okay, because the race is harmless.

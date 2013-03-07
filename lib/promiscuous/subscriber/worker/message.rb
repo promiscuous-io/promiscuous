@@ -31,9 +31,9 @@ class Promiscuous::Subscriber::Worker::Message
     end
     # --- backward compatiblity code ---
 
-    @dependencies[:link] = Promiscuous::Dependency.from_json(@dependencies[:link]) if @dependencies[:link]
-    @dependencies[:read].map!  { |dep| Promiscuous::Dependency.from_json(dep) }
-    @dependencies[:write].map! { |dep| Promiscuous::Dependency.from_json(dep) }
+    @dependencies[:link] = Promiscuous::Dependency.parse(@dependencies[:link]) if @dependencies[:link]
+    @dependencies[:read].map!  { |dep| Promiscuous::Dependency.parse(dep) }
+    @dependencies[:write].map! { |dep| Promiscuous::Dependency.parse(dep) }
     @dependencies
   end
 
