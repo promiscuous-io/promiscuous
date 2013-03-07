@@ -297,6 +297,12 @@ class Promiscuous::Publisher::Operation::Base
       retry
     end
 
+    if write_dependencies.blank?
+      # TODO We don't like auto generated ids. A good solution is to do all
+      # writes in a transaction, so we can know the ids at commit time.
+      raise "auto generated id issue"
+    end
+
     # We are in. We are going to commit all the pending writes in the context
     # if we are doing a transaction commit. We also commit the current write
     # operation for atomic writes without transactions.
@@ -328,13 +334,6 @@ class Promiscuous::Publisher::Operation::Base
     # If successful, the result goes in @result, otherwise, @exception contains
     # the thrown exception.
     perform_db_operation_with_no_exceptions(&db_operation)
-
-    # TODO Deal with auto generated ids for writes that don't have any tracked
-    # attributes, which can happen with creates with auto generated ids.
-    # Subscribers would be able to process because subscribers could process
-    # the first update before the create.
-    # A solution would be change the subscriber to be smart about the
-    # duplicated index exception when trying to create/upsert.
 
     # We take a timestamp right after the write is performed because latency
     # measurements are performed on the subscriber.
