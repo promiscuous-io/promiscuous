@@ -69,10 +69,10 @@ class Promiscuous::Publisher::Operation::Base
     last_write_dependency = current_context.last_write_dependency
     options[:dependencies] = {}
     options[:dependencies][:link]  = last_write_dependency if last_write_dependency
-    options[:dependencies][:read]  = @committed_reads if @committed_reads.present?
-    options[:dependencies][:write] = @committed_writes
+    options[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
+    options[:dependencies][:write] = @committed_write_deps
 
-    current_context.last_write_dependency = @committed_writes.first
+    current_context.last_write_dependency = @committed_write_deps.first
     current_context.operations.clear
 
     # TODO cleanup redis when the publish goes through
@@ -136,8 +136,8 @@ class Promiscuous::Publisher::Operation::Base
 
     r.zip(read_versions).map  { |dep, version| dep.version = version.to_i }
     w.zip(write_versions).map { |dep, version| dep.version = version.to_i }
-    @committed_reads  = r
-    @committed_writes = w
+    @committed_read_deps  = r
+    @committed_write_deps = w
   end
 
   def lock_write_dependencies
@@ -146,7 +146,6 @@ class Promiscuous::Publisher::Operation::Base
                 :sleep  => 0.01,       # polling every 10ms.
                 :expire => 1.minute }  # after one minute, we are considered dead
 
-    # Note that we haven't added ourselves to the current context yet.
     # We sort the keys to avoid deadlocks due to different lock orderings.
     locks = write_dependencies.map { |dep| dep.key(:pub).to_s }.sort
               .map { |key| Promiscuous::Redis::Mutex.new(key, options) }
@@ -327,8 +326,15 @@ class Promiscuous::Publisher::Operation::Base
     # their read counters to the last write version since we would not be able
     # to restore the read counters (and we don't want to store them because
     # this would dramatically augment our footprint on the db).
+    #
+    # If we are doing a destroy operation, and redis dies right after, and
+    # we happen to lost contact with rabbitmq, recovery is going to be complex:
+    # we would need to do a diff from the dummy subscriber to see what
+    # documents are missing on our side to be able to resend the destroy
+    # message.
+    #
     # This method is implemented in each driver.
-    stash_write_dependencies_in_write_query
+    stash_write_dependencies_in_write_query unless operation == :destroy
 
     # Perform the actual database query (single write or transaction commit).
     # If successful, the result goes in @result, otherwise, @exception contains
@@ -395,7 +401,10 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def stash_write_dependencies_in_write_query
-    # TODO
+    # This is implemented by the driver to something similar to:
+    # @committed_write_deps.each do |dep|
+    #  @instance.__send__("#{dep.version_field_name_for_recovery}=", dep.version)
+    # end
   end
 
   def reload_instance_after_update

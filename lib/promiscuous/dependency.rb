@@ -7,6 +7,10 @@ class Promiscuous::Dependency < Struct.new(:collection, :attribute, :value, :ver
     [collection, attribute, value, version].join(':')
   end
 
+  def version_field_name_for_recovery
+    attribute == :id ? "_pv" : "_pv_#{attribute}"
+  end
+
   def self.from_json(payload)
     case payload
     when /^([^:]+):([^:]+):(.+):([0-9]+)$/ then new($1, $2, $3, $4.to_i)

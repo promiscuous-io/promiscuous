@@ -19,6 +19,12 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     rescue NameError
     end
 
+    def stash_write_dependencies_in_write_query
+      @committed_write_deps.each do |dep|
+        @document[dep.version_field_name_for_recovery] = dep.version
+      end
+    end
+
     def execute_persistent(&db_operation)
       @instance = Mongoid::Factory.from_db(model, @document)
       super
@@ -78,6 +84,13 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     def reload_instance_after_update
       return Mongoid::Factory.from_db(model, @new_raw_instance) if @new_raw_instance
       super
+    end
+
+    def stash_write_dependencies_in_write_query
+      @change['$set'] ||= {}
+      @committed_write_deps.each do |dep|
+        @change['$set'][dep.version_field_name_for_recovery] = dep.version
+      end
     end
 
     def get_selector_instance

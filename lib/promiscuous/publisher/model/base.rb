@@ -91,7 +91,7 @@ module Promiscuous::Publisher::Model::Base
 
     def publish(*args, &block)
       options    = args.extract_options!
-      attributes = args
+      attributes = args.map(&:to_sym)
 
       # TODO reject invalid options
 
@@ -107,13 +107,13 @@ module Promiscuous::Publisher::Model::Base
         # It's important for virtual attributes. The published_db_fields is global
         # for the entire subclass tree.
         klass.published_db_fields |= [options[:use]].flatten.map(&:to_sym) if options[:use]
-        klass.published_db_fields |= attributes.map(&:to_sym) # aliased fields are resolved later
-        klass.published_attrs     |= attributes.map(&:to_sym)
+        klass.published_db_fields |= attributes # aliased fields are resolved later
+        klass.published_attrs     |= attributes
       end
     end
 
     def track_dependencies_of(*attributes)
-      ([self] + descendants).each { |klass| klass.tracked_attrs |= attributes }
+      ([self] + descendants).each { |klass| klass.tracked_attrs |= attributes.map(&:to_sym) }
     end
 
     def promiscuous_collection_name
