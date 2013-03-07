@@ -23,10 +23,8 @@ class Promiscuous::Subscriber::Worker::Stats
     processed_messages = nil
     total_response_time = nil
     @redis.multi do
-      processed_messages = @redis.get(@key_processed_message)
-      total_response_time = @redis.get(@key_total_response_time)
-      @redis.set(@key_processed_message, 0)
-      @redis.set(@key_total_response_time, 0)
+      processed_messages = @redis.getset(@key_processed_message, 0)
+      total_response_time = @redis.getset(@key_total_response_time, 0)
     end
 
     last_aggregate = @last_aggregate
