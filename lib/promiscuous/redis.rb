@@ -129,17 +129,25 @@ module Promiscuous::Redis
       return false  # Dammit, it seems that someone else was even faster than us to remove the expired lock!
     end
 
-    def unlock(force = false)
+    def unlock
       # Since it's possible that the operations in the critical section took a long time,
       # we can't just simply release the lock. The unlock method checks if @expires_at
       # remains the same, and do not release when the lock timestamp was overwritten.
 
-      if Promiscuous::Redis.get(@key).to_i == @expires_at
-        # Redis#del with a single key returns '1' or nil
-        !!Promiscuous::Redis.del(@key)
-      else
-        false
-      end
+      # This script loading is not thread safe (touching a class variable), but
+      # that's okay, because the race is harmless.
+      @@unlock_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
+        local key = KEYS[1]
+        local old_value = ARGV[1]
+
+        if redis.call('get', key) == old_value then
+          redis.call('del', key)
+          return true
+        else
+          return false
+        end
+      SCRIPT
+      Promiscuous::Redis.evalsha(@@unlock_script_sha, :keys => [@key], :argv => [@expires_at])
     end
   end
 end
