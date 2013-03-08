@@ -8,24 +8,12 @@ class Promiscuous::Middleware
     self.with_promiscuous_contexts = {}
 
     def process_action(*args)
+      full_name = "#{self.class.controller_path}/#{self.action_name}"
       Promiscuous::Middleware.with_context(full_name) { super }
     end
 
     def render(*args)
       Promiscuous::Middleware.without_context { super }
-    end
-
-    def full_name
-      "#{self.class.controller_path}/#{self.action_name}"
-    end
-
-    module ClassMethods
-      def with_promiscuous_context(*args)
-        options = args.extract_options!
-        args.each do |action|
-          Promiscuous::Middleware::Controller.with_promiscuous_contexts[full_name] = options
-        end
-      end
     end
   end
 
