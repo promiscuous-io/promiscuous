@@ -42,10 +42,8 @@ describe Promiscuous do
 
       SubscriberModel.first.destroy
 
-      Promiscuous.context do
-        pub2 = PublisherModel.create(:field_1 => 'a', :field_2 => 'b', :field_3 => 'c')
-        pub1.destroy
-      end
+      Promiscuous.context { pub1.destroy }
+      Promiscuous.context { pub2 = PublisherModel.create }
 
       eventually do
         SubscriberModel.where(ORM::ID => pub1.id).count.should == 0

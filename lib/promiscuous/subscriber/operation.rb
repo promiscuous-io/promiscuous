@@ -78,6 +78,8 @@ class Promiscuous::Subscriber::Operation
     model.__promiscuous_fetch_existing(id).tap do |instance|
       instance.destroy
     end
+  rescue model.__promiscuous_missing_record_exception
+    Promiscuous.warn "[receive] ignoring missing record #{message.payload}"
   end
 
   def operation

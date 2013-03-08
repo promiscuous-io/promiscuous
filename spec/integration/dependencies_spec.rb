@@ -122,7 +122,10 @@ if ORM.has(:mongoid)
     end
 
     context 'when processing duplicate messages' do
-      before { config_logger :logger_level => Logger::FATAL }
+      before do
+        config_logger :logger_level => Logger::FATAL
+        Promiscuous::Config.recovery = true
+      end
 
       it 'skips duplicates' do
         pub = nil
