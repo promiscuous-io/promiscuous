@@ -123,15 +123,19 @@ module Promiscuous::Redis
       @@lock_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
         local key = KEYS[1]
         local now = tonumber(ARGV[1])
-        local expires_at = tonumber(ARGV[2])
-        local token = ARGV[3]
+        local orig_key = ARGV[2]
+        local expires_at = tonumber(ARGV[3])
+        local token = ARGV[4]
         local old_value = redis.call('get', key)
 
         if old_value and tonumber(old_value:match("([^:]*):"):rep(1)) > now then return false end
         redis.call('set', key, expires_at .. ':' .. token)
+        redis.call('zadd', 'locks:locked_set', now, orig_key)
+
         if old_value then return 'recovered' else return true end
       SCRIPT
-      result = Promiscuous::Redis.evalsha(@@lock_script_sha, :keys => [@key], :argv => [now, @expires_at, @token])
+      result = Promiscuous::Redis.evalsha(@@lock_script_sha,
+                 :keys => [@key], :argv => [now, @orig_key, @expires_at, @token])
       return :recovered if result == 'recovered'
       !!result
     end
@@ -143,16 +147,23 @@ module Promiscuous::Redis
 
       @@unlock_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
         local key = KEYS[1]
-        local old_value = ARGV[1]
+        local orig_key = ARGV[1]
+        local old_value = ARGV[2]
 
         if redis.call('get', key) == old_value then
           redis.call('del', key)
+          redis.call('zrem', 'locks:locked_set', orig_key)
           return true
         else
           return false
         end
       SCRIPT
-      Promiscuous::Redis.evalsha(@@unlock_script_sha, :keys => [@key], :argv => ["#{@expires_at}:#{@token}"])
+      Promiscuous::Redis.evalsha(@@unlock_script_sha,
+        :keys => [@key], :argv => [@orig_key, "#{@expires_at}:#{@token}"])
+    end
+
+    def self.lock_set_key
+      'locks:locked_set'
     end
   end
 end

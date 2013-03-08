@@ -189,7 +189,7 @@ describe Promiscuous do
       end
     end
 
-    context 'when the publish to rabbitmq fails' do
+    context 'when using the publisher worker' do
       before do
         Promiscuous::Config.recovery_timeout = 1.second
         @pub_worker = Promiscuous::Publisher::Worker.run!
@@ -200,23 +200,46 @@ describe Promiscuous do
         @pub_worker.terminate
       end
 
-      it 'republishes' do
-        @operation_klass.any_instance.stubs(:publish_payload_in_rabbitmq_async).raises
-        expect { Promiscuous.context { PublisherModel.create(:field_1 => '1') } }.to raise_error
-        @operation_klass.any_instance.unstub(:publish_payload_in_rabbitmq_async)
-        pub = PublisherModel.first
+      context 'when the publish to rabbitmq fails' do
+        it 'republishes' do
+          @operation_klass.any_instance.stubs(:publish_payload_in_rabbitmq_async).raises
+          expect { Promiscuous.context { PublisherModel.create(:field_1 => '1') } }.to raise_error
+          @operation_klass.any_instance.unstub(:publish_payload_in_rabbitmq_async)
+          pub = PublisherModel.first
 
-        eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
+          eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
-        message = Promiscuous::AMQP::Fake.get_next_message
-        message[:key].should == 'crowdtap/publisher_model'
-        payload = JSON.parse(message[:payload])
-        dep = payload['dependencies']
-        dep['link'].should  == nil
-        dep['read'].should  == nil
-        dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
-        payload['operation'].should == 'create'
-        payload['payload']['field_1'].should == '1'
+          message = Promiscuous::AMQP::Fake.get_next_message
+          message[:key].should == 'crowdtap/publisher_model'
+          payload = JSON.parse(message[:payload])
+          dep = payload['dependencies']
+          dep['link'].should  == nil
+          dep['read'].should  == nil
+          dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
+          payload['operation'].should == 'create'
+          payload['payload']['field_1'].should == '1'
+        end
+      end
+
+      context 'when locks are expiring' do
+        it 'republishes' do
+          @operation_klass.any_instance.stubs(:publish_payload_in_redis).raises
+          expect { Promiscuous.context { PublisherModel.create(:field_1 => '1') } }.to raise_error
+          @operation_klass.any_instance.unstub(:publish_payload_in_redis)
+          pub = PublisherModel.first
+
+          eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
+
+          message = Promiscuous::AMQP::Fake.get_next_message
+          message[:key].should == 'crowdtap/publisher_model'
+          payload = JSON.parse(message[:payload])
+          dep = payload['dependencies']
+          dep['link'].should  == nil
+          dep['read'].should  == nil
+          dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
+          payload['operation'].should == 'create'
+          payload['payload']['field_1'].should == '1'
+        end
       end
     end
   end

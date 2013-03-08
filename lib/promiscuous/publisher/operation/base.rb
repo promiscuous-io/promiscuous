@@ -50,7 +50,12 @@ class Promiscuous::Publisher::Operation::Base
   def self.rabbitmq_staging_set_key
     Promiscuous::Key.new(:pub).join('rabbitmq_staging').to_s
   end
-  delegate :rabbitmq_staging_set_key, :to => self
+
+  def self.lock_taken_set_key
+    Promiscuous::Key.new(:pub).join('lock_taken_set_key').to_s
+  end
+
+  delegate :rabbitmq_staging_set_key, :operation_staging_set_key, :to => self
 
   def on_rabbitmq_confirm
     Promiscuous::Redis.multi do
@@ -268,6 +273,23 @@ class Promiscuous::Publisher::Operation::Base
   LOCK_OPTIONS = { :timeout => 10.seconds, # after 10 seconds, we give up
                    :sleep   => 0.01,       # polling every 10ms.
                    :expire  => 1.minute }  # after one minute, we are considered dead
+
+  def self.recover_locks
+    # This method is regularly called from a worker to recover locks by doing a
+    # locking/unlocking cycle.
+
+    lock_set_key = Promiscuous::Redis::Mutex.lock_set_key
+    loop do
+      key, time = Promiscuous::Redis.zrange(lock_set_key, 0, 1, :with_scores => true).flatten
+      break unless key && Time.now.to_i >= time.to_i + LOCK_OPTIONS[:expire]
+
+      mutex = Promiscuous::Redis::Mutex.new(key, LOCK_OPTIONS)
+      case mutex.lock
+      when :recovered then recover_operation(key)
+      when true       then mutex.unlock
+      end
+    end
+  end
 
   def lock_write_dependencies
     # returns true if we could get all the locks, false otherwise
