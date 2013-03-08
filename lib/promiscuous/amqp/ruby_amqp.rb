@@ -1,7 +1,4 @@
-require 'eventmachine'
-require 'amqp'
-
-module Promiscuous::AMQP::RubyAMQP
+class Promiscuous::AMQP::RubyAMQP
   class Synchronizer
     def initialize
       @mutex = Mutex.new
@@ -34,21 +31,24 @@ module Promiscuous::AMQP::RubyAMQP
     end
   end
 
-  def self.start_event_machine
+  def start_event_machine
     EM.error_handler { |e| Promiscuous::Config.error_notifier.try(:call, e) }
     em_sync = Synchronizer.new
     Thread.new { EM.run { em_sync.signal } }
     em_sync.wait
   end
 
-  def self.connect
-    return if @connection
-
-    @channels = {}
-    @exchanges = {}
+  def initialize
+    require 'eventmachine'
+    require 'amqp'
 
     start_event_machine
 
+    @channels = {}
+    @exchanges = {}
+  end
+
+  def connect
     amqp_options = if Promiscuous::Config.amqp_url
       url = URI.parse(Promiscuous::Config.amqp_url)
       raise "Please use amqp://user:password@host:port/vhost" if url.scheme != 'amqp'
@@ -91,11 +91,11 @@ module Promiscuous::AMQP::RubyAMQP
     end
     channel_sync.wait
   rescue Exception => e
-    self.disconnect
+    disconnect
     raise e
   end
 
-  def self.get_channel(name, &block)
+  def get_channel(name, &block)
     if @channels[name]
       yield(@channels[name]) if block_given?
       @channels[name]
@@ -109,7 +109,7 @@ module Promiscuous::AMQP::RubyAMQP
     end
   end
 
-  def self.close_channel(name, &block)
+  def close_channel(name, &block)
     EM.next_tick do
       channel = @channels.try(:delete, name)
       if channel
@@ -120,25 +120,22 @@ module Promiscuous::AMQP::RubyAMQP
     end
   end
 
-  def self.disconnect
-    @connection.try(:close) rescue nil
-    @connection = nil
-    @channels = nil
-    @exchanges = nil
+  def terminate
+    @connection.close rescue nil
   end
 
-  def self.connected?
-    @connection.connected? if @connection
+  def connected?
+    @connection.connected?
   end
 
-  def self.publish(options={})
+  def publish(options={})
     EM.next_tick do
       get_exchange(:master).publish(options[:payload], :routing_key => options[:key], :persistent  => true) do
       end
     end
   end
 
-  def self.get_exchange(name)
+  def get_exchange(name)
     @exchanges[name] ||= get_channel(name).topic(Promiscuous::AMQP::EXCHANGE, :durable => true)
   end
 
@@ -150,12 +147,12 @@ module Promiscuous::AMQP::RubyAMQP
       Promiscuous::AMQP.ensure_connected
 
       @subscribe_sync = Promiscuous::AMQP::RubyAMQP::Synchronizer.new
-      Promiscuous::AMQP::RubyAMQP.get_channel(@channel_name) do |channel|
+      Promiscuous::AMQP.backend.get_channel(@channel_name) do |channel|
         @channel = channel
         # TODO channel.on_error ?
 
         queue = channel.queue(queue_name, Promiscuous::Config.queue_options)
-        exchange = Promiscuous::AMQP::RubyAMQP.get_exchange(@channel_name)
+        exchange = Promiscuous::AMQP.backend.get_exchange(@channel_name)
         bindings.each do |binding|
           queue.bind(exchange, :routing_key => binding)
           Promiscuous.debug "[bind] #{queue_name} -> #{binding}"
@@ -190,7 +187,7 @@ module Promiscuous::AMQP::RubyAMQP
     def finalize
       @closed = true
       channel_sync = Promiscuous::AMQP::RubyAMQP::Synchronizer.new
-      Promiscuous::AMQP::RubyAMQP.close_channel(@channel_name) do
+      Promiscuous::AMQP.backend.close_channel(@channel_name) do
         channel_sync.signal
       end
       channel_sync.wait :timeout => 2.seconds

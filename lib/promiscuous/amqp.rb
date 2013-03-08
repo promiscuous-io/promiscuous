@@ -6,11 +6,12 @@ module Promiscuous::AMQP
 
   class << self
     attr_accessor :backend
+    attr_accessor :backend_class
 
     def backend=(value)
-      disconnect if @backend
-      @backend = value.nil? ? nil : "Promiscuous::AMQP::#{value.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize
-      connect if @backend
+      disconnect
+      @backend_class = value.nil? ? nil : "Promiscuous::AMQP::#{value.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize
+      connect if @backend_class
     end
 
     def lost_connection_exception
@@ -27,10 +28,23 @@ module Promiscuous::AMQP
       backend.publish(options)
     end
 
-    delegate :connect, :disconnect, :connected?, :to => :backend
+    def connect
+      return if @backend
+      @backend = backend_class.new
+      @backend.connect
+    end
+
+    def disconnect
+      return unless @backend
+      @backend.disconnect
+      @backend.terminate if @backend.respond_to?(:terminate)
+      @backend = nil
+    end
+
+    delegate :connected?, :to => :backend
 
     def const_missing(sym)
-      backend.const_get(sym)
+      backend_class.const_get(sym)
     end
   end
 end

@@ -1,31 +1,37 @@
-module Promiscuous::AMQP::Fake
-  mattr_accessor :messages
+class Promiscuous::AMQP::Fake
+  attr_accessor :messages
 
-  def self.connect
+  class << self
+    def backend
+      Promiscuous::AMQP.backend
+    end
+    delegate :get_next_message, :get_next_payload, :to => :backend
+  end
+
+  def connect
     @messages = []
   end
 
-  def self.disconnect
-    @messages = []
+  def disconnect
   end
 
-  def self.connected?
+  def connected?
     true
   end
 
-  def self.publish(options={})
+  def publish(options={})
     @messages << options
   end
 
-  def self.get_next_message
+  def get_next_message
     @messages.shift
   end
 
-  def self.get_next_payload
+  def get_next_payload
     JSON.parse(get_next_message[:payload])
   end
 
-  def self.open_queue(options={}, &block)
+  def open_queue(options={}, &block)
   end
 
   module CelluloidSubscriber

@@ -1,17 +1,17 @@
-module Promiscuous::AMQP::Null
-  def self.connect
+class Promiscuous::AMQP::Null
+  def connect
   end
 
-  def self.disconnect
+  def disconnect
   end
 
-  def self.connected?
+  def connected?
     true
   end
 
-  def self.publish(options={})
+  def publish(options={})
   end
 
-  def self.open_queue(options={}, &block)
+  def open_queue(options={}, &block)
   end
 end

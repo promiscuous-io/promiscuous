@@ -1,28 +1,31 @@
-module Promiscuous::AMQP::HotBunny
-  mattr_accessor :connection
+class Promiscuous::AMQP::HotBunny
+  attr_accessor :connection
 
-  def self.connect
+  def initialize
     require 'hot_bunnies'
-    self.connection = HotBunnies.connect(:uri => Promiscuous::Config.amqp_url,
-                                         :heartbeat_interval => Promiscuous::Config.heartbeat)
+  end
 
-    @master_channel = self.connection.create_channel
+  def connect
+    @connection = HotBunnies.connect(:uri => Promiscuous::Config.amqp_url,
+                                     :heartbeat_interval => Promiscuous::Config.heartbeat)
+
+    @master_channel = @connection.create_channel
     @master_exchange = exchange(@master_channel)
   end
 
-  def self.disconnect
-    self.connection.close
+  def disconnect
+    @connection.close
   end
 
-  def self.connected?
-    self.connection.try(:is_open)
+  def connected?
+    @connection.is_open
   end
 
-  def self.publish(options={})
+  def publish(options={})
     @master_exchange.publish(options[:payload], :routing_key => options[:key], :persistent => true)
   end
 
-  def self.exchange(channel)
+  def exchange(channel)
     channel.exchange(Promiscuous::AMQP::EXCHANGE, :type => :topic, :durable => true)
   end
 
@@ -32,9 +35,9 @@ module Promiscuous::AMQP::HotBunny
       bindings      = options[:bindings]
       Promiscuous::AMQP.ensure_connected
 
-      @channel = Promiscuous::AMQP::HotBunny.connection.create_channel
+      @channel = Promiscuous::AMQP::backend.connection.create_channel
       @channel.prefetch = Promiscuous::Config.prefetch
-      exchange = Promiscuous::AMQP::HotBunny.exchange(@channel)
+      exchange = Promiscuous::AMQP::backend.exchange(@channel)
       queue = @channel.queue(queue_name, Promiscuous::Config.queue_options)
       bindings.each do |binding|
         queue.bind(exchange, :routing_key => binding)

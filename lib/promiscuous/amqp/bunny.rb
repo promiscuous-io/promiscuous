@@ -1,4 +1,4 @@
-module Promiscuous::AMQP::Bunny
+class Promiscuous::AMQP::Bunny
   def self.hijack_bunny
     return if @bunny_hijacked
     ::Bunny::Session.class_eval do
@@ -13,41 +13,42 @@ module Promiscuous::AMQP::Bunny
     @bunny_hijacked = true
   end
 
-  mattr_accessor :connection, :connection_lock
-  # The bunnet socket doesn't like when multiple threads access to it apparently
-  self.connection_lock = Mutex.new
+  attr_accessor :connection, :connection_lock
 
-  def self.connect
+  def initialize
     require 'bunny'
-    hijack_bunny
+    self.class.hijack_bunny
 
-    return if connected?
-    self.connection = ::Bunny.new(Promiscuous::Config.amqp_url,
-                                  :heartbeat_interval => Promiscuous::Config.heartbeat)
-    self.connection.start
+    # The bunnet socket doesn't like when multiple threads access to it apparently
+    @connection_lock = Mutex.new
+  end
 
-    @master_channel = self.connection.create_channel
+  def connect
+    @connection = ::Bunny.new(Promiscuous::Config.amqp_url,
+                              :heartbeat_interval => Promiscuous::Config.heartbeat)
+    @connection.start
+
+    @master_channel = @connection.create_channel
     @master_exchange = exchange(@master_channel)
   end
 
-  def self.disconnect
-    connection_lock.synchronize do
-      return unless connected?
-      self.connection.stop
+  def disconnect
+    @connection_lock.synchronize do
+      @connection.stop if connected?
     end
   end
 
-  def self.connected?
-    !!self.connection.try(:connected?)
+  def connected?
+    @connection.connected?
   end
 
-  def self.publish(options={})
-    connection_lock.synchronize do
+  def publish(options={})
+    @connection_lock.synchronize do
       @master_exchange.publish(options[:payload], :key => options[:key], :persistent => true)
     end
   end
 
-  def self.exchange(channel)
+  def exchange(channel)
     channel.exchange(Promiscuous::AMQP::EXCHANGE, :type => :topic, :durable => true)
   end
 
@@ -57,10 +58,10 @@ module Promiscuous::AMQP::Bunny
       bindings      = options[:bindings]
       Promiscuous::AMQP.ensure_connected
 
-      Promiscuous::AMQP::Bunny.connection_lock.synchronize do
-        @channel = Promiscuous::AMQP::Bunny.connection.create_channel
+      Promiscuous::AMQP.backend.connection_lock.synchronize do
+        @channel = Promiscuous::AMQP.backend.connection.create_channel
         @channel.prefetch(Promiscuous::Config.prefetch)
-        exchange = Promiscuous::AMQP::Bunny.exchange(@channel)
+        exchange = Promiscuous::AMQP.backend.exchange(@channel)
         queue = @channel.queue(queue_name, Promiscuous::Config.queue_options)
         bindings.each do |binding|
           queue.bind(exchange, :routing_key => binding)
@@ -73,7 +74,7 @@ module Promiscuous::AMQP::Bunny
     end
 
     def ack_message(tag)
-      Promiscuous::AMQP::Bunny.connection_lock.synchronize do
+      Promiscuous::AMQP.backend.connection_lock.synchronize do
         @channel.ack(tag)
       end
     end
@@ -94,7 +95,7 @@ module Promiscuous::AMQP::Bunny
     end
 
     def finalize
-      Promiscuous::AMQP::Bunny.connection_lock.synchronize do
+      Promiscuous::AMQP.backend.connection_lock.synchronize do
         @channel.close
       end
     end
