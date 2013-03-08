@@ -52,6 +52,17 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def publish_payload_in_rabbitmq_async
+    # TODO cleanup redis when the publish goes through
+    Promiscuous::AMQP.publish(:key => @payload[:__amqp__], :payload => @payload.to_json,
+                              :on_confirm => method(:on_rabbitmq_confirm))
+  end
+
+  def publish_payload_in_redis
+    # TODO (for recovery)
+    Promiscuous::Redis.del(@recovery_key)
+  end
+
+  def generate_payload_and_clear_operations
     # TODO Transactions with multi writes
     raise "no multi write yet" if previous_successful_operations.select(&:write?).size > 1
 
@@ -79,30 +90,7 @@ class Promiscuous::Publisher::Operation::Base
     current_context.last_write_dependency = @committed_write_deps.first
     current_context.operations.clear
 
-    # TODO cleanup redis when the publish goes through
-    Promiscuous::AMQP.publish(:key => payload[:__amqp__], :payload => payload.to_json,
-                              :on_confirm => method(:on_rabbitmq_confirm))
-  end
-
-  def publish_payload_in_redis
-    # TODO (for recovery)
-    Promiscuous::Redis.del(@recovery_key)
-  end
-
-  def self.recover_data_operation(key)
-    recovery_data = Promiscuous::Redis.get("#{key}:recovery")
-    return nil unless recovery_data
-
-    data = JSON.parse(recovery_data)
-
-    to_dependency = proc do |k,v|
-      k = k.split(':')[2..-1] # remove the publishers:app_name namespacing
-      Promiscuous::Dependency.parse((k << v).join(':'))
-    end
-
-    { :operation          => data['operation'].to_sym,
-      :read_dependencies  => data['read_keys'].zip(data['read_versions']).map(&to_dependency),
-      :write_dependencies => data['write_keys'].zip(data['write_versions']).map(&to_dependency) }
+    @payload = payload
   end
 
   def self.recover_payload_for(key)
@@ -113,11 +101,19 @@ class Promiscuous::Publisher::Operation::Base
     # 2) The write query was never executed, we must send a dummy operation
     # 3) The write query was executed, but never passed the payload queue stage
 
-    recovery_data = recover_data_operation(key)
-    return unless recovery_data # case 1)
+    recovery_data = Promiscuous::Redis.get("#{key}:recovery")
+    return nil unless recovery_data # case 1)
 
-    operation = recovery_data[:operation]
-    instance_dep = recovery_data[:write_dependencies].first
+    to_dependency = proc do |k,v|
+      k = k.split(':')[2..-1] # remove the publishers:app_name namespacing
+      Promiscuous::Dependency.parse((k << v).join(':'))
+    end
+
+    recovery_data = JSON.parse(recovery_data)
+    operation          = recovery_data['operation'].to_sym
+    read_dependencies  = recovery_data['read_keys'].zip(recovery_data['read_versions']).map(&to_dependency)
+    write_dependencies = recovery_data['write_keys'].zip(recovery_data['write_versions']).map(&to_dependency)
+    instance_dep = write_dependencies.first
     raise 'assert id dependency' unless instance_dep.attribute == 'id'
     id = instance_dep.value
 
@@ -147,9 +143,10 @@ class Promiscuous::Publisher::Operation::Base
     # context, which is why the recovery context runs as a root context.
     Promiscuous.context :payload_recovery, :detached_from_parent => true do
       new(:instance => instance, :operation => operation).instance_eval do
-        @committed_read_deps  = recovery_data[:read_dependencies]
-        @committed_write_deps = recovery_data[:write_dependencies]
+        @committed_read_deps  = read_dependencies
+        @committed_write_deps = write_dependencies
         record_timestamp
+        generate_payload_and_clear_operations
         publish_payload_in_redis
         publish_payload_in_rabbitmq_async
       end
@@ -454,6 +451,7 @@ class Promiscuous::Publisher::Operation::Base
     # If reload_instance_after_update raise an exception, we let it bubble up,
     # and we'll trigger the recovery mechanism.
     reload_instance_after_update if operation == :update && !failed?
+    generate_payload_and_clear_operations
 
     # As soon as we unlock the locks, the rescuer will not be able to assume
     # that the database instance is still pristine, and so we need to stash the
