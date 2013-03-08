@@ -23,7 +23,6 @@ class Promiscuous::Middleware
       def with_promiscuous_context(*args)
         options = args.extract_options!
         args.each do |action|
-          full_name = "#{controller_path}/#{action}"
           Promiscuous::Middleware::Controller.with_promiscuous_contexts[full_name] = options
         end
       end
