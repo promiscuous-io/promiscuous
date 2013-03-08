@@ -15,7 +15,3 @@ class Promiscuous::Subscriber::Worker < Celluloid::SupervisionGroup
     end
   end
 end
-
-# Find a better place to put this
-Celluloid.exception_handler { |e| Promiscuous::Config.error_notifier.try(:call, e) }
-Celluloid.logger = Promiscuous::Config.logger

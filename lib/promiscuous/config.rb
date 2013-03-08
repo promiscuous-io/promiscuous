@@ -30,6 +30,9 @@ module Promiscuous::Config
     self.recovery_timeout ||= 10.seconds
     self.logger           ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
 
+    Celluloid.exception_handler { |e| Promiscuous::Config.error_notifier.try(:call, e) }
+    Celluloid.logger = Promiscuous::Config.logger
+
     unless self.app
       raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
     end

@@ -84,6 +84,12 @@ class Promiscuous::CLI
     end
   end
 
+  def publisher_recovery
+    @worker = Promiscuous::Publisher::Worker.run!
+    print_status "Waiting for messages to recover..."
+    sleep 0.2 until !@worker.alive?
+  end
+
   def parse_args(args)
     options = {}
 
@@ -97,6 +103,7 @@ class Promiscuous::CLI
       opts.separator "    promiscuous subscribe"
       opts.separator "    promiscuous mocks"
       opts.separator "    promiscuous replay logfile"
+      opts.separator "    promiscuous publisher_recovery"
       opts.separator ""
       opts.separator "Options:"
 
@@ -148,6 +155,7 @@ class Promiscuous::CLI
     when :publish   then raise "Please specify one or more criterias" unless options[:criterias].present?
     when :subscribe then raise "Why are you specifying a criteria?"   if     options[:criterias].present?
     when :replay    then raise "Please specify a log file to replay"  unless options[:log_file].present?
+    when :publisher_recovery
     when :mocks
     else puts parser; exit 1
     end
@@ -185,6 +193,7 @@ class Promiscuous::CLI
     when :subscribe then subscribe
     when :replay    then replay
     when :mocks     then generate_mocks
+    when :publisher_recovery then publisher_recovery
     end
   end
 

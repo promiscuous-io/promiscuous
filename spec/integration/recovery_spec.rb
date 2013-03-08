@@ -190,8 +190,15 @@ describe Promiscuous do
     end
 
     context 'when the publish to rabbitmq fails' do
-      before { Promiscuous::Config.recovery_timeout = 1.second }
-      after  { Promiscuous::Config.recovery_timeout = 10.second }
+      before do
+        Promiscuous::Config.recovery_timeout = 1.second
+        @pub_worker = Promiscuous::Publisher::Worker.run!
+      end
+
+      after do
+        Promiscuous::Config.recovery_timeout = 10.second
+        @pub_worker.terminate
+      end
 
       it 'republishes' do
         @operation_klass.any_instance.stubs(:publish_payload_in_rabbitmq_async).raises
@@ -199,11 +206,7 @@ describe Promiscuous do
         @operation_klass.any_instance.unstub(:publish_payload_in_rabbitmq_async)
         pub = PublisherModel.first
 
-        eventually do
-          # TODO Remove with real worker
-          Promiscuous::Publisher::Operation::Base.recover_payloads_for_rabbitmq
-          Promiscuous::AMQP::Fake.num_messages.should == 1
-        end
+        eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
         message = Promiscuous::AMQP::Fake.get_next_message
         message[:key].should == 'crowdtap/publisher_model'
