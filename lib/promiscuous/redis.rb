@@ -91,6 +91,7 @@ module Promiscuous::Redis
       @block = options[:block]
       @sleep = options[:sleep]
       @expire = options[:expire]
+      @token = Random.rand(1000000000)
     end
 
     def key
@@ -123,13 +124,14 @@ module Promiscuous::Redis
         local key = KEYS[1]
         local now = tonumber(ARGV[1])
         local expires_at = tonumber(ARGV[2])
+        local token = ARGV[3]
         local old_value = redis.call('get', key)
 
-        if old_value and tonumber(old_value) > now then return false end
-        redis.call('set', key, expires_at)
+        if old_value and tonumber(old_value:match("([^:]*):"):rep(1)) > now then return false end
+        redis.call('set', key, expires_at .. ':' .. token)
         if old_value then return 'recovered' else return true end
       SCRIPT
-      result = Promiscuous::Redis.evalsha(@@lock_script_sha, :keys => [@key], :argv => [now, @expires_at])
+      result = Promiscuous::Redis.evalsha(@@lock_script_sha, :keys => [@key], :argv => [now, @expires_at, @token])
       return :recovered if result == 'recovered'
       !!result
     end
@@ -150,7 +152,7 @@ module Promiscuous::Redis
           return false
         end
       SCRIPT
-      Promiscuous::Redis.evalsha(@@unlock_script_sha, :keys => [@key], :argv => [@expires_at])
+      Promiscuous::Redis.evalsha(@@unlock_script_sha, :keys => [@key], :argv => ["#{@expires_at}:#{@token}"])
     end
   end
 end
