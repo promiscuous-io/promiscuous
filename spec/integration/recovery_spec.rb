@@ -174,5 +174,19 @@ describe Promiscuous do
         payload['payload'].should == nil
       end
     end
+
+    context 'when the lock times out' do
+      before { @operation_klass::LOCK_OPTIONS[:timeout] = 0.5 }
+
+      it 'throws an exception' do
+        pub = Promiscuous.context { pub = PublisherModel.create(:field_1 => '1') }
+        Promiscuous::AMQP::Fake.get_next_message
+
+        @operation_klass.any_instance.stubs(:increment_read_and_write_dependencies).raises
+        expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
+        @operation_klass.any_instance.unstub(:increment_read_and_write_dependencies)
+        expect { Promiscuous.context { pub.update_attributes(:field_1 => '3') } }.to raise_error
+      end
+    end
   end
 end

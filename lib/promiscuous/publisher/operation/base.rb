@@ -247,7 +247,7 @@ class Promiscuous::Publisher::Operation::Base
         # Note that we do not unlock the recovered lock if the chain fails
         when :recovered then @recovered_locks << l.key; chain.call
         when true       then chain.call or (l.unlock; false)
-        when false      then false
+        when false      then @unavailable_lock = l.key; false
         end
       end
     end.call
@@ -356,8 +356,7 @@ class Promiscuous::Publisher::Operation::Base
 
     begin
       unless lock_write_dependencies
-        # TODO Raise a promiscuous lock error if we couldn't get the lock
-        raise 'oops'
+        raise Promiscuous::Error::LockUnavailable.new(@unavailable_lock)
       end
 
       if @recovered_locks.present?
