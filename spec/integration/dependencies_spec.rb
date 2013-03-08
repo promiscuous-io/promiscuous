@@ -100,7 +100,7 @@ if ORM.has(:mongoid)
           eventually { SubscriberModel.first.field_1.should == ':' }
 
           dep = pub.promiscuous.tracked_dependencies.first
-          Promiscuous::Redis.get(dep.key(:sub).to_s).to_i.should == 4
+          Promiscuous::Redis.get(dep.key(:sub).join('rw').to_s).to_i.should == 4
         end
       end
     end

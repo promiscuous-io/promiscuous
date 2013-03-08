@@ -7,8 +7,8 @@ class Promiscuous::Dependency < Struct.new(:collection, :attribute, :value, :ver
     [collection, attribute, value, version].join(':')
   end
 
-  def version_field_name_for_recovery
-    attribute.to_sym == :id ? "_pv" : "_pv_#{attribute}"
+  def version_field_name_for_recovery(role)
+    attribute.to_sym == :id ? "_#{role}" : "_#{role}_#{attribute}"
   end
 
   def self.parse(payload)

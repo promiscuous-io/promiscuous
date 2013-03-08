@@ -1,10 +1,21 @@
 class Promiscuous::Key
-  def initialize(role, nodes=[])
+  def initialize(role, nodes=[], no_join=nil)
     @role = role
     @nodes = nodes
+    @no_join = no_join
   end
 
   def join(*nodes)
+    # --- backward compatiblity code ---
+    # TODO remove code
+    if nodes == ['global', nil, nil]
+      return self.class.new(@role, @nodes + nodes, :no_join)
+    end
+    if @no_join
+      return self.class.new(@role, @nodes)
+    end
+    # --- backward compatiblity code ---
+
     self.class.new(@role, @nodes + nodes)
   end
 

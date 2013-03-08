@@ -51,11 +51,7 @@ class Promiscuous::Publisher::Operation::Base
     Promiscuous::Key.new(:pub).join('rabbitmq_staging').to_s
   end
 
-  def self.lock_taken_set_key
-    Promiscuous::Key.new(:pub).join('lock_taken_set_key').to_s
-  end
-
-  delegate :rabbitmq_staging_set_key, :operation_staging_set_key, :to => self
+  delegate :rabbitmq_staging_set_key, :to => self
 
   def on_rabbitmq_confirm
     Promiscuous::Redis.multi do
@@ -180,7 +176,7 @@ class Promiscuous::Publisher::Operation::Base
       # We fetch the instance from the database only if the version is matching
       # what we have in redis.
       instance = fetch_instance_for_selector(model, :id => id,
-        instance_dep.version_field_name_for_recovery => instance_dep.version)
+        instance_dep.version_field_name_for_recovery(:pub) => instance_dep.version)
       has_executed_query = !!instance
     end
 
@@ -264,8 +260,8 @@ class Promiscuous::Publisher::Operation::Base
                                       :keys => keys_to_touch.map(&:to_s),
                                       :argv => [[operation,r_keys,w_keys].to_json])
 
-    r.zip(read_versions).map  { |dep, version| dep.version = version.to_i }
-    w.zip(write_versions).map { |dep, version| dep.version = version.to_i }
+    r.zip(read_versions).each  { |dep, version| dep.version = version.to_i }
+    w.zip(write_versions).each { |dep, version| dep.version = version.to_i }
     @committed_read_deps  = r
     @committed_write_deps = w
   end
@@ -274,16 +270,19 @@ class Promiscuous::Publisher::Operation::Base
                    :sleep   => 0.01,       # polling every 10ms.
                    :expire  => 1.minute }  # after one minute, we are considered dead
 
+  def self.lock_options
+    LOCK_OPTIONS.merge({ :lock_set => Promiscuous::Key.new(:pub).join('lock_set').to_s })
+  end
+
   def self.recover_locks
     # This method is regularly called from a worker to recover locks by doing a
     # locking/unlocking cycle.
 
-    lock_set_key = Promiscuous::Redis::Mutex.lock_set_key
     loop do
-      key, time = Promiscuous::Redis.zrange(lock_set_key, 0, 1, :with_scores => true).flatten
-      break unless key && Time.now.to_i >= time.to_i + LOCK_OPTIONS[:expire]
+      key, time = Promiscuous::Redis.zrange(lock_options[:lock_set], 0, 1, :with_scores => true).flatten
+      break unless key && Time.now.to_i >= time.to_i + lock_options[:expire]
 
-      mutex = Promiscuous::Redis::Mutex.new(key, LOCK_OPTIONS)
+      mutex = Promiscuous::Redis::Mutex.new(key, lock_options)
       case mutex.lock
       when :recovered then recover_operation(key)
       when true       then mutex.unlock
@@ -295,8 +294,9 @@ class Promiscuous::Publisher::Operation::Base
     # returns true if we could get all the locks, false otherwise
 
     # We sort the keys to avoid deadlocks due to different lock orderings.
+    lock_options = self.class.lock_options
     locks = write_dependencies.map { |dep| dep.key(:pub).to_s }.sort
-              .map { |key| Promiscuous::Redis::Mutex.new(key, LOCK_OPTIONS) }
+              .map { |key| Promiscuous::Redis::Mutex.new(key, lock_options) }
 
     start_at = Time.now
     @recovered_locks = []
@@ -306,7 +306,7 @@ class Promiscuous::Publisher::Operation::Base
     # TODO recover if we expire a lock
     locks.reduce(->{ @locks = locks; true }) do |chain, l|
       lambda do
-        return false if Time.now - start_at > LOCK_OPTIONS[:timeout]
+        return false if Time.now - start_at > lock_options[:timeout]
         case l.lock
         # Note that we do not unlock the recovered lock if the chain fails
         when :recovered then @recovered_locks << l.key; chain.call
@@ -579,7 +579,7 @@ class Promiscuous::Publisher::Operation::Base
   def stash_write_dependencies_in_write_query
     # This is implemented by the driver to something similar to:
     # @committed_write_deps.each do |dep|
-    #  @instance.__send__("#{dep.version_field_name_for_recovery}=", dep.version)
+    #  @instance.__send__("#{dep.version_field_name_for_recovery(:pub)}=", dep.version)
     # end
   end
 

@@ -21,7 +21,7 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
 
     def stash_write_dependencies_in_write_query
       @committed_write_deps.each do |dep|
-        @document[dep.version_field_name_for_recovery] = dep.version
+        @document[dep.version_field_name_for_recovery(:pub)] = dep.version
       end
     end
 
@@ -84,7 +84,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     def stash_write_dependencies_in_write_query
       @change['$set'] ||= {}
       @committed_write_deps.each do |dep|
-        @change['$set'][dep.version_field_name_for_recovery] = dep.version
+        @change['$set'][dep.version_field_name_for_recovery(:pub)] = dep.version
       end
     end
 

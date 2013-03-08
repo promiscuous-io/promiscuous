@@ -153,6 +153,16 @@ describe Promiscuous do
     end
 
     context 'when doing a destroy' do
+      before do
+        Promiscuous::Config.recovery_timeout = 1.second
+        @pub_worker = Promiscuous::Publisher::Worker.run!
+      end
+
+      after do
+        Promiscuous::Config.recovery_timeout = 10.second
+        @pub_worker.terminate
+      end
+
       it 'recovers' do
         pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
@@ -161,9 +171,7 @@ describe Promiscuous do
         expect { Promiscuous.context { pub.destroy } }.to raise_error
         @operation_klass.any_instance.unstub(:publish_payload_in_redis)
 
-        # Manually triggering the recovery, but we should have a worker.
-        key = pub.promiscuous.tracked_dependencies.first.key(:pub).to_s
-        Promiscuous::Publisher::Operation::Base.recover_operation(key)
+        eventually(:timeout => 5.seconds) { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -228,7 +236,7 @@ describe Promiscuous do
           @operation_klass.any_instance.unstub(:publish_payload_in_redis)
           pub = PublisherModel.first
 
-          eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
+          eventually(:timeout => 5.seconds) { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
           message = Promiscuous::AMQP::Fake.get_next_message
           message[:key].should == 'crowdtap/publisher_model'

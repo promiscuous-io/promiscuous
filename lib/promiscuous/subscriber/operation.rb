@@ -7,54 +7,66 @@ class Promiscuous::Subscriber::Operation
     self.payload = payload
   end
 
-  def self.update_dependencies(dependencies)
-    futures = nil
-    Promiscuous::Redis.multi do
-      futures = dependencies.map do |dep|
-        key = dep.key(:sub).to_s
-        [key, Promiscuous::Redis.incr(key)]
-      end
-    end
-
-    if synchronizer = Celluloid::Actor[:message_synchronizer]
-      futures.each do |key, future|
-        synchronizer.async.try_notify_key_change(key, future.value)
-      end
-    end
-
-    Promiscuous::Redis.pipelined do
-      futures.each do |key, future|
-        Promiscuous::Redis.publish(key, future.value)
-      end
-    end
-  end
-
   def update_dependencies
     # link is not incremented
-    deps = message.dependencies[:read] + message.dependencies[:write]
-    self.class.update_dependencies(deps)
+    dependencies = message.dependencies[:read] + message.dependencies[:write]
+
+    @@update_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
+      local versions = {}
+      for i, key in ipairs(KEYS) do
+        versions[i] = redis.call('incr', key .. ':rw')
+        redis.call('publish', key .. ':rw', versions[i])
+      end
+
+      return versions
+    SCRIPT
+    versions = Promiscuous::Redis.evalsha(@@update_script_sha,
+               :keys => dependencies.map { |dep| dep.key(:sub).to_s })
+
+    # This caches the current version, in case we need it again.
+    # TODO Evaluate if it's better with or without.
+    if synchronizer = Celluloid::Actor[:message_synchronizer]
+      dependencies.zip(versions).each do |dep, version|
+        synchronizer.async.try_notify_key_change(dep.key(:sub).join('rw').to_s, version)
+      end
+    end
   end
 
   def verify_dependencies
-    # XXX This only works with one worker. We could take a lock on it, but
-    # we should never process message twice.
-    # It's more or less some smoke test.
-    # It also doesn't work with dummies as they don't have write depenencies
-    # for now (no id).
     if message.dependencies[:write].present?
       # We take the first write depedency (adjusted with the read increments)
-      dep = message.happens_before_dependencies.first
-      if Promiscuous::Redis.get(dep.key(:sub).to_s).to_i != dep.version
+      key = @instance_dep.key(:sub).join('rw').to_s
+      if Promiscuous::Redis.get(key).to_i != @instance_dep.version
         raise Promiscuous::Error::AlreadyProcessed
       end
     end
   end
 
+  LOCK_OPTIONS = { :timeout => 1.5.minute, # after 1.5 minute , we give up
+                   :sleep   => 0.1,       # polling every 100ms.
+                   :expire  => 1.minute }  # after one minute, we are considered dead
+
   def with_instance_dependencies
-    verify_dependencies if message && message.has_dependencies?
-    result = yield
-    update_dependencies if message && message.has_dependencies?
-    result
+    return yield unless message && message.has_dependencies?
+
+    @instance_dep = message.happens_before_dependencies.first
+    mutex = Promiscuous::Redis::Mutex.new(@instance_dep.key(:sub).to_s, LOCK_OPTIONS)
+
+    unless mutex.lock
+      raise Promiscuous::Error::LockUnavailable.new(mutex.key)
+    end
+
+    begin
+      verify_dependencies
+      result = yield
+      update_dependencies
+      result
+    ensure
+      unless mutex.unlock
+        # TODO be safe
+        raise 'oops'
+      end
+    end
   end
 
   def create

@@ -38,6 +38,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def happens_before_dependencies
+    # TODO remove code -- r ^ w = 0 ?
     return @happens_before_dependencies if @happens_before_dependencies
 
     read_increments = {}
@@ -97,9 +98,8 @@ class Promiscuous::Subscriber::Worker::Message
       Promiscuous::Subscriber::Operation.new(payload).commit
     end
     ack
-
   rescue Exception => e
-    ack if e.is_a?(Promiscuous::Error::AlreadyProcessed) && Promiscuous::Config.recovery
+    ack if e.is_a?(Promiscuous::Error::AlreadyProcessed)
 
     e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
     Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"
