@@ -20,7 +20,7 @@ describe Promiscuous do
 
   context 'when the publisher dies right after the locking' do
     it 'recovers' do
-      pub = Promiscuous.context { pub = PublisherModel.create(:field_1 => '1') }
+      pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
       Promiscuous::AMQP::Fake.get_next_message
 
       @operation_klass.any_instance.stubs(:increment_read_and_write_dependencies).raises
@@ -41,7 +41,7 @@ describe Promiscuous do
   context 'when the publisher dies right after the increments' do
     context 'when doing an update' do
       it 'recovers' do
-        pub = Promiscuous.context { pub = PublisherModel.create(:field_1 => '1') }
+        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
 
         @operation_klass.any_instance.stubs(:perform_db_operation_with_no_exceptions).raises
@@ -69,7 +69,7 @@ describe Promiscuous do
 
     context 'when doing a destroy' do
       it 'recovers' do
-        pub = Promiscuous.context { pub = PublisherModel.create(:field_1 => '1') }
+        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
 
         @operation_klass.any_instance.stubs(:perform_db_operation_with_no_exceptions).raises
@@ -126,7 +126,7 @@ describe Promiscuous do
 
     context 'when doing an update' do
       it 'recovers' do
-        pub = Promiscuous.context { pub = PublisherModel.create(:field_1 => '1') }
+        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
 
         @operation_klass.any_instance.stubs(:publish_payload_in_redis).raises
@@ -154,7 +154,7 @@ describe Promiscuous do
 
     context 'when doing a destroy' do
       it 'recovers' do
-        pub = Promiscuous.context { pub = PublisherModel.create(:field_1 => '1') }
+        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
 
         @operation_klass.any_instance.stubs(:publish_payload_in_redis).raises
@@ -163,7 +163,7 @@ describe Promiscuous do
 
         # Manually triggering the recovery, but we should have a worker.
         key = pub.promiscuous.tracked_dependencies.first.key(:pub).to_s
-        Promiscuous::Publisher::Operation::Base.recover_payload_for(key)
+        Promiscuous::Publisher::Operation::Base.recover_operation(key)
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -179,13 +179,41 @@ describe Promiscuous do
       before { @operation_klass::LOCK_OPTIONS[:timeout] = 0.5 }
 
       it 'throws an exception' do
-        pub = Promiscuous.context { pub = PublisherModel.create(:field_1 => '1') }
+        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
 
         @operation_klass.any_instance.stubs(:increment_read_and_write_dependencies).raises
         expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
         @operation_klass.any_instance.unstub(:increment_read_and_write_dependencies)
         expect { Promiscuous.context { pub.update_attributes(:field_1 => '3') } }.to raise_error
+      end
+    end
+
+    context 'when the publish to rabbitmq fails' do
+      before { Promiscuous::Config.recovery_timeout = 1.second }
+      after  { Promiscuous::Config.recovery_timeout = 10.second }
+
+      it 'republishes' do
+        @operation_klass.any_instance.stubs(:publish_payload_in_rabbitmq_async).raises
+        expect { Promiscuous.context { PublisherModel.create(:field_1 => '1') } }.to raise_error
+        @operation_klass.any_instance.unstub(:publish_payload_in_rabbitmq_async)
+        pub = PublisherModel.first
+
+        eventually do
+          # TODO Remove with real worker
+          Promiscuous::Publisher::Operation::Base.recover_payloads_for_rabbitmq
+          Promiscuous::AMQP::Fake.num_messages.should == 1
+        end
+
+        message = Promiscuous::AMQP::Fake.get_next_message
+        message[:key].should == 'crowdtap/publisher_model'
+        payload = JSON.parse(message[:payload])
+        dep = payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
+        payload['operation'].should == 'create'
+        payload['payload']['field_1'].should == '1'
       end
     end
   end

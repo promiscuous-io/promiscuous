@@ -47,8 +47,16 @@ class Promiscuous::Publisher::Operation::Base
     @timestamp = time.to_i * 1000 + time.usec / 1000
   end
 
+  def self.rabbitmq_staging_set_key
+    Promiscuous::Key.new(:pub).join('rabbitmq_staging').to_s
+  end
+  delegate :rabbitmq_staging_set_key, :to => self
+
   def on_rabbitmq_confirm
-    Promiscuous::Redis.del(@amqp_recovery_key)
+    Promiscuous::Redis.multi do
+      Promiscuous::Redis.del(@payload_recovery_key)
+      Promiscuous::Redis.zrem(rabbitmq_staging_set_key, @payload_recovery_key)
+    end
   end
 
   def publish_payload_in_rabbitmq_async
@@ -56,19 +64,45 @@ class Promiscuous::Publisher::Operation::Base
                               :on_confirm => method(:on_rabbitmq_confirm))
   end
 
+  def self.recover_payloads_for_rabbitmq
+    # This method is regularly called from a worker to resend payloads that
+    # never got their confirm. We get the oldest queued message, and test if
+    # it's old enough to for a republish (default 10 seconds).
+    # Any sort of race is okay since we would just republish, and that's okay.
+
+    loop do
+      key, time = Promiscuous::Redis.zrange(rabbitmq_staging_set_key, 0, 1, :with_scores => true).flatten
+      break unless key && Time.now.to_i >= time.to_i + Promiscuous::Config.recovery_timeout
+
+      # Refresh the score so we skip it next time we look for something to recover.
+      Promiscuous::Redis.zadd(rabbitmq_staging_set_key, Time.now.to_i, key)
+
+      payload = Promiscuous::Redis.get(key)
+      new.instance_eval do
+        @payload_recovery_key = key
+        @amqp_key = JSON.parse(payload)['__amqp__']
+        @payload = payload
+        publish_payload_in_rabbitmq_async
+      end
+    end
+  end
+
   def publish_payload_in_redis
     instance_dep = @committed_write_deps.first
     key = instance_dep.key(:pub)
 
-    payload_recovery_key = key.join('payload_recovery').to_s
+    operation_recovery_key = key.join('operation_recovery').to_s
 
-    # We use a key with the version of the instance, this way, we don't
-    # collide with other updates on the same document.
-    @amqp_recovery_key = key.join('amqp_recovery', instance_dep.version).to_s
+    # We identify a payload with a unique key (id:id_value:current_version) to
+    # avoid collisions with other updates on the same document.
+    @payload_recovery_key = key.join(instance_dep.version).to_s
 
+    # We don't care if we get raced by someone recovering our operation. It can
+    # happen if we lost the lock without knowing about it.
     Promiscuous::Redis.multi do
-      Promiscuous::Redis.del(payload_recovery_key)
-      Promiscuous::Redis.set(@amqp_recovery_key, @payload)
+      Promiscuous::Redis.del(operation_recovery_key)
+      Promiscuous::Redis.set(@payload_recovery_key, @payload)
+      Promiscuous::Redis.zadd(rabbitmq_staging_set_key, Time.now.to_i, @payload_recovery_key)
     end
   end
 
@@ -104,7 +138,7 @@ class Promiscuous::Publisher::Operation::Base
     @payload = payload.to_json
   end
 
-  def self.recover_payload_for(key)
+  def self.recover_operation(key)
     # We happen to have acquired a never released lock.
     # The database instance is thus still prestine.
     # Three cases to consider:
@@ -112,7 +146,7 @@ class Promiscuous::Publisher::Operation::Base
     # 2) The write query was never executed, we must send a dummy operation
     # 3) The write query was executed, but never passed the payload queue stage
 
-    recovery_data = Promiscuous::Redis.get("#{key}:payload_recovery")
+    recovery_data = Promiscuous::Redis.get("#{key}:operation_recovery")
     return nil unless recovery_data # case 1)
 
     to_dependency = proc do |k,v|
@@ -152,7 +186,7 @@ class Promiscuous::Publisher::Operation::Base
     # The following bootstrap a new operation to complete the operation.
     # We don't want to consider this operation as a dependency in our current
     # context, which is why the recovery context runs as a root context.
-    Promiscuous.context :payload_recovery, :detached_from_parent => true do
+    Promiscuous.context :operation_recovery, :detached_from_parent => true do
       new(:instance => instance, :operation => operation).instance_eval do
         @committed_read_deps  = read_dependencies
         @committed_write_deps = write_dependencies
@@ -180,8 +214,8 @@ class Promiscuous::Publisher::Operation::Base
     w_keys = w.map { |dep| dep.key(:pub) }
 
     # The recovery key must be deducted from the lock key name, which is
-    # w_keys.first.
-    payload_recovery_key = w_keys.first.join('payload_recovery')
+    # w_keys.first (instance id key).
+    operation_recovery_key = w_keys.first.join('operation_recovery')
 
     # We are going to store all the versions in redis, to be able to recover.
     # We store all our increments in a transaction_id key in JSON format.
@@ -194,7 +228,7 @@ class Promiscuous::Publisher::Operation::Base
       local operation = args[1]
       local read_keys = args[2]
       local write_keys = args[3]
-      local payload_recovery_key = write_keys[1] .. ':payload_recovery'
+      local operation_recovery_key = write_keys[1] .. ':operation_recovery'
 
       local read_versions = {}
       for i, key in ipairs(read_keys) do
@@ -208,7 +242,7 @@ class Promiscuous::Publisher::Operation::Base
         redis.call('set', key .. ':w', write_versions[i])
       end
 
-      redis.call('set', payload_recovery_key, cjson.encode({
+      redis.call('set', operation_recovery_key, cjson.encode({
         read_keys=read_keys, read_versions=read_versions,
         write_keys=write_keys, write_versions=write_versions,
         operation=operation}))
@@ -217,7 +251,7 @@ class Promiscuous::Publisher::Operation::Base
     SCRIPT
 
     keys_to_touch = (r_keys + w_keys).map { |key| [key.join('rw'), key.join('w')] }.flatten
-    keys_to_touch << payload_recovery_key
+    keys_to_touch << operation_recovery_key
 
     # Note that this script is run in a Redis transaction, which is something
     # we rely on.
@@ -371,7 +405,7 @@ class Promiscuous::Publisher::Operation::Base
         # When recovering locks, if we fail, we must not release the lock again
         # to allow another one to do the recovery.
         auto_unlock = false
-        @recovered_locks.each { |key| self.class.recover_payload_for(key) }
+        @recovered_locks.each { |key| self.class.recover_operation(key) }
         auto_unlock = true
       end
 
