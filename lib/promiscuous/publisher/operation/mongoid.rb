@@ -73,17 +73,12 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def fetch_instance
-      @raw_instance = without_promiscuous { @query.first }
+      @raw_instance = @new_raw_instance || without_promiscuous { @query.first }
       Mongoid::Factory.from_db(model, @raw_instance) if @raw_instance
     end
 
     def use_id_selector
       @query.selector = @query.operation.selector = {'_id' => @instance.id}
-    end
-
-    def reload_instance_after_update
-      return Mongoid::Factory.from_db(model, @new_raw_instance) if @new_raw_instance
-      super
     end
 
     def stash_write_dependencies_in_write_query
@@ -216,6 +211,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     promiscuous_operation(:update, :change => change, :multi => multi).execute do |operation|
       if operation
         operation.new_raw_instance = without_promiscuous { modify(change, :new => true) }
+        # TODO say not okay if the query return something bad
         {'updatedExisting' => true, 'n' => 1, 'err' => nil, 'ok' => 1.0}
       else
         super

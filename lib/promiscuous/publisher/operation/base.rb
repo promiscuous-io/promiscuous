@@ -315,7 +315,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def perform_db_operation_with_no_exceptions(&db_operation)
-    @result = db_operation.call
+    @result = db_operation.call(self)
   rescue Exception => e
     @exception = e
   end
@@ -373,7 +373,8 @@ class Promiscuous::Publisher::Operation::Base
         # readers can see our write through any one of our tracked attributes.
 
         # We want to reload the instance to make sure we have all the locked
-        # dependencies that we need.
+        # dependencies that we need. It's a query we cannot avoid when we have
+        # tracked dependencies. There is a bit of room for optimization.
         # If the selector doesn't fetch any instance, the query has no effect
         # so we can bypass it as if nothing happened.  If reload_instance
         # raises an exception, it's okay to let it bubble up since we haven't
