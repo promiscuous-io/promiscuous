@@ -12,7 +12,7 @@ class Promiscuous::Middleware
     end
 
     def render(*args)
-      Promiscuous::Middleware.with_context(full_name, options) { super }
+      Promiscuous::Middleware.without_context { super }
     end
 
     def full_name
