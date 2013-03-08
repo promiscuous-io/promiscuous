@@ -50,7 +50,9 @@ end
 
 RSpec.configure do |config|
   config.after do
-    @worker.terminate if @worker
-    @worker = nil
+    if @worker
+      @worker.terminate
+      @worker = nil
+    end
   end
 end

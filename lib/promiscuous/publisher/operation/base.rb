@@ -47,18 +47,22 @@ class Promiscuous::Publisher::Operation::Base
     @timestamp = time.to_i * 1000 + time.usec / 1000
   end
 
+  def on_rabbitmq_confirm
+    # TODO Cleanup the payload in Redis
+  end
+
   def publish_payload_in_rabbitmq_async
     # TODO Transactions with multi writes
     raise "no multi write yet" if previous_successful_operations.select(&:write?).size > 1
 
-    options = {}
-    options[:context] = current_context.name
-    options[:timestamp] = @timestamp
+    payload = @instance.promiscuous.payload(:with_attributes => operation.in?([:create, :update]))
+    payload[:context] = current_context.name
+    payload[:timestamp] = @timestamp
 
     # If the db operation has failed, so we publish a dummy operation on the
     # failed instance. It's better than using the Dummy polisher class
     # because a subscriber can choose not to receive any of these messages.
-    options[:operation] = self.failed? ? :dummy : self.operation
+    payload[:operation] = self.failed? ? :dummy : operation
 
     # We need to consider the last write operation as an implicit read
     # dependency. This is why we don't need to consider the read dependencies
@@ -67,16 +71,17 @@ class Promiscuous::Publisher::Operation::Base
     # TODO we should treat that link as a real read dependency and increment it,
     # otherwise it would just be a causal relationship.
     last_write_dependency = current_context.last_write_dependency
-    options[:dependencies] = {}
-    options[:dependencies][:link]  = last_write_dependency if last_write_dependency
-    options[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
-    options[:dependencies][:write] = @committed_write_deps
+    payload[:dependencies] = {}
+    payload[:dependencies][:link]  = last_write_dependency if last_write_dependency
+    payload[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
+    payload[:dependencies][:write] = @committed_write_deps
 
     current_context.last_write_dependency = @committed_write_deps.first
     current_context.operations.clear
 
     # TODO cleanup redis when the publish goes through
-    self.instance.promiscuous.publish(options)
+    Promiscuous::AMQP.publish(:key => payload[:__amqp__], :payload => payload.to_json,
+                              :on_confirm => method(:on_rabbitmq_confirm))
   end
 
   def publish_payload_in_redis

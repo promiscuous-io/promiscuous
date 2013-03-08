@@ -1,5 +1,5 @@
 class Promiscuous::Error::Publisher < Promiscuous::Error::Base
-  attr_accessor :inner, :instance, :payload, :out_of_sync
+  attr_accessor :inner, :instance, :payload
 
   def initialize(inner, options={})
     super(nil)
@@ -8,24 +8,14 @@ class Promiscuous::Error::Publisher < Promiscuous::Error::Base
     self.inner = inner
     self.instance = options[:instance]
     self.payload  = options[:payload]
-    self.out_of_sync = options[:out_of_sync]
   end
 
   def message
     msg = "#{inner.class}: #{inner.message}"
-    if instance
-      msg = "#{msg} while publishing #{instance.inspect}"
-      msg = "FATAL (out of sync) #{msg}" if out_of_sync
-    end
-
-    if payload
-      msg = "#{msg} payload: #{payload}"
-    end
-
+    msg = "#{msg} while publishing #{instance.inspect}" if instance
+    msg = "#{msg} payload: #{payload}" if payload
     msg
   end
 
-  def to_s
-    message
-  end
+  alias to_s message
 end

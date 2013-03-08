@@ -25,15 +25,11 @@ module Promiscuous::Publisher::Model::Base
       # It's nice to see the entire payload in one piece, not merged 36 times
       # TODO migrate this format to something that makes more sense once the store is out
       msg = {}
-      msg[:__amqp__]     = @instance.class.publish_to
-      msg[:type]         = @instance.class.publish_as # for backward compatibility
-      msg[:ancestors]    = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
-      msg[:id]           = @instance.id.to_s
-      msg[:payload]      = self.attributes        if options[:operation].in?([nil, :create, :update])
-      msg[:operation]    = options[:operation]    if options[:operation]
-      msg[:dependencies] = options[:dependencies] if options[:dependencies]
-      msg[:context]      = options[:context]      if options[:context]
-      msg[:timestamp]    = options[:timestamp]    if options[:timestamp]
+      msg[:__amqp__]  = @instance.class.publish_to
+      msg[:type]      = @instance.class.publish_as # for backward compatibility
+      msg[:ancestors] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+      msg[:id]        = @instance.id.to_s
+      msg[:payload]   = self.attributes unless options[:with_attributes] == false
       msg
     end
 
@@ -45,13 +41,6 @@ module Promiscuous::Publisher::Model::Base
       value = @instance.__send__(attr)
       value = value.promiscuous.payload if value.respond_to?(:promiscuous)
       value
-    end
-
-    def publish(options={})
-      payload = self.payload(options)
-      Promiscuous::AMQP.publish(:key => payload[:__amqp__], :payload => payload.to_json)
-    rescue Exception => e
-      raise Promiscuous::Error::Publisher.new(e, :instance => @instance, :payload => payload, :out_of_sync => true)
     end
 
     def get_dependency(attr, value)

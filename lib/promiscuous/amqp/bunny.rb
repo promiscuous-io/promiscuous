@@ -1,4 +1,6 @@
 class Promiscuous::AMQP::Bunny
+  include Celluloid
+
   def self.hijack_bunny
     return if @bunny_hijacked
     ::Bunny::Session.class_eval do
@@ -13,7 +15,7 @@ class Promiscuous::AMQP::Bunny
     @bunny_hijacked = true
   end
 
-  attr_accessor :connection, :connection_lock
+  attr_accessor :connection, :connection_lock, :callback_mapping
 
   def initialize
     require 'bunny'
@@ -21,6 +23,7 @@ class Promiscuous::AMQP::Bunny
 
     # The bunnet socket doesn't like when multiple threads access to it apparently
     @connection_lock = Mutex.new
+    @callback_mapping = {}
   end
 
   def connect
@@ -30,11 +33,15 @@ class Promiscuous::AMQP::Bunny
 
     @master_channel = @connection.create_channel
     @master_exchange = exchange(@master_channel)
+    # Making sure that the actor gets it
+    @master_channel.confirm_select(Promiscuous::AMQP.backend.method(:on_confirm))
   end
 
   def disconnect
+    return unless connected?
     @connection_lock.synchronize do
-      @connection.stop if connected?
+      @master_channel.close
+      @connection.stop
     end
   end
 
@@ -44,7 +51,24 @@ class Promiscuous::AMQP::Bunny
 
   def publish(options={})
     @connection_lock.synchronize do
+      tag = @master_channel.next_publish_seq_no
       @master_exchange.publish(options[:payload], :key => options[:key], :persistent => true)
+      @callback_mapping[tag] = options[:on_confirm] if options[:on_confirm]
+    end
+  rescue Exception => e
+    e = Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
+    Promiscuous.warn "[publish] #{e} #{e.backtrace.join("\n")}"
+    Promiscuous::Config.error_notifier.try(:call, e)
+  end
+
+  def on_confirm(tag, multiple, nack)
+    if multiple
+      cbs = @callback_mapping.keys.select { |k| k <= tag }
+      .map { |k| @callback_mapping.delete(k) }
+      cbs.each(&:call) if !nack
+    else
+      cb = @callback_mapping.delete(tag)
+      cb.try(:call) if !nack
     end
   end
 
@@ -62,12 +86,12 @@ class Promiscuous::AMQP::Bunny
         @channel = Promiscuous::AMQP.backend.connection.create_channel
         @channel.prefetch(Promiscuous::Config.prefetch)
         exchange = Promiscuous::AMQP.backend.exchange(@channel)
-        queue = @channel.queue(queue_name, Promiscuous::Config.queue_options)
+        @queue = @channel.queue(queue_name, Promiscuous::Config.queue_options)
         bindings.each do |binding|
-          queue.bind(exchange, :routing_key => binding)
+          @queue.bind(exchange, :routing_key => binding)
           Promiscuous.debug "[bind] #{queue_name} -> #{binding}"
         end
-        @subscription = queue.subscribe(:ack => true) do |delivery_info, metadata, payload|
+        @subscription = @queue.subscribe(:ack => true) do |delivery_info, metadata, payload|
           block.call(MetaData.new(self, delivery_info), payload)
         end
       end

@@ -1,4 +1,6 @@
 require 'active_support/core_ext'
+require 'celluloid'
+require 'celluloid/io'
 
 module Promiscuous
   def self.require_for(gem, file)

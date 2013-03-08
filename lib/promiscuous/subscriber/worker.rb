@@ -1,6 +1,3 @@
-require 'celluloid'
-require 'celluloid/io'
-
 class Promiscuous::Subscriber::Worker < Celluloid::SupervisionGroup
   extend Promiscuous::Autoload
   autoload :Message, :Pump, :MessageSynchronizer, :Runner, :Stats

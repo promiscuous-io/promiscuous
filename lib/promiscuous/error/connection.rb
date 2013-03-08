@@ -15,7 +15,5 @@ class Promiscuous::Error::Connection < Promiscuous::Error::Base
     "Lost connection with #{url}"
   end
 
-  def to_s
-    message
-  end
+  alias to_s message
 end

@@ -21,6 +21,7 @@ class Promiscuous::AMQP::Fake
 
   def publish(options={})
     @messages << options
+    options[:on_confirm].try(:call)
   end
 
   def get_next_message

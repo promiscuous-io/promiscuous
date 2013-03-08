@@ -25,7 +25,7 @@ module Promiscuous::AMQP
     def publish(options={})
       ensure_connected
       Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}"
-      backend.publish(options)
+      backend.respond_to?(:async) ? backend.async.publish(options) : backend.publish(options)
     end
 
     def connect
