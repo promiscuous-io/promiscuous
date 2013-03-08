@@ -48,18 +48,28 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def on_rabbitmq_confirm
-    # TODO Cleanup the payload in Redis
+    Promiscuous::Redis.del(@amqp_recovery_key)
   end
 
   def publish_payload_in_rabbitmq_async
-    # TODO cleanup redis when the publish goes through
-    Promiscuous::AMQP.publish(:key => @payload[:__amqp__], :payload => @payload.to_json,
+    Promiscuous::AMQP.publish(:key => @amqp_key, :payload => @payload,
                               :on_confirm => method(:on_rabbitmq_confirm))
   end
 
   def publish_payload_in_redis
-    # TODO (for recovery)
-    Promiscuous::Redis.del(@recovery_key)
+    instance_dep = @committed_write_deps.first
+    key = instance_dep.key(:pub)
+
+    payload_recovery_key = key.join('payload_recovery').to_s
+
+    # We use a key with the version of the instance, this way, we don't
+    # collide with other updates on the same document.
+    @amqp_recovery_key = key.join('amqp_recovery', instance_dep.version).to_s
+
+    Promiscuous::Redis.multi do
+      Promiscuous::Redis.del(payload_recovery_key)
+      Promiscuous::Redis.set(@amqp_recovery_key, @payload)
+    end
   end
 
   def generate_payload_and_clear_operations
@@ -90,7 +100,8 @@ class Promiscuous::Publisher::Operation::Base
     current_context.last_write_dependency = @committed_write_deps.first
     current_context.operations.clear
 
-    @payload = payload
+    @amqp_key = payload[:__amqp__]
+    @payload = payload.to_json
   end
 
   def self.recover_payload_for(key)
@@ -101,7 +112,7 @@ class Promiscuous::Publisher::Operation::Base
     # 2) The write query was never executed, we must send a dummy operation
     # 3) The write query was executed, but never passed the payload queue stage
 
-    recovery_data = Promiscuous::Redis.get("#{key}:recovery")
+    recovery_data = Promiscuous::Redis.get("#{key}:payload_recovery")
     return nil unless recovery_data # case 1)
 
     to_dependency = proc do |k,v|
@@ -170,7 +181,7 @@ class Promiscuous::Publisher::Operation::Base
 
     # The recovery key must be deducted from the lock key name, which is
     # w_keys.first.
-    @recovery_key = w_keys.first.join('recovery')
+    payload_recovery_key = w_keys.first.join('payload_recovery')
 
     # We are going to store all the versions in redis, to be able to recover.
     # We store all our increments in a transaction_id key in JSON format.
@@ -183,7 +194,7 @@ class Promiscuous::Publisher::Operation::Base
       local operation = args[1]
       local read_keys = args[2]
       local write_keys = args[3]
-      local recovery_key = write_keys[1] .. ':recovery'
+      local payload_recovery_key = write_keys[1] .. ':payload_recovery'
 
       local read_versions = {}
       for i, key in ipairs(read_keys) do
@@ -197,7 +208,7 @@ class Promiscuous::Publisher::Operation::Base
         redis.call('set', key .. ':w', write_versions[i])
       end
 
-      redis.call('set', recovery_key, cjson.encode({
+      redis.call('set', payload_recovery_key, cjson.encode({
         read_keys=read_keys, read_versions=read_versions,
         write_keys=write_keys, write_versions=write_versions,
         operation=operation}))
@@ -206,7 +217,7 @@ class Promiscuous::Publisher::Operation::Base
     SCRIPT
 
     keys_to_touch = (r_keys + w_keys).map { |key| [key.join('rw'), key.join('w')] }.flatten
-    keys_to_touch << @recovery_key
+    keys_to_touch << payload_recovery_key
 
     # Note that this script is run in a Redis transaction, which is something
     # we rely on.
