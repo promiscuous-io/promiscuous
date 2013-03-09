@@ -17,12 +17,16 @@ module Promiscuous::Redis
     url ||= Promiscuous::Config.redis_url
     redis = ::Redis.new(:url => url, :tcp_keepalive => 60)
     redis.client.connect
+
+    version = redis.info['redis_version']
+    unless Gem::Version.new(version) >= Gem::Version.new('2.6.0')
+      raise "You are using Redis #{version}. Please use Redis 2.6.0 or later."
+    end
+
     redis
   end
 
   def self.new_celluloid_connection
-    return Null.new if Promiscuous::Config.backend == :null
-
     new_connection.tap do |redis|
       redis.client.connection.instance_eval do
         @sock = Celluloid::IO::TCPSocket.from_ruby_socket(@sock)
