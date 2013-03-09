@@ -1,16 +1,25 @@
 require 'redis'
 
 module Promiscuous::Redis
-  mattr_accessor :master
+  mattr_accessor :master, :slave
 
   def self.connect
     disconnect
     self.master = new_connection
   end
 
+  def self.ensure_slave
+    # ensure_slave is called on the first publisher declaration.
+    if Promiscuous::Config.redis_slave_url
+      self.slave = new_connection(Promiscuous::Config.redis_slave_url)
+    end
+  end
+
   def self.disconnect
     self.master.client.disconnect if self.master
+    self.slave.client.disconnect  if self.slave
     self.master = nil
+    self.slave  = nil
   end
 
   def self.new_connection(url=nil)

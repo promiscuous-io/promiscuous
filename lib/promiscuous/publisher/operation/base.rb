@@ -54,6 +54,9 @@ class Promiscuous::Publisher::Operation::Base
   delegate :rabbitmq_staging_set_key, :to => self
 
   def on_rabbitmq_confirm
+    # These requests could be parallelized, rabbitmq persisted the operation.
+    Promiscuous::Redis.slave.del(@payload_recovery_key) if Promiscuous::Redis.slave
+
     Promiscuous::Redis.multi do
       Promiscuous::Redis.del(@payload_recovery_key)
       Promiscuous::Redis.zrem(rabbitmq_staging_set_key, @payload_recovery_key)
@@ -97,6 +100,13 @@ class Promiscuous::Publisher::Operation::Base
     # We identify a payload with a unique key (id:id_value:current_version) to
     # avoid collisions with other updates on the same document.
     @payload_recovery_key = key.join(instance_dep.version).to_s
+
+    # We need to be able to recover from a redis failure. By sending the
+    # payload to the slave first, we ensure that we can replay the lost
+    # payloads if the primary came to fail.
+    # We still need to recover the lost operations. This can be done by doing a
+    # version diff from what is stored in the database and the recovered redis slave.
+    Promiscuous::Redis.slave.set(@payload_recovery_key, @payload) if Promiscuous::Redis.slave
 
     # We don't care if we get raced by someone recovering our operation. It can
     # happen if we lost the lock without knowing about it.

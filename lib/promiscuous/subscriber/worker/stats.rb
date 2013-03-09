@@ -2,7 +2,7 @@ class Promiscuous::Subscriber::Worker::Stats
   include Celluloid
 
   def initialize
-    url = Promiscuous::Config.stats_redis_url
+    url = Promiscuous::Config.redis_stats_url
     @interval = Promiscuous::Config.stats_interval
 
     unless @interval.zero?
