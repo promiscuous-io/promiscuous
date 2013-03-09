@@ -63,7 +63,6 @@ class Promiscuous::Publisher::Context
 
   def trace_operation(operation, options={})
     msg = Promiscuous::Error::Dependency.explain_operation(operation, 70)
-    msg = msg.gsub(/(\(missed\))$/, "\e[1;#{30}m\\1")
     trace(msg, options.merge(:color => operation.read? ? '0;32' : '1;31'))
   end
 

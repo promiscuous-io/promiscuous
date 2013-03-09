@@ -47,6 +47,27 @@ if ORM.has(:mongoid)
       end
     end
 
+    context 'when using only writes that hits' do
+      it 'publishes proper dependencies' do
+        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['link'].should  == nil
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
+      end
+    end
+
+    context 'when using only writes that misses' do
+      it 'publishes proper dependencies' do
+        Promiscuous.context do
+          PublisherModel.where(:id => 123).update(:field_1 => '1')
+        end
+
+        Promiscuous::AMQP::Fake.get_next_message.should == nil
+      end
+    end
+
     context 'when using multi reads/writes on tracked attributes' do
       it 'publishes proper dependencies' do
         PublisherModel.track_dependencies_of :field_1

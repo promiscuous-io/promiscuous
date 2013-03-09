@@ -1,6 +1,6 @@
 class Promiscuous::Publisher::Operation::Base
   class TryAgain < RuntimeError; end
-  attr_accessor :operation, :operation_ext, :old_instance, :instance, :dependencies
+  attr_accessor :operation, :operation_ext, :old_instance, :instance
 
   def initialize(options={})
     # XXX instance is not always an instance, it can be a selector

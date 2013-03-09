@@ -248,9 +248,7 @@ class Moped::PromiscuousCursorWrapper < Moped::Cursor
   def load_docs
     should_fake_single_read = @limit == 1
     promiscuous_operation(:read, :multi => !should_fake_single_read).execute do |operation|
-      result = operation && should_fake_single_read ? fake_single_read(operation) : super
-      operation.missed = true if operation && result.blank?
-      result
+      operation && should_fake_single_read ? fake_single_read(operation) : super
     end.to_a
   end
 
