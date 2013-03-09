@@ -14,8 +14,6 @@ module Promiscuous::Redis
   end
 
   def self.new_connection(url=nil)
-    return Null.new if Promiscuous::Config.backend == :null
-
     url ||= Promiscuous::Config.redis_url
     redis = ::Redis.new(:url => url, :tcp_keepalive => 60)
     redis.client.connect
@@ -53,27 +51,6 @@ module Promiscuous::Redis
 
   def self.method_missing(name, *args, &block)
     self.master.__send__(name, *args, &block)
-  end
-
-  class Null
-    def pipelined(&block)
-      @pipelined = true
-      res = block.call if block
-      @pipelined = false
-      res
-    end
-
-    def client
-      return self.class.new
-    end
-
-    def method_missing(name, *args, &block)
-      @pipelined ? Future.new : 0
-    end
-
-    class Future
-      def value; 0; end
-    end
   end
 
   class Mutex
