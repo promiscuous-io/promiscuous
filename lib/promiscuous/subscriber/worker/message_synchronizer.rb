@@ -184,13 +184,13 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     end.join(", ")
 
     e = Promiscuous::Error::Recovery.new(recovery_msg)
-    Promiscuous.error "[receive] #{e}"
+    Promiscuous.error "[synchronization recovery] #{e}"
     # TODO Don't report when doing the initial sync
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 
   def not_recovering
-    Promiscuous.warn "[receive] Nothing to recover from"
+    Promiscuous.warn "[synchronization recovery] Nothing to recover from"
   end
 
   def blocked_messages

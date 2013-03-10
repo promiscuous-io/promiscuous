@@ -122,29 +122,22 @@ if ORM.has(:mongoid)
     end
 
     context 'when processing duplicate messages' do
-      before do
-        config_logger :logger_level => Logger::FATAL
-        Promiscuous::Config.recovery = true
-      end
-
       it 'skips duplicates' do
         pub = nil
         pub = Promiscuous.context { PublisherModel.create }
-        Promiscuous.context { pub.inc(:field_1, 1) }
+        Promiscuous.context { pub.update_attributes(:field_1 => '2') }
         eventually { SubscriberModel.num_saves.should == 2 }
 
         key = pub.promiscuous.tracked_dependencies.first.key(:pub)
         Promiscuous::Redis.decr(key.join('rw').to_s)
         Promiscuous::Redis.decr(key.join('w').to_s)
 
-        # Skipped update
-        Promiscuous.context { pub.inc(:field_1, 1) }
-        # processed update
-        Promiscuous.context { pub.inc(:field_1, 1) }
+        Promiscuous.context { pub.update_attributes(:field_1 => '3') } # skipped update
+        Promiscuous.context { pub.update_attributes(:field_1 => '4') } # processed update
 
         eventually do
+          SubscriberModel.first.field_1.should == '4'
           SubscriberModel.num_saves.should == 3
-          SubscriberModel.first.field_1.should == 3
         end
       end
     end
@@ -159,16 +152,22 @@ if ORM.has(:mongoid)
       it 'increments versions properly' do
         pub = nil
         pub = Promiscuous.context { PublisherModel.create }
-        Promiscuous.context { pub.inc(:field_1, 1) }
+        Promiscuous.context { pub.update_attributes(:field_1 => '2') }
         eventually { SubscriberModel.num_saves.should == 2 }
 
         key = pub.promiscuous.tracked_dependencies.first.key(:pub)
+        without_promiscuous { pub.inc(:_pv, 1) }
         Promiscuous::Redis.incr(key.join('rw').to_s)
         Promiscuous::Redis.incr(key.join('w').to_s)
 
-        5.times { Promiscuous.context { pub.inc(:field_1, 1) } }
+        Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+        Promiscuous.context { pub.update_attributes(:field_1 => '4') }
+        Promiscuous.context { pub.update_attributes(:field_1 => '5') }
+        Promiscuous.context { pub.update_attributes(:field_1 => '6') }
+        Promiscuous.context { pub.update_attributes(:field_1 => '7') }
 
         eventually do
+          SubscriberModel.first.field_1.should == '7'
           SubscriberModel.num_saves.should == 7
         end
       end

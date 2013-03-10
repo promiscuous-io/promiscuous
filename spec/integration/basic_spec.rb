@@ -13,6 +13,7 @@ describe Promiscuous do
           pub.save
           pub
         end
+        pub.reload
 
         eventually do
           sub = SubscriberModel.first
@@ -29,6 +30,7 @@ describe Promiscuous do
         pub = Promiscuous.context do
           PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
         end
+        pub.reload
 
         eventually do
           sub = SubscriberModel.first
@@ -48,6 +50,7 @@ describe Promiscuous do
         pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
         pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
       end
+      pub.reload
 
       eventually do
         sub = SubscriberModel.first
@@ -86,6 +89,7 @@ describe Promiscuous do
 
       eventually { SubscriberModel.count.should == 1 }
       Promiscuous.context { pub.destroy }
+      PublisherModel.count.should == 0
       eventually { SubscriberModel.count.should == 0 }
     end
   end

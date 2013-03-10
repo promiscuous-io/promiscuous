@@ -109,6 +109,10 @@ module Promiscuous::Publisher::Model::Base
       self.name.pluralize.underscore
     end
 
+    def get_operation_class_for(operation)
+      Promiscuous::Publisher::Operation::Base
+    end
+
     def publish_as
       @publish_as || name
     end

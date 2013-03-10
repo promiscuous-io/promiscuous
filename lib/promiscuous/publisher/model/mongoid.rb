@@ -68,6 +68,14 @@ module Promiscuous::Publisher::Model::Mongoid
       self.collection.name
     end
 
+    def get_operation_class_for(operation)
+      if operation == :create
+        Moped::PromiscuousCollectionWrapper::PromiscuousCollectionOperation
+      else
+        Moped::PromiscuousQueryWrapper::PromiscuousQueryOperation
+      end
+    end
+
     def promiscuous_missing_record_exception
       Mongoid::Errors::DocumentNotFound
     end

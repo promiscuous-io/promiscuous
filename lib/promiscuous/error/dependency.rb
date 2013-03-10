@@ -83,7 +83,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
   end
 
   def self.explain_operation(operation, limit=100)
-    instance = operation.old_instance || operation.instance
+    instance = operation.instance
     selector   = instance ? get_selector(instance.attributes, limit) : ""
     class_name = instance ? instance.class : "Unknown"
 

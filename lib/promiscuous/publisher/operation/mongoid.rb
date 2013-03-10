@@ -1,6 +1,8 @@
 raise "mongoid > 3.0.19 please" unless Gem.loaded_specs['mongoid'].version >= Gem::Version.new('3.0.19')
 raise "moped > 1.3.2 please"    unless Gem.loaded_specs['moped'].version   >= Gem::Version.new('1.3.2')
 
+require 'yaml'
+
 class Moped::PromiscuousCollectionWrapper < Moped::Collection
   class PromiscuousCollectionOperation < Promiscuous::Publisher::Operation::Base
     def initialize(options={})
@@ -19,10 +21,19 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     rescue NameError
     end
 
-    def stash_write_dependencies_in_write_query
-      @committed_write_deps.each do |dep|
-        @document[dep.version_field_name_for_recovery(:pub)] = dep.version
-      end
+    def serialize_document_for_create_recovery
+      # TODO the serialization/deserialization is not very nice, but we need
+      # the bson types.
+      @document.to_yaml
+    end
+
+    def self.redo_create_operation_from(model, document, instance_version)
+      document = YAML.load(document).merge(VERSION_FIELD => instance_version)
+      without_promiscuous { model.collection.insert(document) }
+    end
+
+    def stash_version_in_write_query
+      @document[VERSION_FIELD] = @instance_version
     end
 
     def execute_persistent(&db_operation)
@@ -78,14 +89,18 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def use_id_selector
-      @query.selector = @query.operation.selector = {'_id' => @instance.id}
+      @query.selector = {'_id' => @instance.id}
     end
 
-    def stash_write_dependencies_in_write_query
+    def use_versioned_selector(where)
+      version = @instance_version
+      version -= 1 if where == :pre
+      @query.selector = @query.selector.merge(VERSION_FIELD => version)
+    end
+
+    def stash_version_in_write_query
       @change['$set'] ||= {}
-      @committed_write_deps.each do |dep|
-        @change['$set'][dep.version_field_name_for_recovery(:pub)] = dep.version
-      end
+      @change['$set'][VERSION_FIELD] = @instance_version
     end
 
     def get_selector_instance
@@ -166,6 +181,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
   def selector=(value)
     @selector = value
+    @operation.selector = value
   end
 
   def without_promiscuous!
@@ -208,10 +224,12 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
   def update(change, flags=nil)
     multi = flags && flags.include?(:multi)
+    raise "no upsert support yet" if flags && flags.include?(:upsert)
+
     promiscuous_operation(:update, :change => change, :multi => multi).execute do |operation|
       if operation
         operation.new_raw_instance = without_promiscuous { modify(change, :new => true) }
-        # TODO say not okay if the query return something bad
+        # FIXME raise when recovery raced
         {'updatedExisting' => true, 'n' => 1, 'err' => nil, 'ok' => 1.0}
       else
         super
@@ -221,10 +239,12 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
   def modify(change, options={})
     promiscuous_operation(:update, :change => change).execute { super }
+    # FIXME raise when recovery raced
   end
 
   def remove
     promiscuous_operation(:destroy).execute { super }
+    # FIXME raise when recovery raced
   end
 
   def remove_all

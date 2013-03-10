@@ -98,11 +98,16 @@ class Promiscuous::Subscriber::Worker::Message
       Promiscuous::Subscriber::Operation.new(payload).commit
     end
     ack
-  rescue Exception => e
-    ack if e.is_a?(Promiscuous::Error::AlreadyProcessed)
+  rescue Exception => orig_e
+    e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
 
-    e = Promiscuous::Error::Subscriber.new(e, :payload => payload)
-    Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"
+    if orig_e.is_a?(Promiscuous::Error::AlreadyProcessed)
+      ack
+      Promiscuous.info "[receive] #{e}"
+    else
+      Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"
+    end
+
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 end
