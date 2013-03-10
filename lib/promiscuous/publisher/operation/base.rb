@@ -303,7 +303,6 @@ class Promiscuous::Publisher::Operation::Base
 
     # We acquire all the locks in order, and unlock everything if one come
     # to fail. lock/unlock return true/false when they succeed/fail
-    # TODO recover if we expire a lock
     locks.reduce(->{ @locks = locks; true }) do |chain, l|
       lambda do
         return false if Time.now - start_at > lock_options[:timeout]
@@ -526,16 +525,16 @@ class Promiscuous::Publisher::Operation::Base
     # reconstructed. Subscribers can see "compressed" updates.
     publish_payload_in_redis
 
-    unless unlock_write_dependencies
-      # TODO Our lock got expired by someone. What are we supposed to do?
-      # This should never happen based on the timeouts we have.
-      raise 'oops'
-    end
-
-    publish_payload_in_rabbitmq_async
+    # TODO Performance: merge the unlock operations with the publishing to save
+    # in round trip time.
+    unlock_write_dependencies
 
     # If we die from this point on, a recovery worker can republish our payload
     # since we queued it in Redis.
+
+    # We don't care if we lost the lock and got recovered, subscribers are
+    # immune to duplicate messages.
+    publish_payload_in_rabbitmq_async
   ensure
     # In case of an exception was raised before we updated the version in
     # redis, we can unlock because we don't need recovery.

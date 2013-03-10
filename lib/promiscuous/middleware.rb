@@ -4,9 +4,6 @@ class Promiscuous::Middleware
   module Controller
     extend ActiveSupport::Concern
 
-    mattr_accessor :with_promiscuous_contexts
-    self.with_promiscuous_contexts = {}
-
     def process_action(*args)
       full_name = "#{self.class.controller_path}/#{self.action_name}"
       Promiscuous::Middleware.with_context(full_name) { super }
