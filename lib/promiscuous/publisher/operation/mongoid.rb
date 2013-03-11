@@ -95,7 +95,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     def use_versioned_selector(where)
       version = @instance_version
       version -= 1 if where == :pre
-      @query.selector = @query.selector.merge(VERSION_FIELD => version)
+      @query.selector = @query.selector.merge(VERSION_FIELD => version) if version > 0
     end
 
     def stash_version_in_write_query
