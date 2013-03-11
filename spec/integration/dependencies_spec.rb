@@ -8,6 +8,12 @@ if ORM.has(:mongoid)
 
     before { run_subscriber_worker! }
 
+    context 'when not using a context' do
+      it 'raises' do
+        expect { PublisherModel.create }.to raise_error(Promiscuous::Error::MissingContext)
+      end
+    end
+
     context 'when doing a blank update' do
       it 'passes through' do
         pub1 = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
