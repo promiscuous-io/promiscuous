@@ -122,6 +122,11 @@ if ORM.has(:mongoid)
     end
 
     context 'when processing duplicate messages' do
+      before do
+        operation_klass = PublisherModel.get_operation_class_for(:update)
+        operation_klass.any_instance.stubs(:ensure_valid_instance_version)
+      end
+
       it 'skips duplicates' do
         pub = nil
         pub = Promiscuous.context { PublisherModel.create }

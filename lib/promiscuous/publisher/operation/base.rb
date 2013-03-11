@@ -123,7 +123,7 @@ class Promiscuous::Publisher::Operation::Base
   def generate_payload_and_clear_operations
     # TODO Transactions with multi writes
     raise "no multi write yet" if previous_successful_operations.select(&:write?).size > 1
-    raise "instance is supposed to be valid" unless @instance
+    raise "the instance is gone, or there is a version mismatch" unless @instance
 
     payload = @instance.promiscuous.payload(:with_attributes => operation.in?([:create, :update]))
     payload[:context] = current_context.name
@@ -230,6 +230,8 @@ class Promiscuous::Publisher::Operation::Base
       new(:instance => instance, :operation => operation).instance_eval do
         @committed_read_deps  = read_dependencies
         @committed_write_deps = write_dependencies
+        ensure_valid_instance_version(instance_version)
+
         record_timestamp
         generate_payload_and_clear_operations
         publish_payload_in_redis
@@ -273,6 +275,12 @@ class Promiscuous::Publisher::Operation::Base
   rescue Exception => e
     message = "cannot recover #{lock.key} -> #{recovery_data}"
     raise Promiscuous::Error::Recovery.new(message, e)
+  end
+
+  def ensure_valid_instance_version(instance_version)
+    if @instance.respond_to?(:[]) && @instance[VERSION_FIELD] && @instance[VERSION_FIELD].to_i != instance_version
+      raise "instance version mismatch on #{@instance}. Redis: #{instance_version}, database: #{@instance[VERSION_FIELD]}"
+    end
   end
 
   def increment_read_and_write_dependencies
@@ -341,6 +349,7 @@ class Promiscuous::Publisher::Operation::Base
     @committed_read_deps  = r
     @committed_write_deps = w
     @instance_version = w.first.version
+    ensure_valid_instance_version(@instance_version - 1)
   end
 
   LOCK_OPTIONS = { :timeout => 10.seconds, # after 10 seconds, we give up
