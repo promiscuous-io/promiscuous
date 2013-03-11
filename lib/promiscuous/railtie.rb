@@ -16,4 +16,16 @@ class Promiscuous::Railtie < Rails::Railtie
       end
     end
   end
+
+  console do
+    class << IRB
+      alias_method :start_without_promiscuous, :start
+
+      def start
+        Promiscuous.context do
+          start_without_promiscuous
+        end
+      end
+    end
+  end
 end
