@@ -2,7 +2,7 @@ class Promiscuous::Publisher::Operation::Base
   class TryAgain < RuntimeError; end
   VERSION_FIELD = '_pv'
 
-  attr_accessor :operation, :operation_ext, :instance
+  attr_accessor :operation, :operation_ext, :instance, :selector_keys
 
   def initialize(options={})
     # XXX instance is not always an instance, it can be a selector

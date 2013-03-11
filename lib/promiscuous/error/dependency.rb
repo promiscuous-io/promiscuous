@@ -2,7 +2,6 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
   attr_accessor :dependency_solutions, :operation, :context
 
   def initialize(options={})
-    self.dependency_solutions = options[:dependency_solutions]
     self.operation = options[:operation]
     self.context = Promiscuous::Publisher::Context.current
   end
@@ -20,7 +19,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
              "     you can wrap your read query in a 'without_promiscuous { }' block.\n" +
              "     This is the preferred solution when you are sure that the read doesn't\n" +
              "     influence the value of a published attribute.\n\n" +
-             "     Rule of thumb: Predicates (methods ending with ?) are often suitable for this use case.\n\n" +
+             "     Rule of thumb: Predicates (methods ending with ?) are often suitable for this use case.\n\n"
       cnt = 2
       if operation.operation_ext != :count
         msg += "  #{cnt}. Synchronize on individual instances\n\n" +
@@ -33,14 +32,14 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
                "          end\n\n" +
         cnt += 1
       end
-      if dependency_solutions.present?
+      if operation.selector_keys.present?
         msg += "  #{cnt}. Track New Dependencies\n\n" +
-               "     Add #{dependency_solutions.count == 1 ? "the following line" : "one of the following lines"} " +
+               "     Add #{operation.selector_keys.count == 1 ? "the following line" : "one of the following lines"} " +
                     "in the #{operation.instance.class} model:\n\n" +
                "       class #{operation.instance.class}\n" +
-                    dependency_solutions.map { |field| "         track_dependencies_of :#{field}" }.join("\n") + "\n" +
+                    operation.selector_keys.map { |field| "         track_dependencies_of :#{field}" }.join("\n") + "\n" +
                "       end\n\n" +
-               (dependency_solutions.count > 1 ?
+               (operation.selector_keys.count > 1 ?
                "     The more specific field, the better. Promiscuous works better when working with small subsets\n" +
                "     For example, tracking something like 'member_id' is a fairly safe choice.\n\n" : "") +
                "     Note that dependency tracking slows down your writes. It can be seen as the analogous\n" +

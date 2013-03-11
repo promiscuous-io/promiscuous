@@ -137,7 +137,10 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def execute_non_persistent(&db_operation)
-      @instance = get_selector_instance if multi?
+      if multi?
+        @instance = get_selector_instance
+        @selector_keys = @selector.keys
+      end
       super
     end
 
