@@ -33,7 +33,6 @@ describe Promiscuous do
 
       payload = Promiscuous::AMQP::Fake.get_next_payload
       dep = payload['dependencies']
-      dep['link'].should  == nil
       dep['read'].should  == nil
       dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
       payload['payload']['field_1'].should == '3'
@@ -54,7 +53,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
         payload['operation'].should == 'create'
@@ -75,7 +73,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
         payload['operation'].should == 'update'
@@ -83,7 +80,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:3"]
         payload['payload']['field_1'].should == '3'
@@ -103,7 +99,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
         payload['operation'].should == 'dummy'
@@ -111,7 +106,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:3"]
         payload['payload']['field_1'].should == '3'
@@ -136,7 +130,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
         payload['operation'].should == 'create'
@@ -144,7 +137,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
         payload['operation'].should == 'update'
@@ -168,7 +160,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
         payload['operation'].should == 'update'
@@ -176,7 +167,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:3"]
         payload['payload']['field_1'].should == '3'
@@ -199,7 +189,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
         payload['operation'].should == 'dummy'
@@ -207,7 +196,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:3"]
         payload['payload']['field_1'].should == '3'
@@ -227,7 +215,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
         payload['operation'].should == 'create'
@@ -235,7 +222,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
         payload['operation'].should == 'update'
@@ -256,7 +242,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
         payload['operation'].should == 'update'
@@ -264,7 +249,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:3"]
         payload['payload']['field_1'].should == '3'
@@ -284,7 +268,6 @@ describe Promiscuous do
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
         payload['operation'].should == 'destroy'
@@ -319,7 +302,6 @@ describe Promiscuous do
         message[:key].should == 'crowdtap/publisher_model'
         payload = JSON.parse(message[:payload])
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
         payload['operation'].should == 'create'
@@ -340,7 +322,6 @@ describe Promiscuous do
         message[:key].should == 'crowdtap/publisher_model'
         payload = JSON.parse(message[:payload])
         dep = payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
         payload['operation'].should == 'create'

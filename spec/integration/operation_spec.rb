@@ -20,17 +20,14 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub.id}:1"
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub.id}:2"
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:3"]
       end
@@ -47,12 +44,39 @@ if ORM.has(:mongoid)
       end
     end
 
+    context 'when using nested context' do
+      it 'publishes proper dependencies' do
+        pub1 = pub2 = nil
+        Promiscuous.context do
+          pub1 = PublisherModel.create(:field_1 => '1')
+          pub2 = Promiscuous.context { PublisherModel.create }
+          pub1.update_attributes(:field_1 => '2')
+          pub1.update_attributes(:field_1 => '3')
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub1.id}:1"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['read'].should  == ["publisher_models:id:#{pub1.id}:1"]
+        dep['write'].should == ["publisher_models:id:#{pub2.id}:1"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['read'].should  == ["publisher_models:id:#{pub2.id}:1"]
+        dep['write'].should == ["publisher_models:id:#{pub1.id}:3"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['read'].should  == nil
+        dep['write'].should == ["publisher_models:id:#{pub1.id}:4"]
+      end
+    end
+
     context 'when using only writes that hits' do
       it 'publishes proper dependencies' do
         pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
       end
@@ -89,14 +113,12 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1",
                                 "publisher_models:field_1:123:1",
                                 "publisher_models:field_2:456:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub.id}:1"
         dep['read'].should  == ["publisher_models:field_1:blah:0",
                                 "publisher_models:field_2:blah:0"]
         dep['write'].should == ["publisher_models:id:#{pub.id}:2",
@@ -105,7 +127,6 @@ if ORM.has(:mongoid)
                                 "publisher_models:field_2:456:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub.id}:2"
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:3",
                                 "publisher_models:field_1:blah:2",
@@ -127,21 +148,18 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub1.id}:1",
                                 "publisher_models:field_1:123:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub1.id}:1"
-        dep['read'].should  == nil
+        dep['read'].should  == ["publisher_models:id:#{pub1.id}:1"]
         dep['write'].should == ["publisher_models:id:#{pub2.id}:1",
                                 "publisher_models:field_1:123:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub2.id}:1"
-        dep['read'].should  == nil # went on the write
-        dep['write'].should == ["publisher_models:id:#{pub1.id}:2",
+        dep['read'].should  == ["publisher_models:id:#{pub2.id}:1"]
+        dep['write'].should == ["publisher_models:id:#{pub1.id}:3",
                                 "publisher_models:field_1:123:3"]
       end
     end
@@ -156,7 +174,6 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
       end
@@ -175,12 +192,10 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub1.id}:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub1.id}:1"
         dep['read'].should  == ["publisher_models:id:#{pub1.id}:1"]
         dep['write'].should == ["publisher_models:id:#{pub2.id}:1"]
       end
@@ -198,12 +213,10 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == "publisher_models:id:#{pub.id}:1"
         dep['read'].should  == nil
         dep['write'].should == ["publisher_models:id:#{pub.id}:2"]
 
@@ -225,7 +238,6 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == ["publisher_models:field_1:123:0"]
         dep['write'].should == ["publisher_models:id:#{pub.id}:1",
                                 "publisher_models:field_1:456:1"]
@@ -249,7 +261,6 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['link'].should  == nil
         dep['read'].should  == ["publisher_models:id:#{pub1.id}:0",
                                 "publisher_models:id:#{pub2.id}:0"]
         dep['write'].should == ["publisher_models:id:#{pub3.id}:1"]

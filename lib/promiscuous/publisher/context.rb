@@ -29,9 +29,8 @@ class Promiscuous::Publisher::Context
 
   def initialize(*args)
     options = args.extract_options!
-    detached_from_parent = options[:detached_from_parent]
-    detached_from_parent = true if detached_from_parent.nil?
-    @parent = self.class.current unless detached_from_parent
+    @parent = self.class.current unless !!options[:detached_from_parent]
+    @last_write_dependency = @parent.try(:last_write_dependency)
     @nesting_level = @parent.try(:nesting_level).to_i + 1
     @name = args.first.try(:to_s)
     @name ||= "#{@parent.next_child_name}" if @parent

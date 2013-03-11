@@ -8,7 +8,6 @@ class Promiscuous::Subscriber::Operation
   end
 
   def update_dependencies
-    # link is not incremented
     dependencies = message.dependencies[:read] + message.dependencies[:write]
 
     @@update_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)

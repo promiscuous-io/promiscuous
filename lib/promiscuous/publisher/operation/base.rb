@@ -138,11 +138,7 @@ class Promiscuous::Publisher::Operation::Base
     # dependency. This is why we don't need to consider the read dependencies
     # happening before a first write when publishing the second write in a
     # context.
-    # TODO we should treat that link as a real read dependency and increment it,
-    # otherwise it would just be a causal relationship.
-    last_write_dependency = current_context.last_write_dependency
     payload[:dependencies] = {}
-    payload[:dependencies][:link]  = last_write_dependency if last_write_dependency
     payload[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
     payload[:dependencies][:write] = @committed_write_deps
 
@@ -284,7 +280,11 @@ class Promiscuous::Publisher::Operation::Base
     # write in the transaction can have all the read dependencies.
     r = read_dependencies
     w = write_dependencies
-    r -= w # we don't need to do a read dependency if we are writing to it.
+
+    # We don't need to do a read dependency if we are writing to it, so we
+    # prune them. The subscriber assumes the pruning (i.e. the intersection of
+    # r and w is empty) when it calculates the happens before relationships.
+    r -= w
 
     # Namespacing with publishers:app_name
     r_keys = r.map { |dep| dep.key(:pub) }
@@ -444,8 +444,17 @@ class Promiscuous::Publisher::Operation::Base
   def read_dependencies
     # We memoize the read dependencies not just for performance, but also
     # because we store the versions once incremented in these.
-    @read_dependencies ||= previous_successful_operations.select(&:read?)
-                             .map(&:instance_dependencies).flatten.uniq
+    return @read_dependencies if @read_dependencies
+    read_dependencies = previous_successful_operations.select(&:read?)
+                             .map(&:instance_dependencies).flatten
+
+    # We implicitly have a read dependency on the latest write.
+    if current_context.last_write_dependency
+      current_context.last_write_dependency.version = nil
+      read_dependencies << current_context.last_write_dependency
+    end
+
+    @read_dependencies = read_dependencies.uniq
   end
 
   def write_dependencies

@@ -31,29 +31,17 @@ class Promiscuous::Subscriber::Worker::Message
     end
     # --- backward compatiblity code ---
 
-    @dependencies[:link] = Promiscuous::Dependency.parse(@dependencies[:link]) if @dependencies[:link]
     @dependencies[:read].map!  { |dep| Promiscuous::Dependency.parse(dep) }
     @dependencies[:write].map! { |dep| Promiscuous::Dependency.parse(dep) }
     @dependencies
   end
 
   def happens_before_dependencies
-    # TODO remove code -- r ^ w = 0 ?
     return @happens_before_dependencies if @happens_before_dependencies
 
-    read_increments = {}
-    dependencies[:read].each do |dep|
-      key = dep.key(:sub).to_s
-      read_increments[key] ||= 0
-      read_increments[key] += 1
-    end
-
     deps = []
-    deps << dependencies[:link] if dependencies[:link]
     deps += dependencies[:read]
-    deps += dependencies[:write].map do |dep|
-      dep.dup.tap { |d| d.version -= 1 + read_increments[d.key(:sub).to_s].to_i }
-    end
+    deps += dependencies[:write].map { |dep| dep.dup.tap { |d| d.version -= 1 } }
 
     # We return the most difficult condition to satisfy first
     @happens_before_dependencies = deps.uniq.reverse
