@@ -63,8 +63,9 @@ class Promiscuous::Subscriber::Operation
       result
     ensure
       unless mutex.unlock
-        # TODO be safe
-        raise 'oops'
+        # TODO Be safe in case we have a duplicate message and lost the lock on it
+        raise "The subscriber lost the lock during its operation. It means that someone else\n"+
+              "received a duplicate message, and we got screwed.\n"
       end
     end
   end
