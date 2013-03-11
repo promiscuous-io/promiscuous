@@ -230,7 +230,6 @@ class Promiscuous::Publisher::Operation::Base
       new(:instance => instance, :operation => operation).instance_eval do
         @committed_read_deps  = read_dependencies
         @committed_write_deps = write_dependencies
-        ensure_valid_instance_version(instance_version)
 
         record_timestamp
         generate_payload_and_clear_operations
@@ -275,12 +274,6 @@ class Promiscuous::Publisher::Operation::Base
   rescue Exception => e
     message = "cannot recover #{lock.key} -> #{recovery_data}"
     raise Promiscuous::Error::Recovery.new(message, e)
-  end
-
-  def ensure_valid_instance_version(instance_version)
-    if @instance.respond_to?(:[]) && @instance[VERSION_FIELD] && @instance[VERSION_FIELD].to_i != instance_version
-      raise "instance version mismatch on #{@instance}. Redis: #{instance_version}, database: #{@instance[VERSION_FIELD]}"
-    end
   end
 
   def increment_read_and_write_dependencies
@@ -349,7 +342,6 @@ class Promiscuous::Publisher::Operation::Base
     @committed_read_deps  = r
     @committed_write_deps = w
     @instance_version = w.first.version
-    ensure_valid_instance_version(@instance_version - 1)
   end
 
   LOCK_OPTIONS = { :timeout => 10.seconds, # after 10 seconds, we give up
@@ -686,8 +678,7 @@ class Promiscuous::Publisher::Operation::Base
 
   def use_versioned_selector(where)
     # where is :pre or :post the db query
-    # version = @instance_version
-    # version -= 1 if where == :pre
+    # version = where == :pre ? @instance[VERSION_FIELD] : @instance_version
     # Overridden to use the {VERSION_FIELD => version} selector.
   end
 
