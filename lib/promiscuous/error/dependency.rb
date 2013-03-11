@@ -21,11 +21,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
              "     This is the preferred solution when you are sure that the read doesn't\n" +
              "     influence the value of a published attribute.\n\n" +
              "     Rule of thumb: Predicates (methods ending with ?) are often suitable for this use case.\n\n" +
-             "  2. Use a Nested context\n\n" +
-             "     Nested contexts can be used to optimize performance by identifying\n"+
-             "     blocks of code that do not depend on each other. A typical pattern is the\n"+
-             "     'last_visited_at' update in a before filter of all controllers.\n\n"
-      cnt = 3
+      cnt = 2
       if operation.operation_ext != :count
         msg += "  #{cnt}. Synchronize on individual instances\n\n" +
                "     If the collection you are iterating through is small (<10), it becomes intersting\n" +
