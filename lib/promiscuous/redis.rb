@@ -75,7 +75,6 @@ module Promiscuous::Redis
       @sleep = options[:sleep]
       @expire = options[:expire]
       @lock_set = options[:lock_set]
-      @token = Random.rand(1000000000)
     end
 
     def key
@@ -101,6 +100,7 @@ module Promiscuous::Redis
     def try_lock
       now = Time.now.to_i
       @expires_at = now + @expire + 1
+      @token = Random.rand(1000000000)
 
       # This script loading is not thread safe (touching a class variable), but
       # that's okay, because the race is harmless.
@@ -111,10 +111,11 @@ module Promiscuous::Redis
         local orig_key = ARGV[2]
         local expires_at = tonumber(ARGV[3])
         local token = ARGV[4]
+        local lock_value = expires_at .. ':' .. token
         local old_value = redis.call('get', key)
 
         if old_value and tonumber(old_value:match("([^:]*):"):rep(1)) > now then return false end
-        redis.call('set', key, expires_at .. ':' .. token)
+        redis.call('set', key, lock_value)
         if lock_set then redis.call('zadd', lock_set, now, orig_key) end
 
         if old_value then return 'recovered' else return true end
@@ -134,9 +135,11 @@ module Promiscuous::Redis
         local key = KEYS[1]
         local lock_set = KEYS[2]
         local orig_key = ARGV[1]
-        local old_value = ARGV[2]
+        local expires_at = ARGV[2]
+        local token = ARGV[3]
+        local lock_value = expires_at .. ':' .. token
 
-        if redis.call('get', key) == old_value then
+        if redis.call('get', key) == lock_value then
           redis.call('del', key)
           if lock_set then redis.call('zrem', lock_set, orig_key) end
           return true
@@ -145,7 +148,11 @@ module Promiscuous::Redis
         end
       SCRIPT
       Promiscuous::Redis.evalsha(@@unlock_script_sha,
-        :keys => [@key, @lock_set], :argv => [@orig_key, "#{@expires_at}:#{@token}"])
+        :keys => [@key, @lock_set], :argv => [@orig_key, @expires_at, @token])
+    end
+
+    def still_locked?
+      Promiscuous::Redis.get(@key) == "#{@expires_at}:#{@token}"
     end
   end
 end
