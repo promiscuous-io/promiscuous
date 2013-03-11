@@ -22,7 +22,6 @@ class Promiscuous::Error::MissingContext < Promiscuous::Error::Base
          even if it was disabled.
 
        3. You are in render() in the Rails controller, and you should not write.
-      <% end -%>
     ERB
   end
 
