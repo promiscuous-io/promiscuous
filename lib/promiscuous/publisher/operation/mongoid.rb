@@ -88,13 +88,15 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       Mongoid::Factory.from_db(model, @raw_instance) if @raw_instance
     end
 
-    def use_id_selector
-      @query.selector = {'_id' => @instance.id}
-    end
+    def use_id_selector(options={})
+      selector = {'_id' => @instance.id}
 
-    def use_versioned_selector(where)
-      version = where == :pre ? @instance[VERSION_FIELD].to_i : @instance_version
-      @query.selector = @query.selector.merge(VERSION_FIELD => version) if version > 0
+      if options[:use_atomic_version_selector]
+        version = @instance[VERSION_FIELD]
+        selector.merge!(VERSION_FIELD => version) if version
+      end
+
+      @query.selector = selector
     end
 
     def stash_version_in_write_query

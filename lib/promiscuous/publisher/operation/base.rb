@@ -194,7 +194,8 @@ class Promiscuous::Publisher::Operation::Base
       unless instance
         # We must make sure to make the original query fail if we are racing with
         # it so we can send the same payload.
-        instance_scope.where(VERSION_FIELD => instance_version - 1)
+        # "lt" means less than.
+        instance_scope.where(VERSION_FIELD.to_sym.lt => instance_version)
                       .update(VERSION_FIELD => instance_version)
         instance = instance_scope.where(VERSION_FIELD => instance_version).first
       end
@@ -206,7 +207,8 @@ class Promiscuous::Publisher::Operation::Base
       if instance
         # Instead of redoing a destroy, we just fail the original query if the delete
         # did not get executed yet.
-        instance_scope.where(VERSION_FIELD => instance_version - 1)
+        # "lt" means less than.
+        instance_scope.where(VERSION_FIELD.to_sym.lt => instance_version)
                       .update(VERSION_FIELD => instance_version)
         instance = instance_scope.first
       end
@@ -584,15 +586,13 @@ class Promiscuous::Publisher::Operation::Base
       # We are now in the possession of an instance that matches the original
       # selector. We need to make sure the db_operation will operate on it,
       # instead of the original selector.
-      use_id_selector
+      use_id_selector(:use_atomic_version_selector => true)
       # We need to use an atomic versioned selector to make sure that
       # if we lose the lock for a long period of time, we don't mess up
       # with other people's updates. Also we make sure that the recovery
       # mechanism is not racing with us.
-      use_versioned_selector(:pre)
     when :destroy
-      use_id_selector
-      use_versioned_selector(:pre)
+      use_id_selector(:use_atomic_version_selector => true)
     end
 
     # Perform the actual database query (single write or transaction commit).
@@ -609,7 +609,7 @@ class Promiscuous::Publisher::Operation::Base
       # operation in the previous write query to avoid this extra read query.
       # If reload_instance raise an exception, we let it bubble up,
       # and we'll trigger the recovery mechanism.
-      use_versioned_selector(:post)
+      use_id_selector
       reload_instance
     end
 
@@ -672,14 +672,14 @@ class Promiscuous::Publisher::Operation::Base
     nil
   end
 
-  def use_id_selector
+  def use_id_selector(options={})
     # Overridden to use the {:id => @instance.id} selector.
+    # if use_atomic_version_selector is passed, the driver must
+    # add the VERSION_FIELD selector if present in original instance.
   end
 
-  def use_versioned_selector(where)
-    # where is :pre or :post the db query
-    # version = where == :pre ? @instance[VERSION_FIELD] : @instance_version
-    # Overridden to use the {VERSION_FIELD => version} selector.
+  def use_versioned_selector
+    # Overridden to use the {VERSION_FIELD => @instance[VERSION_FIELD]} selector.
   end
 
   def stash_version_in_write_query
