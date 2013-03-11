@@ -122,8 +122,8 @@ class Promiscuous::Publisher::Operation::Base
 
   def generate_payload_and_clear_operations
     # TODO Transactions with multi writes
-    raise "no multi write yet" if previous_successful_operations.select(&:write?).size > 1
-    raise "the instance is gone, or there is a version mismatch" unless @instance
+    raise "We don't support multi writes yet" if previous_successful_operations.select(&:write?).size > 1
+    raise "The instance is gone, or there is a version mismatch" unless @instance
 
     payload = @instance.promiscuous.payload(:with_attributes => operation.in?([:create, :update]))
     payload[:context] = current_context.name
@@ -548,7 +548,7 @@ class Promiscuous::Publisher::Operation::Base
     if write_dependencies.blank?
       # TODO We don't like auto generated ids. A good solution is to do all
       # writes in a transaction, so we can know the ids at commit time.
-      raise "auto generated id issue"
+      raise "We don't support auto generated id yet"
     end
 
     # We are in. We are going to commit all the pending writes in the context

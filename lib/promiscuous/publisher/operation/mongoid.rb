@@ -224,7 +224,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
   def update(change, flags=nil)
     multi = flags && flags.include?(:multi)
-    raise "no upsert support yet" if flags && flags.include?(:upsert)
+    raise "No upsert support yet" if flags && flags.include?(:upsert)
 
     promiscuous_operation(:update, :change => change, :multi => multi).execute do |operation|
       if operation
