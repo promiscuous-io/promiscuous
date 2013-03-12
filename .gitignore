@@ -1,3 +1,4 @@
 Gemfile.lock
 gemfiles/*.lock
 *swp
+tags
