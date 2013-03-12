@@ -22,7 +22,7 @@ class Promiscuous::Railtie < Rails::Railtie
       alias_method :start_without_promiscuous, :start
 
       def start
-        Promiscuous.context do
+        ::Promiscuous::Middleware.with_context 'rails/console' do
           start_without_promiscuous
         end
       end
