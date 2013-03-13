@@ -1,22 +1,26 @@
+require 'fnv'
+
 class Promiscuous::Dependency
-  attr_accessor :nodes, :version
+  attr_accessor :internal_key, :version
 
   def initialize(*args)
     options = args.extract_options!
-    @nodes = args.map(&:to_s)
+    @internal_key = args.join(':')
 
     if Promiscuous::Config.hash_size.to_i > 0 && !options[:nohash]
       # We hash dependencies to have a O(1) memory footprint in Redis.
-      @nodes = [@nodes.hash % Promiscuous::Config.hash_size.to_i]
+      # The hashing needs to be deterministic across instances in order to
+      # function properly.
+      @internal_key = [FNV.new.fnv1a_32(@internal_key) % Promiscuous::Config.hash_size.to_i]
     end
   end
 
   def key(role)
-    Promiscuous::Key.new(role).join(@nodes)
+    Promiscuous::Key.new(role).join(@internal_key)
   end
 
   def as_json(options={})
-    [*@nodes, @version].join(':')
+    [@internal_key, @version].join(':')
   end
 
   def self.parse(payload)
@@ -34,11 +38,11 @@ class Promiscuous::Dependency
   # We need the eql? method to function properly (we use ==, uniq, ...) in operation
   # XXX The version is not taken in account.
   def eql?(other)
-    self.nodes == other.nodes
+    self.internal_key == other.internal_key
   end
   alias == eql?
 
   def hash
-    self.nodes.hash
+    self.internal_key.hash
   end
 end
