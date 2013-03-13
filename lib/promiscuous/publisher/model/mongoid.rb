@@ -9,7 +9,10 @@ module Promiscuous::Publisher::Model::Mongoid
   require 'promiscuous/publisher/operation/mongoid'
   included do
     # Important for the query hooks (see ../operation/mongoid.rb)
-    Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection.name] = self
+    # We want the root class when we do a collection name lookup
+
+    root_class = self.collection.name.singularize.camelize.constantize
+    Promiscuous::Publisher::Model::Mongoid.collection_mapping[self.collection.name] = root_class
   end
 
   class PromiscuousMethods
