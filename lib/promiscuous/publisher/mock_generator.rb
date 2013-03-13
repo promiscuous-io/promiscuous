@@ -53,7 +53,7 @@ module Promiscuous::Publisher::MockGenerator
 
   def self.modules
     publishers
-      .map    { |publisher| [publisher] + publisher.descendants.map(&:name) }
+      .map    { |publisher| [publisher, *publisher.descendants.map(&:name)] }
       .flatten
       .select { |name| name =~ /::/ }
       .map    { |name| name.gsub(/::[^:]+$/, '') }
@@ -64,5 +64,9 @@ module Promiscuous::Publisher::MockGenerator
   def self.publishers
     Promiscuous::Publisher::Model.publishers.values
       .reject { |publisher| publisher.publish_to =~ /^__promiscuous__\// }
+      .map    { |publisher| [publisher, publisher.descendants] }
+      .flatten
+      .reject { |publisher| publisher.superclass.respond_to?(:publish_to) &&
+                            publisher.superclass.publish_to }
   end
 end
