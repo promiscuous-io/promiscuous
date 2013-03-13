@@ -153,12 +153,16 @@ class Promiscuous::Publisher::Operation::Base
                               document, read_dependencies, write_dependencies)
     instance_version = write_dependencies.first.version
 
-      # TODO Abstract db operations.
     if model.is_a? Promiscuous::Publisher::Model::Ephemeral
       operation = :dummy
     else
       # TODO Abstract db operations.
+      # We need to query on the root model
+      model = model.collection.name.singularize.camelize.constantize
       instance_scope = model.unscoped.where(:id => instance_id)
+      # "lt" means less than.
+      atomic_instance_scope = instance_scope.or({VERSION_FIELD.to_sym.lt => instance_version},
+                                                {VERSION_FIELD => nil})
     end
 
     # TODO We need to use the primary database. We cannot read from a
@@ -187,9 +191,7 @@ class Promiscuous::Publisher::Operation::Base
       unless instance
         # We must make sure to make the original query fail if we are racing with
         # it so we can send the same payload.
-        # "lt" means less than.
-        instance_scope.where(VERSION_FIELD.to_sym.lt => instance_version)
-                      .update(VERSION_FIELD => instance_version)
+        atomic_instance_scope.update(VERSION_FIELD => instance_version)
         instance = instance_scope.where(VERSION_FIELD => instance_version).first
       end
 
@@ -200,9 +202,7 @@ class Promiscuous::Publisher::Operation::Base
       if instance
         # Instead of redoing a destroy, we just fail the original query if the delete
         # did not get executed yet.
-        # "lt" means less than.
-        instance_scope.where(VERSION_FIELD.to_sym.lt => instance_version)
-                      .update(VERSION_FIELD => instance_version)
+        atomic_instance_scope.update(VERSION_FIELD => instance_version)
         instance = instance_scope.first
       end
 
