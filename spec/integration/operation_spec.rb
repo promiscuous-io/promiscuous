@@ -266,5 +266,34 @@ if ORM.has(:mongoid)
         dep['write'].should == hashed["publisher_models:id:#{pub3.id}:1"]
       end
     end
+
+    context 'when using hashing' do
+      before { PublisherModel.track_dependencies_of :field_1 }
+      before { Promiscuous::Config.hash_size = 1 }
+      after  { Promiscuous::Config.hash_size = 2**20 }
+
+      it 'collides properly' do
+        pub1 = pub2 = pub3 = nil
+        Promiscuous.context do
+          pub1 = PublisherModel.create(:field_1 => 123)
+          pub2 = PublisherModel.create(:field_1 => 456)
+          PublisherModel.first
+          PublisherModel.where(:field_1 => 456).count
+          pub3 = PublisherModel.create(:field_1 => 456)
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['read'].should == nil
+        dep['write'].should == ["0:1"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['read'].should == nil
+        dep['write'].should == ["0:2"]
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['read'].should == nil
+        dep['write'].should == ["0:3"]
+      end
+    end
   end
 end

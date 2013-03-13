@@ -35,6 +35,8 @@ describe Promiscuous do
       dep = payload['dependencies']
       dep['read'].should  == nil
       dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+      payload['id'].should == pub.id.to_s
+      payload['operation'].should == 'update'
       payload['payload']['field_1'].should == '3'
     end
   end
@@ -55,6 +57,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:1"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'create'
         payload['payload']['field_1'].should == '1'
       end
@@ -75,6 +78,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '1'
 
@@ -82,6 +86,8 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:3"]
+        payload['id'].should == pub.id.to_s
+        payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '3'
       end
     end
@@ -101,6 +107,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'dummy'
         payload['payload'].should == nil
 
@@ -108,6 +115,8 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:3"]
+        payload['id'].should == pub.id.to_s
+        payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '3'
       end
     end
@@ -132,6 +141,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:1"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'create'
         payload['payload']['field_1'].should == '1'
 
@@ -139,6 +149,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '2'
       end
@@ -162,6 +173,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '1'
 
@@ -169,6 +181,8 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:3"]
+        payload['id'].should == pub.id.to_s
+        payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '3'
       end
     end
@@ -191,6 +205,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'dummy'
         payload['payload'].should == nil
 
@@ -198,6 +213,8 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:3"]
+        payload['id'].should == pub.id.to_s
+        payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '3'
       end
     end
@@ -217,6 +234,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:1"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'create'
         payload['payload']['field_1'].should == '1'
 
@@ -224,6 +242,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '2'
       end
@@ -244,6 +263,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '2'
 
@@ -251,6 +271,8 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:3"]
+        payload['id'].should == pub.id.to_s
+        payload['operation'].should == 'update'
         payload['payload']['field_1'].should == '3'
       end
     end
@@ -270,6 +292,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'destroy'
         payload['payload'].should == nil
       end
@@ -304,6 +327,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:1"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'create'
         payload['payload']['field_1'].should == '1'
       end
@@ -324,6 +348,7 @@ describe Promiscuous do
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models:id:#{pub.id}:1"]
+        payload['id'].should == pub.id.to_s
         payload['operation'].should == 'create'
         payload['payload']['field_1'].should == '1'
       end
