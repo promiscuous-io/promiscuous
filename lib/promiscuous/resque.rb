@@ -5,7 +5,7 @@ class Resque::Job
 
   def perform
     name = "resque/#{payload_class.name.underscore}"
-    Promiscuous::Middleware.with_promiscuous(name) do
+    Promiscuous::Middleware.with_context(name) do
       perform_without_promiscuous
     end
   end
