@@ -29,7 +29,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
                "            next if doc.should_do_something?\n" +
                "            doc.reload # tell promiscuous to track the instance\n" +
                "            doc.do_something!\n" +
-               "          end\n\n" +
+               "          end\n\n"
         cnt += 1
       end
       if operation.selector_keys.present?
