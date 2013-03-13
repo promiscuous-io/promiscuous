@@ -12,7 +12,11 @@ module Promiscuous::Publisher::Model::Mongoid
     # We want the root class when we do a collection name lookup
 
     root_class = self.collection.name.singularize.camelize.constantize
-    Promiscuous::Publisher::Model::Mongoid.collection_mapping[self.collection.name] = root_class
+    unless self == root_class
+      raise "Please include Promiscuous::Publisher in #{root_class} first (the root class)"
+    end
+
+    Promiscuous::Publisher::Model::Mongoid.collection_mapping[self.collection.name] = self
   end
 
   class PromiscuousMethods

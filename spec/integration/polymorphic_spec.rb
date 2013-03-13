@@ -170,6 +170,7 @@ if ORM.has(:polymorphic)
       before do
         define_constant :PublisherModelHidden do
           include Mongoid::Document
+          include Promiscuous::Publisher
           field :field_1
         end
 
