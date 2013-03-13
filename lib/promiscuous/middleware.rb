@@ -41,6 +41,7 @@ class Promiscuous::Middleware
 
   def self.pretty_print_exception(e)
     return if $promiscuous_pretty_print_exception_once == :disable || ENV['RAILS_ENV'] == 'production'
+    return if e.is_a?(SystemExit)
 
     e = e.original_exception if defined?(ActionView::Template::Error) && e.is_a?(ActionView::Template::Error)
 
