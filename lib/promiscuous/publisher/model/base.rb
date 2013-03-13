@@ -8,7 +8,7 @@ module Promiscuous::Publisher::Model::Base
     self.tracked_attrs = []
     self.published_db_fields = []
     track_dependencies_of :id
-    Promiscuous::Publisher::Model.publishers << self
+    Promiscuous::Publisher::Model.publishers[self.promiscuous_collection_name] = self
   end
 
   module PromiscuousMethodsBase

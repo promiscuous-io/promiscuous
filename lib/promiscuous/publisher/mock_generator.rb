@@ -62,7 +62,7 @@ module Promiscuous::Publisher::MockGenerator
   end
 
   def self.publishers
-    Promiscuous::Publisher::Model.publishers
+    Promiscuous::Publisher::Model.publishers.values
       .reject { |publisher| publisher.publish_to =~ /^__promiscuous__\// }
   end
 end

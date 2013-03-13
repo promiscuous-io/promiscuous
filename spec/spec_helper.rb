@@ -22,6 +22,7 @@ RSpec.configure do |config|
   config.include ObserversHelper
   config.include EphemeralsHelper
   config.include CallbacksHelper
+  config.include DependencyHelper
 
   config.after { Promiscuous::Loader.cleanup }
 end

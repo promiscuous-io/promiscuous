@@ -149,19 +149,16 @@ class Promiscuous::Publisher::Operation::Base
     @payload = payload.to_json
   end
 
-  def self._recover_operation(lock, model, document, operation,
-                              read_dependencies, write_dependencies)
-    instance_dep = write_dependencies.first
-    raise 'assert id dependency' unless instance_dep.attribute == 'id'
-    id = instance_dep.value
-    instance_version = instance_dep.version
+  def self._recover_operation(lock, model, instance_id, operation,
+                              document, read_dependencies, write_dependencies)
+    instance_version = write_dependencies.first.version
 
       # TODO Abstract db operations.
     if model.is_a? Promiscuous::Publisher::Model::Ephemeral
       operation = :dummy
     else
       # TODO Abstract db operations.
-      instance_scope = model.unscoped.where(:id => id)
+      instance_scope = model.unscoped.where(:id => instance_id)
     end
 
     # TODO We need to use the primary database. We cannot read from a
@@ -219,7 +216,7 @@ class Promiscuous::Publisher::Operation::Base
     raise "fatal error in recovery (no instance)..." unless instance || operation != :update
 
     operation = :dummy unless query_was_executed
-    instance ||= model.new.tap { |m| m.id = id }
+    instance ||= model.new.tap { |m| m.id = instance_id }
 
     # The following bootstrap a new operation to complete the operation.
     # We don't want to consider this operation as a dependency in our current
@@ -248,27 +245,24 @@ class Promiscuous::Publisher::Operation::Base
     recovery_data = Promiscuous::Redis.get("#{lock.key}:operation_recovery")
     return nil unless recovery_data # case 1)
 
+    Promiscuous.info "[operation recovery] #{lock.key} -> #{recovery_data}"
+
     to_dependency = proc do |k,v|
       k = k.split(':')[2..-1] # remove the publishers:app_name namespacing
       Promiscuous::Dependency.parse((k << v).join(':'))
     end
 
     recovery_data = JSON.parse(recovery_data)
-    document           = recovery_data['document']
+    collection         = recovery_data['collection']
+    instance_id        = recovery_data['instance_id']
     operation          = recovery_data['operation'].to_sym
+    document           = recovery_data['document']
     read_dependencies  = recovery_data['read_keys'].zip(recovery_data['read_versions']).map(&to_dependency)
     write_dependencies = recovery_data['write_keys'].zip(recovery_data['write_versions']).map(&to_dependency)
 
-    # We figure out the model class from the first write dependency key name,
-    # which is the same as the lock name.
-    # TODO this should be abstracted since we get the collection name from an
-    # abstraction to begin with.
-    instance_dep = write_dependencies.first
-    model = instance_dep.collection.camelize.singularize.constantize
+    model = Promiscuous::Publisher::Model.publishers[collection]
     op_klass = model.get_operation_class_for(operation)
-
-    Promiscuous.info "[operation recovery] #{lock.key} -> #{recovery_data}"
-    op_klass._recover_operation(lock, model, document, operation, read_dependencies, write_dependencies)
+    op_klass._recover_operation(lock, model, instance_id, operation, document, read_dependencies, write_dependencies)
   rescue Exception => e
     message = "cannot recover #{lock.key} -> #{recovery_data}"
     raise Promiscuous::Error::Recovery.new(message, e)
@@ -304,10 +298,13 @@ class Promiscuous::Publisher::Operation::Base
     # that's okay, because the race is harmless.
     @@increment_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
       local args = cjson.decode(ARGV[1])
-      local document = args[1]
-      local operation = args[2]
-      local read_keys = args[3]
-      local write_keys = args[4]
+
+      local collection = args[1]
+      local instance_id = args[2]
+      local operation = args[3]
+      local document = args[4]
+      local read_keys = args[5]
+      local write_keys = args[6]
       local operation_recovery_key = write_keys[1] .. ':operation_recovery'
 
       local read_versions = {}
@@ -323,7 +320,8 @@ class Promiscuous::Publisher::Operation::Base
       end
 
       redis.call('set', operation_recovery_key, cjson.encode({
-        document=document, operation=operation,
+        collection=collection, instance_id=instance_id,
+        operation=operation, document=document,
         read_keys=read_keys, read_versions=read_versions,
         write_keys=write_keys, write_versions=write_versions}))
 
@@ -336,8 +334,9 @@ class Promiscuous::Publisher::Operation::Base
     # Note that this script is run in a Redis transaction, which is something
     # we rely on.
     read_versions, write_versions = Promiscuous::Redis.evalsha(@@increment_script_sha,
-                                      :keys => keys_to_touch.map(&:to_s),
-                                      :argv => [[document, operation, r_keys, w_keys].to_json])
+      :keys => keys_to_touch.map(&:to_s),
+      :argv => [[@instance.class.promiscuous_collection_name, @instance.id, operation,
+                 document, r_keys, w_keys].to_json])
 
     r.zip(read_versions).each  { |dep, version| dep.version = version.to_i }
     w.zip(write_versions).each { |dep, version| dep.version = version.to_i }

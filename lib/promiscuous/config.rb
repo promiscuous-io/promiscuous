@@ -2,7 +2,7 @@ module Promiscuous::Config
   mattr_accessor :app, :logger, :error_notifier, :backend, :amqp_url,
                  :redis_url, :redis_slave_url, :redis_stats_url,
                  :stats_interval, :queue_options, :heartbeat, :bareback,
-                 :recovery, :prefetch, :recovery_timeout
+                 :hash_size, :recovery, :prefetch, :recovery_timeout
 
   def self.backend=(value)
     @@backend = value
@@ -27,6 +27,7 @@ module Promiscuous::Config
     self.queue_options    ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.heartbeat        ||= 60
     self.bareback         ||= false
+    self.hash_size        ||= 2**20 # one million keys ~ 200Mb.
     self.recovery         ||= false
     self.prefetch         ||= 1000
     self.recovery_timeout ||= 10.seconds

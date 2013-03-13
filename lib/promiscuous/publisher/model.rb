@@ -3,5 +3,5 @@ module Promiscuous::Publisher::Model
   autoload :Base, :ActiveRecord, :Ephemeral, :Mock, :Mongoid
 
   mattr_accessor :publishers
-  self.publishers = []
+  self.publishers = {}
 end
