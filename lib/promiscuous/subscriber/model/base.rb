@@ -32,7 +32,9 @@ module Promiscuous::Subscriber::Model::Base
   end
 
   included do
+    class_attribute :promiscuous_root_class
     class_attribute :subscribe_from, :subscribe_foreign_key, :subscribed_attrs
+    self.promiscuous_root_class = self
     self.subscribe_foreign_key = :id
     self.subscribed_attrs = []
   end
@@ -80,13 +82,13 @@ module Promiscuous::Subscriber::Model::Base
 
     def __promiscuous_fetch_existing(id)
       key = subscribe_foreign_key
-      if respond_to?("find_by_#{key}!")
-        __send__("find_by_#{key}!", id)
+      if promiscuous_root_class.respond_to?("find_by_#{key}!")
+        promiscuous_root_class.__send__("find_by_#{key}!", id)
       elsif respond_to?("find_by")
-        find_by(key => id)
+        promiscuous_root_class.find_by(key => id)
       else
-        instance = where(key => id).first
-        raise __promiscuous_missing_record_exception.new(model, id) if instance.nil?
+        instance = promiscuous_root_class.where(key => id).first
+        raise __promiscuous_missing_record_exception.new(promiscuous_root_class, id) if instance.nil?
         instance
       end
     end
