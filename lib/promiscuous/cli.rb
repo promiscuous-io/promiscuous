@@ -44,9 +44,9 @@ class Promiscuous::CLI
       title = criteria.name
       title = "#{title}#{' ' * [0, 20 - title.size].max}"
       bar = ProgressBar.create(:format => '%t |%b>%i| %c/%C %e', :title => title, :total => criteria.count)
-      criteria.each do |doc|
+      criteria.unscoped.each do |doc|
         break if @stop
-        doc.promiscuous.sync
+        Promiscuous.context("cli/sync") { doc.promiscuous.sync }
         bar.increment
       end
     end

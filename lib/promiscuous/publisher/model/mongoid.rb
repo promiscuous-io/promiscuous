@@ -24,11 +24,7 @@ module Promiscuous::Publisher::Model::Mongoid
 
     def sync(options={}, &block)
       raise "Use promiscuous.sync on the parent instance" if @instance.embedded?
-
-      options = options.dup
-      options[:collection] = @instance.class.promiscuous_collection_name
-      options[:selector]   = @instance.atomic_selector
-      Promiscuous::Publisher::Model::Mongoid::Operation.new(options).update(&block)
+      super
     end
 
     def attribute(attr)
