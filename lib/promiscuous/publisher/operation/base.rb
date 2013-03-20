@@ -455,6 +455,7 @@ class Promiscuous::Publisher::Operation::Base
 
     @read_dependencies = read_dependencies.uniq
   end
+  alias verify_read_dependencies read_dependencies
 
   def write_dependencies
     # The cache is cleared when we call reload_instance_dependencies
@@ -547,6 +548,7 @@ class Promiscuous::Publisher::Operation::Base
       retry
     end
 
+    verify_read_dependencies
     if write_dependencies.blank?
       # TODO We don't like auto generated ids. A good solution is to do all
       # writes in a transaction, so we can know the ids at commit time.
