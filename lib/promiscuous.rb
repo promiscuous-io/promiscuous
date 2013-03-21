@@ -1,4 +1,5 @@
 require 'active_support/core_ext'
+require 'active_model/callbacks'
 require 'celluloid'
 require 'celluloid/io'
 
