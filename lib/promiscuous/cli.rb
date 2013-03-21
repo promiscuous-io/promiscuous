@@ -186,7 +186,11 @@ class Promiscuous::CLI
 
   def load_app
     if options[:require]
-      require options[:require]
+      begin
+        require options[:require]
+      rescue LoadError
+        require "./#{options[:require]}"
+      end
     else
       require 'rails'
       require 'promiscuous/railtie'
