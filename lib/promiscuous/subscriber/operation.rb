@@ -74,6 +74,13 @@ class Promiscuous::Subscriber::Operation
       instance.__promiscuous_update(payload)
       instance.save!
     end
+  rescue Exception => e
+    # TODO Abstract the duplicated index error message
+    if e.message =~ /E11000 duplicate key error index: .*\.\$_id_ +dup key/
+      Promiscuous.warn "[receive] ignoring already created record #{message.payload}"
+    else
+      raise e
+    end
   end
 
   def update

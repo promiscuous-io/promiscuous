@@ -5,6 +5,22 @@ describe Promiscuous do
   before { use_real_backend(:logger_level => Logger::FATAL) }
   before { run_subscriber_worker! }
 
+  context 'when creating' do
+    it 'replicates' do
+      pub = nil
+      pub_id = ORM.generate_id
+      SubscriberModel.new.tap { |sub| sub.id = pub_id }.save
+
+      Promiscuous.context do
+        PublisherModel.new.tap { |_pub| _pub.id = pub_id }.save
+        pub = PublisherModel.first
+        pub.update_attributes(:field_1 => 'ohai')
+      end
+
+      eventually { SubscriberModel.first.field_1.should == 'ohai' }
+    end
+  end
+
   context 'when updating' do
     it 'replicates' do
       pub = nil
