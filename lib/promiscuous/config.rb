@@ -14,7 +14,7 @@ module Promiscuous::Config
     class_variables.each { |var| class_variable_set(var, nil) }
   end
 
-  def self.configure(&block)
+  def self._configure(&block)
     block.call(self) if block
 
     self.app              ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
@@ -35,6 +35,10 @@ module Promiscuous::Config
 
     Celluloid.exception_handler { |e| Promiscuous::Config.error_notifier.try(:call, e) }
     Celluloid.logger = Promiscuous::Config.logger
+  end
+
+  def self.configure(&block)
+    self._configure(&block)
 
     unless self.app
       raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
