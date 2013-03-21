@@ -52,15 +52,28 @@ class Promiscuous::CLI
     end
   end
 
+  def record
+    @worker = Promiscuous::Subscriber::Worker::Recorder.supervise(options[:log_file])
+    print_status "Recording..."
+    sleep 0.2 until !@worker.alive?
+  end
+
   def replay
     require 'json'
+    @num_msg = 0
     File.open(options[:log_file], 'r').each do |line|
       break if @stop
       case line
       when /^\[promiscuous\] \[receive\] ({.*})$/ then replay_payload($1)
       when /^\[promiscuous\] \[publish\] .* -> ({.*})$/ then replay_payload($1)
+      when /^({.*})$/ then replay_payload($1)
       end
     end
+
+    puts "Replayed #{@num_msg} messages"
+
+    # XXX Hack to prevent hanging on disconnect (go figure)
+    Promiscuous.class_eval { def self.disconnect; end }
   end
 
   def subscribe
@@ -79,6 +92,7 @@ class Promiscuous::CLI
     endpoint = JSON.parse(payload)['__amqp__']
     if endpoint
       Promiscuous::AMQP.publish(:key => endpoint, :payload => payload)
+      @num_msg += 1
     else
       puts "[warn] missing destination in #{payload}"
     end
@@ -102,6 +116,7 @@ class Promiscuous::CLI
       opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" Model2 Model3..."
       opts.separator "    promiscuous subscribe"
       opts.separator "    promiscuous mocks"
+      opts.separator "    promiscuous record logfile"
       opts.separator "    promiscuous replay logfile"
       opts.separator "    promiscuous publisher_recovery"
       opts.separator ""
@@ -154,6 +169,7 @@ class Promiscuous::CLI
     case options[:action]
     when :publish   then raise "Please specify one or more criterias" unless options[:criterias].present?
     when :subscribe then raise "Why are you specifying a criteria?"   if     options[:criterias].present?
+    when :record    then raise "Please specify a log file to record"  unless options[:log_file].present?
     when :replay    then raise "Please specify a log file to replay"  unless options[:log_file].present?
     when :publisher_recovery
     when :mocks
@@ -191,6 +207,7 @@ class Promiscuous::CLI
     case options[:action]
     when :publish   then publish
     when :subscribe then subscribe
+    when :record    then record
     when :replay    then replay
     when :mocks     then generate_mocks
     when :publisher_recovery then publisher_recovery

@@ -1,6 +1,6 @@
 class Promiscuous::Subscriber::Worker < Celluloid::SupervisionGroup
   extend Promiscuous::Autoload
-  autoload :Message, :Pump, :MessageSynchronizer, :Runner, :Stats
+  autoload :Message, :Pump, :MessageSynchronizer, :Runner, :Stats, :Recorder
 
   pool      Runner,              :as => :runners, :size => 10
   supervise MessageSynchronizer, :as => :message_synchronizer
