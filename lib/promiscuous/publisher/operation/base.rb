@@ -618,7 +618,10 @@ class Promiscuous::Publisher::Operation::Base
     # Perform the actual database query (single write or transaction commit).
     # If successful, the result goes in @result, otherwise, @exception contains
     # the thrown exception.
-    perform_db_operation_with_no_exceptions(&db_operation)
+    trace = "Custom/Moped/operation"
+    self.trace_execution_scoped([trace]) do
+      perform_db_operation_with_no_exceptions(&db_operation)
+    end
 
     # We take a timestamp right after the write is performed because latency
     # measurements are performed on the subscriber.
