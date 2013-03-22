@@ -2,7 +2,8 @@ module Promiscuous::AMQP
   extend Promiscuous::Autoload
   autoload :HotBunny, :Bunny, :Null, :Fake
 
-  EXCHANGE = 'promiscuous'.freeze
+  PUB_EXCHANGE = ENV['PUB_EXCHANGE'] || 'promiscuous'
+  SUB_EXCHANGE = ENV['SUB_EXCHANGE'] || 'promiscuous'
 
   class << self
     attr_accessor :backend

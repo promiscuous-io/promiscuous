@@ -31,16 +31,16 @@ class Promiscuous::AMQP::Bunny
                               :heartbeat_interval => Promiscuous::Config.heartbeat)
     @connection.start
 
-    @master_channel = @connection.create_channel
-    @master_exchange = exchange(@master_channel)
+    @pub_channel = @connection.create_channel
+    @pub_exchange = exchange(@pub_channel, :pub)
     # Making sure that the actor gets it
-    @master_channel.confirm_select(Promiscuous::AMQP.backend.method(:on_confirm))
+    @pub_channel.confirm_select(Promiscuous::AMQP.backend.method(:on_confirm))
   end
 
   def disconnect
     return unless connected?
     @connection_lock.synchronize do
-      @master_channel.close
+      @pub_channel.close
       @connection.stop
     end
   end
@@ -51,8 +51,8 @@ class Promiscuous::AMQP::Bunny
 
   def publish(options={})
     @connection_lock.synchronize do
-      tag = @master_channel.next_publish_seq_no
-      @master_exchange.publish(options[:payload], :key => options[:key], :persistent => true)
+      tag = @pub_channel.next_publish_seq_no
+      @pub_exchange.publish(options[:payload], :key => options[:key], :persistent => true)
       @callback_mapping[tag] = options[:on_confirm] if options[:on_confirm]
     end
   rescue Exception => e
@@ -72,8 +72,10 @@ class Promiscuous::AMQP::Bunny
     end
   end
 
-  def exchange(channel)
-    channel.exchange(Promiscuous::AMQP::EXCHANGE, :type => :topic, :durable => true)
+  def exchange(channel, which)
+    exchange_name = which == :pub ? Promiscuous::AMQP::PUB_EXCHANGE :
+                                    Promiscuous::AMQP::SUB_EXCHANGE
+    channel.exchange(exchange_name, :type => :topic, :durable => true)
   end
 
   module CelluloidSubscriber
@@ -85,7 +87,7 @@ class Promiscuous::AMQP::Bunny
       Promiscuous::AMQP.backend.connection_lock.synchronize do
         @channel = Promiscuous::AMQP.backend.connection.create_channel
         @channel.prefetch(Promiscuous::Config.prefetch)
-        exchange = Promiscuous::AMQP.backend.exchange(@channel)
+        exchange = Promiscuous::AMQP.backend.exchange(@channel, :sub)
         @queue = @channel.queue(queue_name, Promiscuous::Config.queue_options)
         bindings.each do |binding|
           @queue.bind(exchange, :routing_key => binding)
