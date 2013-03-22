@@ -503,7 +503,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def execute_persistent(&block)
-    self.trace_execution_scoped(["Custom/Promiscuous/#{instance.collection.name}:#{operation}"]) do
+    self.trace_execution_scoped(["Custom/Promiscuous/Middleware","Custom/Promiscuous/#{instance.collection.name}:#{operation}"]) do
       _execute_persistent(&block)
     end
   end
