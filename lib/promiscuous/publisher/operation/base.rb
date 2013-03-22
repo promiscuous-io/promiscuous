@@ -1,4 +1,8 @@
+require 'new_relic/agent/method_tracer'
+
 class Promiscuous::Publisher::Operation::Base
+  include ::NewRelic::Agent::MethodTracer
+
   class TryAgain < RuntimeError; end
   VERSION_FIELD = '_pv'
 
@@ -498,7 +502,12 @@ class Promiscuous::Publisher::Operation::Base
     current_context.add_operation(self) unless failed?
   end
 
-  def execute_persistent(&db_operation)
+  def execute_persistent(&block)
+    self.trace_execution_scoped(["Custom/Promiscuous/Middleware","Custom/Promiscuous/#{instance.collection.name}:#{operation}"]) do
+      _execute_persistent(&block)
+    end
+  end
+  def _execute_persistent(&db_operation)
     current_context.add_operation(self)
 
     # Note: At first, @instance can be a representation of a selector, to
@@ -608,7 +617,9 @@ class Promiscuous::Publisher::Operation::Base
     # Perform the actual database query (single write or transaction commit).
     # If successful, the result goes in @result, otherwise, @exception contains
     # the thrown exception.
-    perform_db_operation_with_no_exceptions(&db_operation)
+    self.trace_execution_scoped(["Custom/Moped/operation"]) do
+      perform_db_operation_with_no_exceptions(&db_operation)
+    end
 
     # We take a timestamp right after the write is performed because latency
     # measurements are performed on the subscriber.
