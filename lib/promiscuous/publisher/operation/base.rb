@@ -1,4 +1,8 @@
+require 'new_relic/agent/method_tracer'
+
 class Promiscuous::Publisher::Operation::Base
+  include ::NewRelic::Agent::MethodTracer
+
   class TryAgain < RuntimeError; end
   VERSION_FIELD = '_pv'
 
@@ -498,7 +502,13 @@ class Promiscuous::Publisher::Operation::Base
     current_context.add_operation(self) unless failed?
   end
 
-  def execute_persistent(&db_operation)
+  def execute_persistent(&block)
+    trace = "Custom/Promiscuous/#{operation}:#{instance.collection.name}"
+    self.trace_execution_scoped([trace]) do
+      _execute_persistent(&block)
+    end
+  end
+  def _execute_persistent(&db_operation)
     current_context.add_operation(self)
 
     # Note: At first, @instance can be a representation of a selector, to
