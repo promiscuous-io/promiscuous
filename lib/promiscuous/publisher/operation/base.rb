@@ -503,8 +503,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def execute_persistent(&block)
-    trace = "Custom/Promiscuous/#{instance.collection.name}:#{operation}"
-    self.trace_execution_scoped([trace]) do
+    self.trace_execution_scoped(["Custom/Promiscuous/#{instance.collection.name}:#{operation}"]) do
       _execute_persistent(&block)
     end
   end
@@ -618,8 +617,7 @@ class Promiscuous::Publisher::Operation::Base
     # Perform the actual database query (single write or transaction commit).
     # If successful, the result goes in @result, otherwise, @exception contains
     # the thrown exception.
-    trace = "Custom/Moped/operation"
-    self.trace_execution_scoped([trace]) do
+    self.trace_execution_scoped(["Custom/Moped/operation"]) do
       perform_db_operation_with_no_exceptions(&db_operation)
     end
 
