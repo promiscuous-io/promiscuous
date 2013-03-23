@@ -2,6 +2,7 @@ require 'active_support/core_ext'
 require 'active_model/callbacks'
 require 'celluloid'
 require 'celluloid/io'
+require 'multi_json'
 
 module Promiscuous
   def self.require_for(gem, file)

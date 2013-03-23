@@ -26,7 +26,7 @@ module Promiscuous::Publisher::Model::Mock
     def sync(options={}, &block)
       payload = self.payload
       payload[:operation] = options[:operation] || :update
-      Promiscuous::Subscriber::Worker::Message.new(nil, payload.to_json).process
+      Promiscuous::Subscriber::Worker::Message.new(nil, MultiJson.dump(payload)).process
     end
   end
 

@@ -89,7 +89,7 @@ class Promiscuous::CLI
   end
 
   def replay_payload(payload)
-    endpoint = JSON.parse(payload)['__amqp__']
+    endpoint = MultiJson.load(payload)['__amqp__']
     if endpoint
       Promiscuous::AMQP.publish(:key => endpoint, :payload => payload)
       @num_msg += 1

@@ -7,7 +7,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def parsed_payload
-    @parsed_payload ||= JSON.parse(payload)
+    @parsed_payload ||= MultiJson.load(payload)
   end
 
   def endpoint

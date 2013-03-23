@@ -87,7 +87,7 @@ class Promiscuous::Publisher::Operation::Base
       Promiscuous.info "[payload recovery] #{payload}"
       new.instance_eval do
         @payload_recovery_key = key
-        @amqp_key = JSON.parse(payload)['__amqp__']
+        @amqp_key = MultiJson.load(payload)['__amqp__']
         @payload = payload
         publish_payload_in_rabbitmq_async
       end
@@ -146,7 +146,7 @@ class Promiscuous::Publisher::Operation::Base
     current_context.operations.clear
 
     @amqp_key = payload[:__amqp__]
-    @payload = payload.to_json
+    @payload = MultiJson.dump(payload)
   end
 
   def self._recover_operation(lock, model, instance_id, operation,
@@ -252,7 +252,7 @@ class Promiscuous::Publisher::Operation::Base
       Promiscuous::Dependency.parse((k << v).join(':'))
     end
 
-    recovery_data = JSON.parse(recovery_data)
+    recovery_data = MultiJson.load(recovery_data)
     collection         = recovery_data['collection']
     instance_id        = recovery_data['instance_id']
     operation          = recovery_data['operation'].to_sym
@@ -335,8 +335,8 @@ class Promiscuous::Publisher::Operation::Base
     # we rely on.
     read_versions, write_versions = Promiscuous::Redis.evalsha(@@increment_script_sha,
       :keys => keys_to_touch.map(&:to_s),
-      :argv => [[@instance.class.promiscuous_collection_name, @instance.id, operation,
-                 document, r_keys, w_keys].to_json])
+      :argv => [MultiJson.dump([@instance.class.promiscuous_collection_name,
+                                @instance.id, operation, document, r_keys, w_keys])])
 
     r.zip(read_versions).each  { |dep, version| dep.version = version.to_i }
     w.zip(write_versions).each { |dep, version| dep.version = version.to_i }
