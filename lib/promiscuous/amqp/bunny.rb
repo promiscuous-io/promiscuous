@@ -28,7 +28,9 @@ class Promiscuous::AMQP::Bunny
 
   def connect
     @connection = ::Bunny.new(Promiscuous::Config.amqp_url,
-                              :heartbeat_interval => Promiscuous::Config.heartbeat)
+                              :heartbeat_interval => Promiscuous::Config.heartbeat,
+                              :socket_timeout     => Promiscuous::Config.socket_timeout,
+                              :connect_timeout    => Promiscuous::Config.socket_timeout)
     @connection.start
 
     @pub_channel = @connection.create_channel
