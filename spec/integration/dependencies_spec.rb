@@ -106,7 +106,6 @@ if ORM.has(:mongoid)
           eventually { SubscriberModel.first.field_1.should == '/' }
 
           dep = pub.promiscuous.tracked_dependencies.first.tap { |d| d.version = 123 }
-          dep = Promiscuous::Dependency.parse(dep.as_json)
           dep.redis_node.get(dep.key(:sub).join('rw').to_s).to_i.should == 4
         end
       end
@@ -125,7 +124,6 @@ if ORM.has(:mongoid)
           eventually { SubscriberModel.first.field_1.should == ':' }
 
           dep = pub.promiscuous.tracked_dependencies.first.tap { |d| d.version = 123 }
-          dep = Promiscuous::Dependency.parse(dep.as_json)
           dep.redis_node.get(dep.key(:sub).join('rw').to_s).to_i.should == 4
         end
       end
@@ -147,12 +145,65 @@ if ORM.has(:mongoid)
       end
     end
 
-    context 'when processing duplicate messages' do
-      before do
-        operation_klass = PublisherModel.get_operation_class_for(:update)
-        operation_klass.any_instance.stubs(:ensure_valid_instance_version)
+    context 'when processing half duplicated messages', :pending => "The recovery doesn't work well with bunny" do
+      before { config_logger :logger_level => Logger::FATAL }
+
+      context 'when completing half of the secondaries' do
+        it 'skips duplicates' do
+          pub = nil
+          PublisherModel.track_dependencies_of :field_2
+          pub = Promiscuous.context { PublisherModel.create(:field_2 => 'hello') }
+          eventually { SubscriberModel.num_saves.should == 1 }
+
+          @num_deps = 10
+
+          Promiscuous::Subscriber::Operation.any_instance.stubs(:after_secondary_update_hook).raises
+          Promiscuous.context do
+            @num_deps.times.map { |i| PublisherModel.where(:field_2 => i.to_s).count }
+            pub.update_attributes(:field_1 => '1')
+          end
+          sleep 1
+          Promiscuous::Subscriber::Operation.any_instance.unstub(:after_secondary_update_hook)
+
+          Promiscuous.context { pub.update_attributes(:field_1 => '2') }
+
+          Celluloid::Actor[:pump].recover # this will retry the message
+          eventually { SubscriberModel.first.field_1.should == '2' }
+
+          @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s) }
+            .each { |dep| dep.redis_node.get(dep.key(:sub).join('rw').to_s).should == '1' }
+        end
       end
 
+      context 'when completing all the secondaries' do
+        it 'skips duplicates' do
+          pub = nil
+          PublisherModel.track_dependencies_of :field_2
+          pub = Promiscuous.context { PublisherModel.create(:field_2 => 'hello') }
+          eventually { SubscriberModel.num_saves.should == 1 }
+
+          @num_deps = 10
+
+          Promiscuous::Subscriber::Operation.any_instance.stubs(:update_dependencies_single).raises
+          Promiscuous.context do
+            @num_deps.times.map { |i| PublisherModel.where(:field_2 => i.to_s).count }
+            pub.update_attributes(:field_1 => '1')
+          end
+          sleep 1
+          Promiscuous::Subscriber::Operation.any_instance.unstub(:update_dependencies_single)
+
+          Promiscuous.context { pub.update_attributes(:field_1 => '2') }
+
+          Celluloid::Actor[:pump].recover # this will retry the message
+          eventually { SubscriberModel.first.field_1.should == '2' }
+
+          @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s) }
+            .each { |dep| dep.redis_node.get(dep.key(:sub).join('rw').to_s).should == '1' }
+        end
+      end
+    end
+
+    context 'when processing duplicate messages' do
       it 'skips duplicates' do
         pub = nil
         pub = Promiscuous.context { PublisherModel.create }

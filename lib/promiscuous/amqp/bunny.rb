@@ -129,7 +129,9 @@ class Promiscuous::AMQP::Bunny
     end
 
     def recover
-      @channel.recover
+      Promiscuous::AMQP.backend.connection_lock.synchronize do
+        @channel.recover
+      end
     end
   end
 end

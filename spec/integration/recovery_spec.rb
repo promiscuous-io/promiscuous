@@ -47,6 +47,33 @@ describe Promiscuous do
       pub = Promiscuous.context { PublisherModel.create(:field_2 => 'hello') }
       Promiscuous::AMQP::Fake.get_next_message
 
+      @num_deps = 10
+
+      Promiscuous::Dependency.any_instance.stubs(:version=).raises
+      expect { Promiscuous.context do
+        @num_deps.times.map { |i| PublisherModel.where(:field_2 => i.to_s).count }
+        pub.update_attributes(:field_1 => '1')
+      end }.to raise_error
+      Promiscuous::Dependency.any_instance.unstub(:version=)
+
+      eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
+
+      payload = Promiscuous::AMQP::Fake.get_next_payload
+      dep = payload['dependencies']
+      dep['read'].should  == hashed[*@num_deps.times.map { |i| "publisher_models/field_2/#{i}:0" }]
+      dep['write'].should == hashed["publisher_models/id/#{pub.id}:2",
+                                    "publisher_models/field_2/hello:2"]
+      payload['id'].should == pub.id.to_s
+      payload['operation'].should == 'update'
+    end
+  end
+
+  context 'when the subscriber dies during the increments' do
+    it 'recovers' do
+      PublisherModel.track_dependencies_of :field_2
+      pub = Promiscuous.context { PublisherModel.create(:field_2 => 'hello') }
+      Promiscuous::AMQP::Fake.get_next_message
+
       NUM_DEPS = 10
 
       Promiscuous::Dependency.any_instance.stubs(:version=).raises

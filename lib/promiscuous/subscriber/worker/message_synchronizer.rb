@@ -54,12 +54,11 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     @reconnect_timer.try(:reset)
     @reconnect_timer = nil
 
-    unless connected?
-      self.connect
+    self.disconnect
+    self.connect
 
-      Promiscuous.warn "[redis] Reconnected"
-      Celluloid::Actor[:pump].recover
-    end
+    Promiscuous.warn "[redis] Reconnected"
+    Celluloid::Actor[:pump].recover
   rescue
     reconnect_later
   end

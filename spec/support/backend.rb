@@ -1,10 +1,14 @@
 module BackendHelper
+  NUM_SHARDS = 8
+  HASH_SIZE = 2**30
+
   def use_real_backend(options={})
     real_backend = RUBY_PLATFORM == 'java' ? :hot_bunny : :bunny
     if Promiscuous::Config.backend != real_backend
       Promiscuous.configure do |config|
         config.reset
-        config.redis_urls = 8.times.map { |i| "redis://localhost/#{i}" }
+        config.redis_urls = NUM_SHARDS.times.map { |i| "redis://localhost/#{i}" }
+        config.hash_size = HASH_SIZE
         config.backend = real_backend
         config.app = options[:app] || 'test_subscriber'
         config.queue_options = {:auto_delete => true}
@@ -35,7 +39,8 @@ module BackendHelper
   def use_fake_backend(options={})
     Promiscuous.configure do |config|
       config.reset
-      config.redis_urls = 8.times.map { |i| "redis://localhost/#{i}" }
+      config.redis_urls = NUM_SHARDS.times.map { |i| "redis://localhost/#{i}" }
+      config.hash_size = HASH_SIZE
       config.backend = :fake
       config.app = options[:app] || 'test_publisher'
     end
