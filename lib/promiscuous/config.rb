@@ -1,6 +1,6 @@
 module Promiscuous::Config
   mattr_accessor :app, :logger, :error_notifier, :backend, :amqp_url,
-                 :redis_urls, :redis_slave_url, :redis_stats_url,
+                 :redis_url, :redis_urls, :redis_slave_url, :redis_stats_url,
                  :stats_interval, :queue_options, :heartbeat, :bareback,
                  :hash_size, :recovery, :prefetch, :recovery_timeout,
                  :socket_timeout
@@ -20,7 +20,8 @@ module Promiscuous::Config
 
     self.app              ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
     self.amqp_url         ||= 'amqp://guest:guest@localhost:5672'
-    self.redis_urls       ||= ['redis://localhost/']
+    self.redis_url        ||= 'redis://localhost/'
+    self.redis_urls       ||= [self.redis_url]
     #self.redis_slave_url  ||= nil
     self.redis_stats_url  ||= self.redis_urls.first
     self.stats_interval   ||= 0
