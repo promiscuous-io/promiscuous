@@ -107,6 +107,10 @@ module Promiscuous::Redis
       @orig_key
     end
 
+    def node
+      @node
+    end
+
     def lock
       if @timeout > 0
         # Blocking mode

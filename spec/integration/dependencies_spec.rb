@@ -93,6 +93,25 @@ if ORM.has(:mongoid)
       end
     end
 
+    context 'when using / in the value' do
+      it 'replicates' do
+        Promiscuous.context do
+          pub = PublisherModel.create(:field_1 => '/hi')
+          eventually { SubscriberModel.first.field_1.should == '/hi' }
+          pub.update_attributes(:field_2 => '/hel/lo/')
+          eventually { SubscriberModel.first.field_2.should == '/hel/lo/' }
+          pub.update_attributes(:field_3 => 'hello/')
+          eventually { SubscriberModel.first.field_3.should == 'hello/' }
+          pub.update_attributes(:field_1 => '/')
+          eventually { SubscriberModel.first.field_1.should == '/' }
+
+          dep = pub.promiscuous.tracked_dependencies.first.tap { |d| d.version = 123 }
+          dep = Promiscuous::Dependency.parse(dep.as_json)
+          dep.redis_node.get(dep.key(:sub).join('rw').to_s).to_i.should == 4
+        end
+      end
+    end
+
     context 'when using : in the value' do
       it 'replicates' do
         Promiscuous.context do

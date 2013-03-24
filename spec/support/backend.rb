@@ -35,6 +35,7 @@ module BackendHelper
   def use_fake_backend(options={})
     Promiscuous.configure do |config|
       config.reset
+      config.redis_urls = 8.times.map { |i| "redis://localhost/#{i}" }
       config.backend = :fake
       config.app = options[:app] || 'test_publisher'
     end

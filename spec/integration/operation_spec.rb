@@ -21,15 +21,15 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:3"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:3"]
       end
     end
 
@@ -56,19 +56,19 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub1.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models:id:#{pub1.id}:1"]
-        dep['write'].should == hashed["publisher_models:id:#{pub2.id}:1"]
+        dep['read'].should  == hashed["publisher_models/id/#{pub1.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub2.id}:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models:id:#{pub2.id}:1"]
-        dep['write'].should == hashed["publisher_models:id:#{pub1.id}:3"]
+        dep['read'].should  == hashed["publisher_models/id/#{pub2.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:3"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub1.id}:4"]
+        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:4"]
       end
     end
 
@@ -78,7 +78,7 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:1"]
       end
     end
 
@@ -114,24 +114,24 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:1",
-                                      "publisher_models:field_1:123:1",
-                                      "publisher_models:field_2:456:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:1",
+                                      "publisher_models/field_1/123:1",
+                                      "publisher_models/field_2/456:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models:field_1:blah:0",
-                                      "publisher_models:field_2:blah:0"]
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:2",
-                                      "publisher_models:field_1:123:2",
-                                      # FIXME "publisher_models:field_1:blah:3",
-                                      "publisher_models:field_2:456:2"]
+        dep['read'].should  == hashed["publisher_models/field_1/blah:0",
+                                      "publisher_models/field_2/blah:0"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:2",
+                                      "publisher_models/field_1/123:2",
+                                      # FIXME "publisher_models/field_1/blah:3",
+                                      "publisher_models/field_2/456:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:3",
-                                      "publisher_models:field_1:blah:2",
-                                      "publisher_models:field_2:456:3"]
-                                      # FIXME "publisher_models:field_2:blah:1",
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:3",
+                                      "publisher_models/field_1/blah:2",
+                                      "publisher_models/field_2/456:3"]
+                                      # FIXME "publisher_models/field_2/blah:1",
       end
     end
 
@@ -149,18 +149,18 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub1.id}:1",
-                                      "publisher_models:field_1:123:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:1",
+                                      "publisher_models/field_1/123:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models:id:#{pub1.id}:1"]
-        dep['write'].should == hashed["publisher_models:id:#{pub2.id}:1",
-                                      "publisher_models:field_1:123:2"]
+        dep['read'].should  == hashed["publisher_models/id/#{pub1.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub2.id}:1",
+                                      "publisher_models/field_1/123:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models:id:#{pub2.id}:1"]
-        dep['write'].should == hashed["publisher_models:id:#{pub1.id}:3",
-                                      "publisher_models:field_1:123:3"]
+        dep['read'].should  == hashed["publisher_models/id/#{pub2.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:3",
+                                      "publisher_models/field_1/123:3"]
       end
     end
 
@@ -175,7 +175,7 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:1"]
       end
     end
 
@@ -193,11 +193,11 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub1.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models:id:#{pub1.id}:1"]
-        dep['write'].should == hashed["publisher_models:id:#{pub2.id}:1"]
+        dep['read'].should  == hashed["publisher_models/id/#{pub1.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub2.id}:1"]
       end
     end
 
@@ -214,11 +214,11 @@ if ORM.has(:mongoid)
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:2"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
 
         Promiscuous::AMQP::Fake.get_next_message.should == nil
       end
@@ -238,9 +238,9 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models:field_1:123:0"]
-        dep['write'].should == hashed["publisher_models:id:#{pub.id}:1",
-                                      "publisher_models:field_1:456:1"]
+        dep['read'].should  == hashed["publisher_models/field_1/123:0"]
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:1",
+                                      "publisher_models/field_1/456:1"]
       end
     end
 
@@ -261,9 +261,9 @@ if ORM.has(:mongoid)
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models:id:#{pub1.id}:0",
-                                      "publisher_models:id:#{pub2.id}:0"]
-        dep['write'].should == hashed["publisher_models:id:#{pub3.id}:1"]
+        dep['read'].should  == hashed["publisher_models/id/#{pub1.id}:0",
+                                      "publisher_models/id/#{pub2.id}:0"]
+        dep['write'].should == hashed["publisher_models/id/#{pub3.id}:1"]
       end
     end
 

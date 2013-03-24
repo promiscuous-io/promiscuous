@@ -77,20 +77,23 @@ class Promiscuous::Publisher::Operation::Base
     # it's old enough to for a republish (default 10 seconds).
     # Any sort of race is okay since we would just republish, and that's okay.
 
-    loop do
-      key, time = Promiscuous::Redis.zrange(rabbitmq_staging_set_key, 0, 1, :with_scores => true).flatten
-      break unless key && Time.now.to_i >= time.to_i + Promiscuous::Config.recovery_timeout
+    Promiscuous::Redis.master.nodes.each do |node|
+      loop do
+        key, time = node.zrange(rabbitmq_staging_set_key, 0, 1, :with_scores => true).flatten
+        break unless key && Time.now.to_i >= time.to_i + Promiscuous::Config.recovery_timeout
 
-      # Refresh the score so we skip it next time we look for something to recover.
-      Promiscuous::Redis.zadd(rabbitmq_staging_set_key, Time.now.to_i, key)
-      payload = Promiscuous::Redis.get(key)
+        # Refresh the score so we skip it next time we look for something to recover.
+        node.zadd(rabbitmq_staging_set_key, Time.now.to_i, key)
+        payload = node.get(key)
 
-      Promiscuous.info "[payload recovery] #{payload}"
-      new.instance_eval do
-        @payload_recovery_key = key
-        @amqp_key = MultiJson.load(payload)['__amqp__']
-        @payload = payload
-        publish_payload_in_rabbitmq_async
+        Promiscuous.info "[payload recovery] #{payload}"
+        new.instance_eval do
+          @payload_recovery_node = node
+          @payload_recovery_key = key
+          @amqp_key = MultiJson.load(payload)['__amqp__']
+          @payload = payload
+          publish_payload_in_rabbitmq_async
+        end
       end
     end
   end
@@ -204,7 +207,7 @@ class Promiscuous::Publisher::Operation::Base
         # networking issue (TODO).
         # Note that we are not racing with a delete, because it would have to
         # recover the create operation first.
-        redo_create_operation_from(model, document, instance_version) rescue nil
+        redo_create_operation_from(model, document, instance_version) #rescue nil
         instance = instance_scope.first
       end
 
@@ -260,6 +263,68 @@ class Promiscuous::Publisher::Operation::Base
     end
   end
 
+  def self._recover_operation_shards(read_dependencies, write_dependencies)
+    # TODO XXX DRY with increment_read_and_write_dependencies
+    operation_recovery_key = write_dependencies.first
+    pending_deps = (read_dependencies + write_dependencies).select { |dep| dep.version.nil? }
+    return if pending_deps.blank?
+
+    r = pending_deps & read_dependencies
+    w = pending_deps & write_dependencies
+
+    (w+r).group_by(&:redis_node).each do |node, deps|
+      r_deps = deps.select { |dep| dep.in? r }
+      w_deps = deps.select { |dep| dep.in? w }
+
+      argv = []
+      argv << Promiscuous::Key.new(:pub) # key prefixes
+      argv << MultiJson.dump([r_deps, w_deps])
+      argv << operation_recovery_key.as_json
+
+      @@increment_recovery_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
+        local prefix = ARGV[1] .. ':'
+        local deps = cjson.decode(ARGV[2])
+        local read_deps = deps[1]
+        local write_deps = deps[2]
+        local operation_recovery_key = prefix .. ARGV[3] .. ':operation_recovery'
+
+        local read_versions = {}
+        local write_versions = {}
+
+        if redis.call('exists', operation_recovery_key) == 1 then
+          for i, dep in ipairs(read_deps) do
+            local key = prefix .. dep
+            read_versions[i] = redis.call('get', key .. ':w')
+          end
+          for i, dep in ipairs(write_deps) do
+            local key = prefix .. dep
+            write_versions[i] = redis.call('get', key .. ':w')
+          end
+        else
+          for i, dep in ipairs(read_deps) do
+            local key = prefix .. dep
+            redis.call('incr', key .. ':rw')
+            read_versions[i] = redis.call('get', key .. ':w')
+            redis.call('hset', operation_recovery_key, dep, read_versions[i])
+          end
+
+          for i, dep in ipairs(write_deps) do
+            local key = prefix .. dep
+            write_versions[i] = redis.call('incr', key .. ':rw')
+            redis.call('set', key .. ':w', write_versions[i])
+            redis.call('hset', operation_recovery_key, dep, write_versions[i])
+          end
+        end
+
+        return { read_versions, write_versions }
+      SCRIPT
+      read_versions, write_versions = @@increment_recovery_script.eval(node, :argv => argv)
+
+      r_deps.zip(read_versions).each  { |dep, version| dep.version = version.to_i }
+      w_deps.zip(write_versions).each { |dep, version| dep.version = version.to_i }
+    end
+  end
+
   def self.recover_operation(lock)
     # We happen to have acquired a never released lock.
     # The database instance is thus still prestine.
@@ -267,33 +332,36 @@ class Promiscuous::Publisher::Operation::Base
     # 1) the key is not an id dependency or the payload queue stage was passed
     # 2) The write query was never executed, we must send a dummy operation
     # 3) The write query was executed, but never passed the payload queue stage
-    # XXX TODO
-=begin
-    recovery_data = Promiscuous::Redis.get("#{lock.key}:operation_recovery")
-    return nil unless recovery_data # case 1)
+
+    master_node = lock.node
+    recovery_data = master_node.hgetall("#{lock.key}:operation_recovery")
+    return nil unless recovery_data.present? # case 1)
 
     Promiscuous.info "[operation recovery] #{lock.key} -> #{recovery_data}"
 
-    to_dependency = proc do |k,v|
-      k = k.split(':')[2..-1] # remove the publishers:app_name namespacing
-      Promiscuous::Dependency.parse((k << v).join(':'))
+    collection, instance_id, operation,
+      document, read_dependencies, write_dependencies = *MultiJson.load(recovery_data['payload'])
+
+    operation = operation.to_sym
+    read_dependencies.map!  { |k| Promiscuous::Dependency.parse(k.to_s) }
+    write_dependencies.map! { |k| Promiscuous::Dependency.parse(k.to_s) }
+
+    (write_dependencies + read_dependencies).map(&:redis_node).uniq.each do |node|
+      next if node == master_node # we already have its recovery data
+      recovery_data.merge(node.hgetall("#{lock.key}:operation_recovery"))
     end
 
-    recovery_data = MultiJson.load(recovery_data)
-    collection         = recovery_data['collection']
-    instance_id        = recovery_data['instance_id']
-    operation          = recovery_data['operation'].to_sym
-    document           = recovery_data['document']
-    read_dependencies  = recovery_data['read_keys'].zip(recovery_data['read_versions']).map(&to_dependency)
-    write_dependencies = recovery_data['write_keys'].zip(recovery_data['write_versions']).map(&to_dependency)
+    read_dependencies.each  { |dep| dep.version = recovery_data[dep.to_s].try(:to_i) }
+    write_dependencies.each { |dep| dep.version = recovery_data[dep.to_s].try(:to_i) }
 
     model = Promiscuous::Publisher::Model.publishers[collection]
     op_klass = model.get_operation_class_for(operation)
-    op_klass._recover_operation(lock, model, instance_id, operation, document, read_dependencies, write_dependencies)
+    op_klass._recover_operation_shards(read_dependencies, write_dependencies)
+    op_klass._recover_operation(lock, model, instance_id, operation, document,
+                                read_dependencies, write_dependencies)
   rescue Exception => e
     message = "cannot recover #{lock.key} -> #{recovery_data}"
     raise Promiscuous::Error::Recovery.new(message, e)
-=end
   end
 
   def increment_read_and_write_dependencies
@@ -309,57 +377,70 @@ class Promiscuous::Publisher::Operation::Base
     r -= w
 
     master_node = w.first.redis_node
-    operation_recovery_key = w.first.key(:pub).join('operation_recovery').to_s
+    operation_recovery_key = w.first
 
     # We group all the dependencies by their respective shards
     # The master node will have the responsability to hold the recovery data.
-    # We do the master node first, but it's not necessary. If we do a secondary
-    # first and die right after, the data will linger around until someone
-    # cleans it up, or overwrite it. This mechanism allows us to do all the
-    # redis calls in parallel.
+    # We do the master node first. The seconaries can be done in parallel.
     (w+r).group_by(&:redis_node).each do |node, deps|
       r_deps = deps.select { |dep| dep.in? r }
       w_deps = deps.select { |dep| dep.in? w }
-      r_keys = r_deps.map { |dep| dep.key(:pub) }
-      w_keys = w_deps.map { |dep| dep.key(:pub) }
 
-      argv = [MultiJson.dump([r_keys, w_keys])]
+      argv = []
+      argv << Promiscuous::Key.new(:pub) # key prefixes
+      argv << MultiJson.dump([r_deps, w_deps])
+
       # Each shard have their own recovery payload. The master recovery node
       # has the full operation recovery, and the others just have their versions.
-      argv << operation_recovery_key
+      argv << operation_recovery_key.as_json
       if node == master_node
         # We are on the master node, which holds the recovery payload
         document = serialize_document_for_create_recovery if operation == :create
         argv << MultiJson.dump([@instance.class.promiscuous_collection_name,
-                                @instance.id, operation, document, r_keys, w_keys])
+                                @instance.id, operation, document, r, w])
       end
 
       # We are going to store all the versions in redis, to be able to recover.
       # We store all our increments in a transaction_id key in JSON format.
       # Note that the transaction_id is the id of the current instance.
       @@increment_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
-        local args = cjson.decode(ARGV[1])
-        local read_keys = args[1]
-        local write_keys = args[2]
-        local operation_recovery_key = ARGV[2]
-        local operation_recovery_payload = ARGV[3]
+        local prefix = ARGV[1] .. ':'
+        local deps = cjson.decode(ARGV[2])
+        local read_deps = deps[1]
+        local write_deps = deps[2]
+        local operation_recovery_key = prefix .. ARGV[3] .. ':operation_recovery'
+        local operation_recovery_payload = ARGV[4]
 
         local read_versions = {}
-        for i, key in ipairs(read_keys) do
-          redis.call('incr', key .. ':rw')
-          read_versions[i] = redis.call('get', key .. ':w')
-          redis.call('hset', operation_recovery_key, key, read_versions[i])
-        end
-
         local write_versions = {}
-        for i, key in ipairs(write_keys) do
-          write_versions[i] = redis.call('incr', key .. ':rw')
-          redis.call('set', key .. ':w', write_versions[i])
-          redis.call('hset', operation_recovery_key, key, write_versions[i])
-        end
 
-        if operation_recovery_payload then
-          redis.call('hset', operation_recovery_key, 'payload', operation_recovery_payload)
+        if redis.call('exists', operation_recovery_key) == 1 then
+          for i, dep in ipairs(read_deps) do
+            local key = prefix .. dep
+            read_versions[i] = redis.call('get', key .. ':w')
+          end
+          for i, dep in ipairs(write_deps) do
+            local key = prefix .. dep
+            write_versions[i] = redis.call('get', key .. ':w')
+          end
+        else
+          for i, dep in ipairs(read_deps) do
+            local key = prefix .. dep
+            redis.call('incr', key .. ':rw')
+            read_versions[i] = redis.call('get', key .. ':w')
+            redis.call('hset', operation_recovery_key, dep, read_versions[i])
+          end
+
+          for i, dep in ipairs(write_deps) do
+            local key = prefix .. dep
+            write_versions[i] = redis.call('incr', key .. ':rw')
+            redis.call('set', key .. ':w', write_versions[i])
+            redis.call('hset', operation_recovery_key, dep, write_versions[i])
+          end
+
+          if operation_recovery_payload then
+            redis.call('hset', operation_recovery_key, 'payload', operation_recovery_payload)
+          end
         end
 
         return { read_versions, write_versions }
@@ -387,28 +468,27 @@ class Promiscuous::Publisher::Operation::Base
     # This method is regularly called from a worker to recover locks by doing a
     # locking/unlocking cycle.
 
-    # XXX TODO
-=begin
-    loop do
-      key, time = Promiscuous::Redis.zrange(lock_options[:lock_set], 0, 1, :with_scores => true).flatten
-      break unless key && Time.now.to_i >= time.to_i + lock_options[:expire]
+    Promiscuous::Redis.master.nodes.each do |node|
+      loop do
+        key, time = node.zrange(lock_options[:lock_set], 0, 1, :with_scores => true).flatten
+        break unless key && Time.now.to_i >= time.to_i + lock_options[:expire]
 
-      mutex = Promiscuous::Redis::Mutex.new(key, lock_options)
-      case mutex.lock
-      when :recovered then recover_operation(mutex)
-      when true       then mutex.unlock
-      when false      then ;
+        mutex = Promiscuous::Redis::Mutex.new(key, lock_options.merge(:node => node))
+        case mutex.lock
+        when :recovered then recover_operation(mutex)
+        when true       then mutex.unlock
+        when false      then ;
+        end
       end
     end
-=end
   end
 
   def locks_from_write_dependencies
-    # We sort the keys to avoid deadlocks due to different lock orderings.
-    write_dependencies.map do |dep|
-      options = self.class.lock_options.merge(:node => dep.redis_node)
-      Promiscuous::Redis::Mutex.new(dep.key(:pub).to_s, options)
-    end.sort_by { |lock| lock.key }
+    # XXX TODO Support multi row writes
+    instance_dep = write_dependencies.first
+    return [] unless instance_dep
+    options = self.class.lock_options.merge(:node => instance_dep.redis_node)
+    [Promiscuous::Redis::Mutex.new(instance_dep.key(:pub).to_s, options)]
   end
 
   def lock_write_dependencies
