@@ -1,4 +1,5 @@
 require 'redis'
+require 'redis/distributed'
 require 'digest/sha1'
 
 module Promiscuous::Redis
@@ -17,20 +18,21 @@ module Promiscuous::Redis
   end
 
   def self.disconnect
-    self.master.client.disconnect if self.master
-    self.slave.client.disconnect  if self.slave
+    self.master.quit if self.master
+    self.slave.quit  if self.slave
     self.master = nil
     self.slave  = nil
   end
 
   def self.new_connection(url=nil)
-    url ||= Promiscuous::Config.redis_url
-    redis = ::Redis.new(:url => url, :tcp_keepalive => 60)
-    redis.client.connect
+    url ||= Promiscuous::Config.redis_urls
+    redis = ::Redis::Distributed.new(url, :tcp_keepalive => 60)
 
-    version = redis.info['redis_version']
-    unless Gem::Version.new(version) >= Gem::Version.new('2.6.0')
-      raise "You are using Redis #{version}. Please use Redis 2.6.0 or later."
+    redis.info.each do |info|
+      version = info['redis_version']
+      unless Gem::Version.new(version) >= Gem::Version.new('2.6.0')
+        raise "You are using Redis #{version}. Please use Redis 2.6.0 or later."
+      end
     end
 
     redis
@@ -38,15 +40,23 @@ module Promiscuous::Redis
 
   def self.new_celluloid_connection
     new_connection.tap do |redis|
-      redis.client.connection.instance_eval do
-        @sock = Celluloid::IO::TCPSocket.from_ruby_socket(@sock)
-        @sock.instance_eval do
-          extend ::Redis::Connection::SocketMixin
-          @timeout = nil
-          @buffer = ""
+      redis.nodes.each do |node|
+        node.client.connection.instance_eval do
+          @sock.instance_eval do
+            def is_a?(klass)
+              klass <= ::TCPSocket ? true : super
+            end
+          end
 
-          def _read_from_socket(nbytes)
-            readpartial(nbytes)
+          @sock = Celluloid::IO::TCPSocket.from_ruby_socket(@sock)
+          @sock.instance_eval do
+            extend ::Redis::Connection::SocketMixin
+            @timeout = nil
+            @buffer = ""
+
+            def _read_from_socket(nbytes)
+              readpartial(nbytes)
+            end
           end
         end
       end
@@ -61,10 +71,6 @@ module Promiscuous::Redis
     Promiscuous::Redis.master.ping
   rescue
     raise lost_connection_exception
-  end
-
-  def self.method_missing(name, *args, &block)
-    self.master.__send__(name, *args, &block)
   end
 
   class Script
@@ -88,11 +94,13 @@ module Promiscuous::Redis
     def initialize(key, options={})
       # TODO remove old code with orig_key
       @orig_key = key.to_s
-      @key = "#{key}:lock"
-      @timeout = options[:timeout]
-      @sleep = options[:sleep]
-      @expire = options[:expire]
+      @key      = "#{key}:lock"
+      @timeout  = options[:timeout]
+      @sleep    = options[:sleep]
+      @expire   = options[:expire]
       @lock_set = options[:lock_set]
+      @node     = options[:node]
+      raise "Which node?" unless @node
     end
 
     def key
@@ -138,8 +146,7 @@ module Promiscuous::Redis
 
         if old_value then return 'recovered' else return true end
       SCRIPT
-      result = @@lock_script.eval(Promiscuous::Redis.master,
-                                  :keys => [@key, @lock_set], :argv => [now, @orig_key, @expires_at, @token])
+      result = @@lock_script.eval(@node, :keys => [@key, @lock_set], :argv => [now, @orig_key, @expires_at, @token])
       return :recovered if result == 'recovered'
       !!result
     end
@@ -148,7 +155,6 @@ module Promiscuous::Redis
       # Since it's possible that the operations in the critical section took a long time,
       # we can't just simply release the lock. The unlock method checks if @expires_at
       # remains the same, and do not release when the lock timestamp was overwritten.
-
       @@unlock_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
         local key = KEYS[1]
         local lock_set = KEYS[2]
@@ -165,12 +171,11 @@ module Promiscuous::Redis
           return false
         end
       SCRIPT
-      @@unlock_script.eval(Promiscuous::Redis.master,
-                           :keys => [@key, @lock_set], :argv => [@orig_key, @expires_at, @token])
+      @@unlock_script.eval(@node, :keys => [@key, @lock_set], :argv => [@orig_key, @expires_at, @token])
     end
 
     def still_locked?
-      Promiscuous::Redis.get(@key) == "#{@expires_at}:#{@token}"
+      @node.get(@key) == "#{@expires_at}:#{@token}"
     end
   end
 end

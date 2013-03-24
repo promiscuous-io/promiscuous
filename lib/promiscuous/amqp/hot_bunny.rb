@@ -50,7 +50,7 @@ class Promiscuous::AMQP::HotBunny
       # Nothing to do, things are synchronous.
     end
 
-    def finalize
+    def disconnect
       begin
         @subscription.cancel
       rescue

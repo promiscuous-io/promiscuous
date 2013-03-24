@@ -17,7 +17,8 @@ class Promiscuous::Subscriber::Worker::Recorder
     end
   end
 
-  def finalize
+  def close_file
     @file.try(:close)
   end
+  finalizer :close_file
 end

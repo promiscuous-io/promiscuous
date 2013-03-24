@@ -4,7 +4,7 @@ module BackendHelper
     if Promiscuous::Config.backend != real_backend
       Promiscuous.configure do |config|
         config.reset
-        config.redis_slave_url = 'redis://localhost/1'
+        config.redis_urls = 8.times.map { |i| "redis://localhost/#{i}" }
         config.backend = real_backend
         config.app = options[:app] || 'test_subscriber'
         config.queue_options = {:auto_delete => true}

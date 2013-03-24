@@ -6,17 +6,23 @@ class Promiscuous::Dependency
   def initialize(*args)
     options = args.extract_options!
     @internal_key = args.join(':')
+    @hash = FNV.new.fnv1a_32(@internal_key)
 
     if Promiscuous::Config.hash_size.to_i > 0 && !options[:nohash]
       # We hash dependencies to have a O(1) memory footprint in Redis.
       # The hashing needs to be deterministic across instances in order to
       # function properly.
-      @internal_key = [FNV.new.fnv1a_32(@internal_key) % Promiscuous::Config.hash_size.to_i]
+      @internal_key = [@hash % Promiscuous::Config.hash_size.to_i]
     end
   end
 
   def key(role)
     Promiscuous::Key.new(role).join(@internal_key)
+  end
+
+  def redis_node(distributed_redis=nil)
+    distributed_redis ||= Promiscuous::Redis.master
+    distributed_redis.nodes[@hash % distributed_redis.nodes.size]
   end
 
   def as_json(options={})

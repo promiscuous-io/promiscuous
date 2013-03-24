@@ -11,23 +11,19 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   attr_accessor :redis, :subscriptions
 
   def initialize
-    connect
-    async.main_loop
-    cleanup_later
+    async.connect
   end
 
   def stop
     terminate
   end
 
-  def finalize
-    disconnect
-  end
-
   def connect
     @num_queued_messages = 0
     @subscriptions = {}
     self.redis = Promiscuous::Redis.new_celluloid_connection
+    start_main_loops
+    cleanup_later
   end
 
   def connected?
@@ -46,12 +42,13 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def disconnect
-    self.redis.client.connection.disconnect if connected?
+    self.redis.quit if connected?
   rescue
   ensure
     @subscriptions = {}
     self.redis = nil
   end
+  finalizer :disconnect
 
   def reconnect
     @reconnect_timer.try(:reset)
@@ -59,7 +56,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     unless connected?
       self.connect
-      main_loop!
 
       Promiscuous.warn "[redis] Reconnected"
       Celluloid::Actor[:pump].recover
@@ -73,16 +69,24 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def cleanup
+    @cleanup_timer.try(:reset)
+    @cleanup_timer = nil
+
     @subscriptions.values.each(&:cleanup_if_old)
     cleanup_later
   end
 
   def cleanup_later
-    after(CLEANUP_INTERVAL) { cleanup }
+    @cleanup_timer ||= after(CLEANUP_INTERVAL) { cleanup }
   end
 
-  def main_loop
-    redis_client = self.redis.client
+  def start_main_loops
+    self.redis.nodes.each { |node| async.main_loop(node) }
+  end
+
+  def main_loop(node)
+    redis_client = node.client
+
     loop do
       reply = redis_client.read
       raise reply if reply.is_a?(Redis::CommandError)
@@ -100,7 +104,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     # Unwanted disconnection
     rescue_connection
   rescue IOError => e
-    unless redis_client == self.redis.client
+    unless (self.redis.try(:nodes) || []).include?(redis_client)
       # We were told to disconnect
     else
       raise e
@@ -127,7 +131,12 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     if msg.has_dependencies?
       msg.happens_before_dependencies.reduce(proc { process_message!(msg) }) do |chain, dep|
-        proc { on_version(dep.key(:sub).join('rw').to_s, dep.version, msg) { chain.call } }
+        get_redis_node = dep.redis_node
+        subscriber_redis_node = dep.redis_node(self.redis)
+
+        key = dep.key(:sub).join('rw').to_s
+        version = dep.version
+        proc { on_version(subscriber_redis_node, get_redis_node, key, version, msg) { chain.call } }
       end.call
     else
       process_message!(msg)
@@ -139,10 +148,12 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Celluloid::Actor[:runners].async.process(msg)
   end
 
-  def on_version(key, version, message, &callback)
+  def on_version(subscriber_redis_node, get_redis_node, key, version, message, &callback)
+    # subscriber_redis_node and get_redis_node are different connections to the
+    # same node.
     return unless @subscriptions
-    sub = get_subscription(key).subscribe
-    sub.add_callback(Subscription::Callback.new(version, callback, message))
+    sub = get_subscription(subscriber_redis_node, key).subscribe
+    sub.add_callback(get_redis_node, Subscription::Callback.new(version, callback, message))
   end
 
   def maybe_recover
@@ -168,7 +179,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     versions_to_skip = msg.happens_before_dependencies.map do |dep|
       key = dep.key(:sub).join('rw').to_s
-      to_skip = dep.version - Promiscuous::Redis.get(key).to_i
+      to_skip = dep.version - dep.redis_node.get(key).to_i
       [dep, key, to_skip] if to_skip > 0
     end.compact
 
@@ -176,8 +187,8 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     recovery_msg = "Skipping "
     recovery_msg += versions_to_skip.map do |dep, key, to_skip|
-      Promiscuous::Redis.set(key, dep.version)
-      Promiscuous::Redis.publish(key, dep.version)
+      dep.redis_node.set(key, dep.version)
+      dep.redis_node.publish(key, dep.version)
 
       # Note: the skipped message would have a write dependency with dep.to_s
       "#{to_skip} message(s) on #{dep}"
@@ -211,24 +222,21 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     find_subscription(key).signal_version(version)
   end
 
-  def try_notify_key_change(key, version)
-    notify_key_change(key, version) if @subscriptions[key]
-  end
-
   def find_subscription(key)
     raise "Fatal error (redis sub)" unless @subscriptions[key]
     @subscriptions[key]
   end
 
-  def get_subscription(key)
-    @subscriptions[key] ||= Subscription.new(self, key)
+  def get_subscription(node, key)
+    @subscriptions[key] ||= Subscription.new(self, node, key)
   end
 
   class Subscription
-    attr_accessor :parent, :key, :callbacks, :last_version
+    attr_accessor :parent, :redis_node, :key, :callbacks, :last_version
 
-    def initialize(parent, key)
+    def initialize(parent, redis_node, key)
       self.parent = parent
+      self.redis_node = redis_node
       self.key = key
 
       @subscription_requested = false
@@ -251,7 +259,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     def cleanup_if_old
       if is_old?
-        parent.redis.client.process([[:unsubscribe, key]])
+        redis_node.client.process([[:unsubscribe, key]])
         parent.subscriptions.delete(key)
       end
     end
@@ -268,7 +276,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     def request_subscription
       return if @subscription_requested
-      parent.redis.client.process([[:subscribe, key]])
+      redis_node.client.process([[:subscribe, key]])
       @subscription_requested = true
     end
 
@@ -294,7 +302,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       performed
     end
 
-    def add_callback(callback)
+    def add_callback(get_redis_node, callback)
       refresh_activity
       callback.subscription = self
 
@@ -302,7 +310,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
         callback.perform
       else
         @callbacks.push(callback, callback.version)
-        unless signal_version(Promiscuous::Redis.get(key))
+        unless signal_version(get_redis_node.get(key))
           parent.maybe_recover
         end
       end

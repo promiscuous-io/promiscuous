@@ -18,6 +18,8 @@ class Promiscuous::Subscriber::Worker::Pump
     end
   end
 
+  finalizer :disconnect
+
   def notify_processed_message(msg, time)
     msg.metadata.ack
   end

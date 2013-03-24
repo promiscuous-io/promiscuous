@@ -46,9 +46,6 @@ class Promiscuous::AMQP::Fake
     def wait_for_subscription
     end
 
-    def finalize
-    end
-
     def recover
     end
   end

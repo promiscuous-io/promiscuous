@@ -7,38 +7,73 @@ class Promiscuous::Subscriber::Operation
     self.payload = payload
   end
 
-  def update_dependencies
-    dependencies = message.dependencies[:read] + message.dependencies[:write]
+  # XXX TODO Code is not tolerent to losing a lock.
+
+  def update_dependencies_single(node_with_deps)
+    master_node = node_with_deps[0]
+    deps = node_with_deps[1]
 
     @@update_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
-      local versions = {}
       for i, key in ipairs(KEYS) do
-        versions[i] = redis.call('incr', key .. ':rw')
-        redis.call('publish', key .. ':rw', versions[i])
+        local v = redis.call('incr', key .. ':rw')
+        redis.call('publish', key .. ':rw', v)
       end
-
-      return versions
     SCRIPT
-    versions = @@update_script.eval(Promiscuous::Redis,
-                                    :keys => dependencies.map { |dep| dep.key(:sub).to_s })
+    keys = deps.map { |dep| dep.key(:sub).to_s }
+    @@update_script.eval(master_node, :keys => keys)
+  end
 
-    # This caches the current version, in case we need it again.
-    # TODO Evaluate if it's better with or without.
-    if synchronizer = Celluloid::Actor[:message_synchronizer]
-      dependencies.zip(versions).each do |dep, version|
-        synchronizer.async.try_notify_key_change(dep.key(:sub).join('rw').to_s, version)
-      end
+  def update_dependencies_multi(nodes_with_deps)
+    # With multi nodes, we have to do a 2pc for the lock recovery mechanism:
+    # 1) We do the secondaries first, with a recovery payload.
+    # 2) Then we do the master.
+    # 3) Then we cleanup the secondaries.
+    # We use a recovery_key unique to the operation to avoid any trouble of
+    # touching another operation.
+    secondary_nodes_with_deps = nodes_with_deps[1..-1]
+    recovery_key = @instance_dep.key(:sub).join(@instance_dep.version).to_s
+
+    secondary_nodes_with_deps.each do |node, deps|
+      @@update_script_secondary ||= Promiscuous::Redis::Script.new <<-SCRIPT
+        local recovery_key = ARGV[1]
+
+        if redis.call('get', recovery_key) == 'done' then
+          return
+        end
+
+        for i, key in ipairs(KEYS) do
+          local v = redis.call('incr', key .. ':rw')
+          redis.call('publish', key .. ':rw', v)
+        end
+
+        redis.call('set', recovery_key, 'done')
+      SCRIPT
+      keys = deps.map { |dep| dep.key(:sub).to_s }
+      @@update_script_secondary.eval(node, :keys => keys, :argv => [recovery_key])
+    end
+
+    update_dependencies_single(nodes_with_deps.first)
+
+    secondary_nodes_with_deps.each do |node, deps|
+      node.del(recovery_key)
     end
   end
 
+  def update_dependencies
+    dependencies = message.dependencies[:read] + message.dependencies[:write]
+    nodes_with_deps = dependencies.group_by(&:redis_node).to_a
+
+    nodes_with_deps.size == 1 ? update_dependencies_single(nodes_with_deps.first) :
+                                update_dependencies_multi(nodes_with_deps)
+  end
+
   def verify_dependencies
-    if message.dependencies[:write].present?
-      # We take the first write depedency (adjusted with the read increments)
-      key = @instance_dep.key(:sub).join('rw').to_s
-      if Promiscuous::Redis.get(key).to_i != @instance_dep.version
-        raise Promiscuous::Error::AlreadyProcessed
-      end
-    end
+    # Backward compatibility, no dependencies.
+    return unless message.dependencies[:write].present?
+    key = @instance_dep.key(:sub).join('rw').to_s
+    return if @instance_dep.redis_node.get(key).to_i == @instance_dep.version
+
+    raise Promiscuous::Error::AlreadyProcessed
   end
 
   LOCK_OPTIONS = { :timeout => 1.5.minute, # after 1.5 minute , we give up
@@ -49,8 +84,10 @@ class Promiscuous::Subscriber::Operation
     return yield unless message && message.has_dependencies?
 
     @instance_dep = message.happens_before_dependencies.first
-    mutex = Promiscuous::Redis::Mutex.new(@instance_dep.key(:sub).to_s, LOCK_OPTIONS)
+    lock_options = LOCK_OPTIONS.merge(:node => @instance_dep.redis_node)
+    mutex = Promiscuous::Redis::Mutex.new(@instance_dep.key(:sub).to_s, lock_options)
 
+    # XXX TODO recovery
     unless mutex.lock
       raise Promiscuous::Error::LockUnavailable.new(mutex.key)
     end

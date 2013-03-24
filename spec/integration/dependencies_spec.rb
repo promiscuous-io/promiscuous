@@ -105,8 +105,9 @@ if ORM.has(:mongoid)
           pub.update_attributes(:field_1 => ':')
           eventually { SubscriberModel.first.field_1.should == ':' }
 
-          dep = pub.promiscuous.tracked_dependencies.first
-          Promiscuous::Redis.get(dep.key(:sub).join('rw').to_s).to_i.should == 4
+          dep = pub.promiscuous.tracked_dependencies.first.tap { |d| d.version = 123 }
+          dep = Promiscuous::Dependency.parse(dep.as_json)
+          dep.redis_node.get(dep.key(:sub).join('rw').to_s).to_i.should == 4
         end
       end
     end
@@ -139,9 +140,10 @@ if ORM.has(:mongoid)
         Promiscuous.context { pub.update_attributes(:field_1 => '2') }
         eventually { SubscriberModel.num_saves.should == 2 }
 
-        key = pub.promiscuous.tracked_dependencies.first.key(:pub)
-        Promiscuous::Redis.decr(key.join('rw').to_s)
-        Promiscuous::Redis.decr(key.join('w').to_s)
+        dep = pub.promiscuous.tracked_dependencies.first
+        key = dep.key(:pub)
+        dep.redis_node.decr(key.join('rw').to_s)
+        dep.redis_node.decr(key.join('w').to_s)
 
         Promiscuous.context { pub.update_attributes(:field_1 => '3') } # skipped update
         Promiscuous.context { pub.update_attributes(:field_1 => '4') } # processed update
@@ -166,10 +168,11 @@ if ORM.has(:mongoid)
         Promiscuous.context { pub.update_attributes(:field_1 => '2') }
         eventually { SubscriberModel.num_saves.should == 2 }
 
-        key = pub.promiscuous.tracked_dependencies.first.key(:pub)
         without_promiscuous { pub.inc(:_pv, 1) }
-        Promiscuous::Redis.incr(key.join('rw').to_s)
-        Promiscuous::Redis.incr(key.join('w').to_s)
+        dep = pub.promiscuous.tracked_dependencies.first
+        key = dep.key(:pub)
+        dep.redis_node.incr(key.join('rw').to_s)
+        dep.redis_node.incr(key.join('w').to_s)
 
         Promiscuous.context { pub.update_attributes(:field_1 => '3') }
         Promiscuous.context { pub.update_attributes(:field_1 => '4') }

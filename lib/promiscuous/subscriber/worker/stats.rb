@@ -47,9 +47,10 @@ class Promiscuous::Subscriber::Worker::Stats
     after(@interval) { aggregate_stats }
   end
 
-  def finalize
+  def disconnect
     @redis.client.disconnect rescue nil if @redis
   end
+  finalizer :disconnect
 
   def notify_processed_message(msg, time)
     return if msg.timestamp.zero? || !@redis

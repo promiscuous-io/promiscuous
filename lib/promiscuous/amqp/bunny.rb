@@ -122,7 +122,7 @@ class Promiscuous::AMQP::Bunny
       # Nothing to do, things are synchronous.
     end
 
-    def finalize
+    def disconnect
       Promiscuous::AMQP.backend.connection_lock.synchronize do
         @channel.close
       end

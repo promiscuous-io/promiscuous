@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Promiscuous do
+describe Promiscuous, :pending => true do
   before do
     @operation_klass = Promiscuous::Publisher::Operation::Base
     @old_lock_options = @operation_klass::LOCK_OPTIONS
