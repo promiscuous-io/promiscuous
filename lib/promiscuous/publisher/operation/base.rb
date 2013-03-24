@@ -296,7 +296,7 @@ class Promiscuous::Publisher::Operation::Base
 
     # This script loading is not thread safe (touching a class variable), but
     # that's okay, because the race is harmless.
-    @@increment_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
+    @@increment_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
       local args = cjson.decode(ARGV[1])
 
       local collection = args[1]
@@ -333,7 +333,7 @@ class Promiscuous::Publisher::Operation::Base
 
     # Note that this script is run in a Redis transaction, which is something
     # we rely on.
-    read_versions, write_versions = Promiscuous::Redis.evalsha(@@increment_script_sha,
+    read_versions, write_versions = @@increment_script.eval(Promiscuous::Redis.master,
       :keys => keys_to_touch.map(&:to_s),
       :argv => [MultiJson.dump([@instance.class.promiscuous_collection_name,
                                 @instance.id, operation, document, r_keys, w_keys])])

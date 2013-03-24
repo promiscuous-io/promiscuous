@@ -1,4 +1,5 @@
 require 'redis'
+require 'digest/sha1'
 
 module Promiscuous::Redis
   mattr_accessor :master, :slave
@@ -66,6 +67,23 @@ module Promiscuous::Redis
     self.master.__send__(name, *args, &block)
   end
 
+  class Script
+    def initialize(script)
+      @script = script
+      @sha = Digest::SHA1.hexdigest(@script)
+    end
+
+    def eval(redis, options={})
+      redis.evalsha(@sha, options)
+    rescue ::Redis::CommandError => e
+      if e.message =~ /^NOSCRIPT/
+        redis.script(:load, @script)
+        retry
+      end
+      raise e
+    end
+  end
+
   class Mutex
     def initialize(key, options={})
       # TODO remove old code with orig_key
@@ -104,7 +122,7 @@ module Promiscuous::Redis
 
       # This script loading is not thread safe (touching a class variable), but
       # that's okay, because the race is harmless.
-      @@lock_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
+      @@lock_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
         local key = KEYS[1]
         local lock_set = KEYS[2]
         local now = tonumber(ARGV[1])
@@ -120,8 +138,8 @@ module Promiscuous::Redis
 
         if old_value then return 'recovered' else return true end
       SCRIPT
-      result = Promiscuous::Redis.evalsha(@@lock_script_sha,
-                 :keys => [@key, @lock_set], :argv => [now, @orig_key, @expires_at, @token])
+      result = @@lock_script.eval(Promiscuous::Redis.master,
+                                  :keys => [@key, @lock_set], :argv => [now, @orig_key, @expires_at, @token])
       return :recovered if result == 'recovered'
       !!result
     end
@@ -131,7 +149,7 @@ module Promiscuous::Redis
       # we can't just simply release the lock. The unlock method checks if @expires_at
       # remains the same, and do not release when the lock timestamp was overwritten.
 
-      @@unlock_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
+      @@unlock_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
         local key = KEYS[1]
         local lock_set = KEYS[2]
         local orig_key = ARGV[1]
@@ -147,8 +165,8 @@ module Promiscuous::Redis
           return false
         end
       SCRIPT
-      Promiscuous::Redis.evalsha(@@unlock_script_sha,
-        :keys => [@key, @lock_set], :argv => [@orig_key, @expires_at, @token])
+      @@unlock_script.eval(Promiscuous::Redis.master,
+                           :keys => [@key, @lock_set], :argv => [@orig_key, @expires_at, @token])
     end
 
     def still_locked?

@@ -10,7 +10,7 @@ class Promiscuous::Subscriber::Operation
   def update_dependencies
     dependencies = message.dependencies[:read] + message.dependencies[:write]
 
-    @@update_script_sha ||= Promiscuous::Redis.script(:load, <<-SCRIPT)
+    @@update_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
       local versions = {}
       for i, key in ipairs(KEYS) do
         versions[i] = redis.call('incr', key .. ':rw')
@@ -19,8 +19,8 @@ class Promiscuous::Subscriber::Operation
 
       return versions
     SCRIPT
-    versions = Promiscuous::Redis.evalsha(@@update_script_sha,
-               :keys => dependencies.map { |dep| dep.key(:sub).to_s })
+    versions = @@update_script.eval(Promiscuous::Redis,
+                                    :keys => dependencies.map { |dep| dep.key(:sub).to_s })
 
     # This caches the current version, in case we need it again.
     # TODO Evaluate if it's better with or without.
