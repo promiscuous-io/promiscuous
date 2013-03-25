@@ -9,8 +9,8 @@ class Promiscuous::AMQP::HotBunny
     @connection = HotBunnies.connect(:uri => Promiscuous::Config.amqp_url,
                                      :heartbeat_interval => Promiscuous::Config.heartbeat)
 
-    @master_channel = @connection.create_channel
-    @master_exchange = exchange(@master_channel)
+    @pub_channel = @connection.create_channel
+    @pub_exchange = exchange(@pub_channel, :pub)
   end
 
   def disconnect
@@ -25,8 +25,10 @@ class Promiscuous::AMQP::HotBunny
     @master_exchange.publish(options[:payload], :routing_key => options[:key], :persistent => true)
   end
 
-  def exchange(channel)
-    channel.exchange(Promiscuous::AMQP::EXCHANGE, :type => :topic, :durable => true)
+  def exchange(channel, which)
+    exchange_name = which == :pub ? Promiscuous::AMQP::PUB_EXCHANGE :
+                                    Promiscuous::AMQP::SUB_EXCHANGE
+    channel.exchange(exchange_name, :type => :topic, :durable => true)
   end
 
   module CelluloidSubscriber
@@ -37,7 +39,7 @@ class Promiscuous::AMQP::HotBunny
 
       @channel = Promiscuous::AMQP::backend.connection.create_channel
       @channel.prefetch = Promiscuous::Config.prefetch
-      exchange = Promiscuous::AMQP::backend.exchange(@channel)
+      exchange = Promiscuous::AMQP::backend.exchange(@channel, :sub)
       queue = @channel.queue(queue_name, Promiscuous::Config.queue_options)
       bindings.each do |binding|
         queue.bind(exchange, :routing_key => binding)

@@ -26,7 +26,6 @@ Gem::Specification.new do |s|
   s.add_dependency "algorithms",          "~> 0.6.1"
   s.add_dependency "fnv",                 "0.2.0"
   s.add_dependency "multi_json",          "~> 1.0"
-  s.add_dependency "oj",                  "~> 2.0.10"
 
   s.files        = Dir["lib/**/*"] + Dir["bin/**/*"]
   s.require_path = 'lib'
