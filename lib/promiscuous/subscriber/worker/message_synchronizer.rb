@@ -3,6 +3,7 @@ require 'containers/priority_queue'
 
 class Promiscuous::Subscriber::Worker::MessageSynchronizer
   include Celluloid::IO
+  task_class TaskThread
 
   RECONNECT_INTERVAL = 2.seconds
   CLEANUP_INTERVAL   = 1.minute
