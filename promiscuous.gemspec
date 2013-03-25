@@ -23,6 +23,7 @@ Gem::Specification.new do |s|
   s.add_dependency "redis",               "~> 3.0.2"
   s.add_dependency "celluloid",           "~> 0.13.0"
   s.add_dependency "celluloid-io",        "~> 0.13.0"
+  s.add_dependency "celluloid-redis"
   s.add_dependency "algorithms",          "~> 0.6.1"
   s.add_dependency "fnv",                 "0.2.0"
   s.add_dependency "multi_json",          "~> 1.0"

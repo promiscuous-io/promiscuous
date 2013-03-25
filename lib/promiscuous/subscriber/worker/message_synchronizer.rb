@@ -77,7 +77,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     loop do
       reply = redis_client.read
-      raise reply if reply.is_a?(Redis::CommandError)
+      raise reply if reply.is_a?(::Redis::CommandError)
       type, subscription, arg = reply
 
       case type
@@ -208,16 +208,11 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def notify_subscription(key)
-    find_subscription(key).finalize_subscription
+    @subscriptions[key].try(:finalize_subscription)
   end
 
   def notify_key_change(key, version)
-    find_subscription(key).signal_version(version)
-  end
-
-  def find_subscription(key)
-    raise "Fatal error (redis sub)" unless @subscriptions[key]
-    @subscriptions[key]
+    @subscriptions[key].try(:signal_version, version)
   end
 
   def get_subscription(node, key)
@@ -252,7 +247,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     def cleanup_if_old
       if is_old?
-        redis_node.client.process([[:unsubscribe, key]])
+        redis_node.client.connection.write(['unsubscribe', key])
         parent.subscriptions.delete(key)
       end
     end
@@ -269,7 +264,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     def request_subscription
       return if @subscription_requested
-      redis_node.client.process([[:subscribe, key]])
+      redis_node.client.connection.write(['subscribe', key])
       @subscription_requested = true
     end
 

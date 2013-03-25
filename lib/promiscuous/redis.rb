@@ -1,6 +1,7 @@
 require 'redis'
 require 'redis/distributed'
 require 'digest/sha1'
+require 'celluloid/redis'
 
 module Promiscuous::Redis
   mattr_accessor :master, :slave
@@ -24,9 +25,9 @@ module Promiscuous::Redis
     self.slave  = nil
   end
 
-  def self.new_connection(url=nil)
+  def self.new_connection(url=nil, driver=nil)
     url ||= Promiscuous::Config.redis_urls
-    redis = ::Redis::Distributed.new(url, :tcp_keepalive => 60)
+    redis = ::Redis::Distributed.new(url, :tcp_keepalive => 60, :driver => driver)
 
     redis.info.each do |info|
       version = info['redis_version']
@@ -39,28 +40,7 @@ module Promiscuous::Redis
   end
 
   def self.new_celluloid_connection
-    new_connection.tap do |redis|
-      redis.nodes.each do |node|
-        node.client.connection.instance_eval do
-          @sock.instance_eval do
-            def is_a?(klass)
-              klass <= ::TCPSocket ? true : super
-            end
-          end
-
-          @sock = Celluloid::IO::TCPSocket.from_ruby_socket(@sock)
-          @sock.instance_eval do
-            extend ::Redis::Connection::SocketMixin
-            @timeout = nil
-            @buffer = ""
-
-            def _read_from_socket(nbytes)
-              readpartial(nbytes)
-            end
-          end
-        end
-      end
-    end
+    new_connection(nil, :celluloid)
   end
 
   def self.lost_connection_exception

@@ -1,5 +1,6 @@
 class Promiscuous::Subscriber::Worker::Pump
   include Celluloid
+  task_class TaskThread
 
   def initialize
     # late include of CelluloidSubscriber because the class is resolved

@@ -1,5 +1,6 @@
 class Promiscuous::Subscriber::Worker::Recorder
   include Celluloid
+  task_class TaskThread
 
   def initialize(log_file)
     extend Promiscuous::AMQP::CelluloidSubscriber
