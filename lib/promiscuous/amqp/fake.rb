@@ -48,5 +48,8 @@ class Promiscuous::AMQP::Fake
 
     def recover
     end
+
+    def disconnect
+    end
   end
 end
