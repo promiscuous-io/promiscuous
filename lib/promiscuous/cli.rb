@@ -61,12 +61,7 @@ class Promiscuous::CLI
   def replay
     require 'json'
     @num_msg = 0
-    File.open(options[:log_file], 'r').each_with_index do |line, index|
-      if ENV['RABBIT_GROUP'] && ENV['RABBIT_GROUP_MAX']
-        unless (index % ENV['RABBIT_GROUP_MAX'].to_i == ENV['RABBIT_GROUP'].to_i)
-          next
-        end
-      end
+    File.open(options[:log_file], 'r').each do |line|
       break if @stop
       case line
       when /^\[promiscuous\] \[receive\] ({.*})$/ then replay_payload($1)
