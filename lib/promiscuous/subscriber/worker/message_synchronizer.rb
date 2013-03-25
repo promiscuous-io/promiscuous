@@ -145,8 +145,8 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     # subscriber_redis_node and get_redis_node are different connections to the
     # same node.
     return unless @subscriptions
-    sub = get_subscription(subscriber_redis_node, key).subscribe
-    sub.add_callback(get_redis_node, Subscription::Callback.new(version, callback, message))
+    sub = get_subscription(subscriber_redis_node, key).subscribe(get_redis_node)
+    sub.add_callback(Subscription::Callback.new(version, callback, message))
   end
 
   def maybe_recover
@@ -252,13 +252,15 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       end
     end
 
-    def subscribe
+    def subscribe(get_redis_node)
       request_subscription
 
       loop do
         break if @subscribed_to_redis
         parent.wait :subscription
       end
+
+      signal_version(get_redis_node.get(key))
       self
     end
 
@@ -290,7 +292,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       performed
     end
 
-    def add_callback(get_redis_node, callback)
+    def add_callback(callback)
       refresh_activity
       callback.subscription = self
 
@@ -298,9 +300,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
         callback.perform
       else
         @callbacks.push(callback, callback.version)
-        unless signal_version(get_redis_node.get(key))
-          parent.maybe_recover
-        end
+        parent.maybe_recover
       end
     end
 
