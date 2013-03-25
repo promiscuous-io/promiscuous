@@ -6,10 +6,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   task_class TaskThread
 
   RECONNECT_INTERVAL = 2.seconds
-  CLEANUP_INTERVAL   = 1.minute
-  QUEUE_MAX_AGE      = 10.minutes
+  CLEANUP_INTERVAL   = 100 # messages
+  QUEUE_MAX_AGE      = 100 # messages
 
-  attr_accessor :redis, :subscriptions
+  attr_accessor :redis, :subscriptions, :num_processed_messages
 
   def initialize
     async.connect
@@ -20,11 +20,11 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def connect
+    @num_processed_messages = 0
     @num_queued_messages = 0
     @subscriptions = {}
     self.redis = Promiscuous::Redis.new_celluloid_connection
     start_main_loops
-    cleanup_later
   end
 
   def connected?
@@ -66,18 +66,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
   def reconnect_later
     @reconnect_timer ||= after(RECONNECT_INTERVAL) { reconnect }
-  end
-
-  def cleanup
-    @cleanup_timer.try(:reset)
-    @cleanup_timer = nil
-
-    @subscriptions.values.each(&:cleanup_if_old)
-    cleanup_later
-  end
-
-  def cleanup_later
-    @cleanup_timer ||= after(CLEANUP_INTERVAL) { cleanup }
   end
 
   def start_main_loops
@@ -145,7 +133,12 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
   def process_message!(msg)
     @num_queued_messages -= 1
+    @num_processed_messages += 1
     Celluloid::Actor[:runners].async.process(msg)
+
+    if @num_processed_messages % CLEANUP_INTERVAL == 0
+      @subscriptions.values.each(&:cleanup_if_old) if @subscriptions
+    end
   end
 
   def on_version(subscriber_redis_node, get_redis_node, key, version, message, &callback)
@@ -249,11 +242,11 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     end
 
     def refresh_activity
-      @last_activity_at = Time.now
+      @last_activity_at = parent.num_processed_messages
     end
 
     def is_old?
-      delta = Time.now - @last_activity_at
+      delta = parent.num_processed_messages - @last_activity_at
       @callbacks.empty? && delta > QUEUE_MAX_AGE
     end
 
