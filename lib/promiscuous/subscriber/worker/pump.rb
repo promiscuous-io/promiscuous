@@ -9,7 +9,7 @@ class Promiscuous::Subscriber::Worker::Pump
 
     options = {}
     options[:channel_name] = :pump
-    options[:queue_name] = "#{Promiscuous::Config.app}.promiscuous"
+    options[:queue_name] = ENV['QUEUE_NAME'] || "#{Promiscuous::Config.app}.promiscuous"
     # We need to subscribe to everything to keep up with the version tracking
     options[:bindings] = ['*']
 
