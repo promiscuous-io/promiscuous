@@ -208,16 +208,11 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def notify_subscription(key)
-    find_subscription(key).finalize_subscription
+    @subscriptions[key].try(:finalize_subscription)
   end
 
   def notify_key_change(key, version)
-    find_subscription(key).signal_version(version)
-  end
-
-  def find_subscription(key)
-    raise "Fatal error (redis sub)" unless @subscriptions[key]
-    @subscriptions[key]
+    @subscriptions[key].try(:signal_version, version)
   end
 
   def get_subscription(node, key)
