@@ -1,7 +1,6 @@
 class Promiscuous::Subscriber::Worker < Celluloid::SupervisionGroup
   extend Promiscuous::Autoload
   autoload :Message, :Pump, :MessageSynchronizer, :Runner, :Stats, :Recorder
-  task_class TaskThread
 
   NUM_THREADS = ENV['THREADS'].try(:to_i) || 10
 
