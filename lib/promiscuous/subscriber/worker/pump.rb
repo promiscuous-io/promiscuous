@@ -1,26 +1,24 @@
 class Promiscuous::Subscriber::Worker::Pump
-  include Celluloid
-
-  def initialize
+  def initialize(root)
+    @root = root
     # late include of CelluloidSubscriber because the class is resolved
     # at runtime since we can have different backends.
-    extend Promiscuous::AMQP::CelluloidSubscriber
+    extend Promiscuous::AMQP::Subscriber
+  end
 
+  def connect
     options = {}
-    options[:channel_name] = :pump
     options[:queue_name] = ENV['QUEUE_NAME'] || "#{Promiscuous::Config.app}.promiscuous"
     # We need to subscribe to everything to keep up with the version tracking
     options[:bindings] = ['*']
-
-    subscribe(options) do |metadata, payload|
-      msg = Promiscuous::Subscriber::Worker::Message.new(metadata, payload)
-      Celluloid::Actor[:message_synchronizer].process_when_ready(msg)
-    end
+    subscribe(options, &method(:on_message))
   end
 
-  finalizer :disconnect
-
-  def notify_processed_message(msg, time)
-    msg.metadata.ack
+  def on_message(metadata, payload)
+    msg = Promiscuous::Subscriber::Worker::Message.new(metadata, payload)
+    @root.message_synchronizer.process_when_ready(msg)
+  rescue Exception => e
+    Promiscuous.warn "[receive] cannot process message: #{e} #{e.backtrace.join("\n")}"
+    Promiscuous::Config.error_notifier.try(:call, e)
   end
 end

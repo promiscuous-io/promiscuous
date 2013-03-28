@@ -33,7 +33,8 @@ describe Promiscuous do
 
       eventually do
         SubscriberModel.num_saves.should == 5
-        Celluloid::Actor[:message_synchronizer].subscriptions.size.should == 1
+        subscriptions = @worker.message_synchronizer.node_synchronizers.values.map { |n| n.subscriptions.keys }.flatten
+        subscriptions.size.should == 0
       end
     end
   end

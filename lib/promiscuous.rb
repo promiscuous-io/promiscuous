@@ -1,7 +1,5 @@
 require 'active_support/core_ext'
 require 'active_model/callbacks'
-require 'celluloid'
-require 'celluloid/io'
 require 'multi_json'
 
 module Promiscuous
@@ -50,7 +48,7 @@ module Promiscuous
     def healthy?
       AMQP.ensure_connected
       Redis.ensure_connected
-    rescue
+    rescue Exception
       false
     else
       true

@@ -145,7 +145,7 @@ if ORM.has(:mongoid)
       end
     end
 
-    context 'when processing half duplicated messages', :pending => "The recovery doesn't work well with bunny" do
+    context 'when processing half duplicated messages' do
       before { config_logger :logger_level => Logger::FATAL }
 
       context 'when completing half of the secondaries' do
@@ -167,7 +167,7 @@ if ORM.has(:mongoid)
 
           Promiscuous.context { pub.update_attributes(:field_1 => '2') }
 
-          Celluloid::Actor[:pump].recover # this will retry the message
+          @worker.pump.recover # this will retry the message
           eventually { SubscriberModel.first.field_1.should == '2' }
 
           @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s) }
@@ -194,7 +194,7 @@ if ORM.has(:mongoid)
 
           Promiscuous.context { pub.update_attributes(:field_1 => '2') }
 
-          Celluloid::Actor[:pump].recover # this will retry the message
+          @worker.pump.recover # this will retry the message
           eventually { SubscriberModel.first.field_1.should == '2' }
 
           @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s) }

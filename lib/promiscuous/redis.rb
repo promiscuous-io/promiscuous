@@ -38,22 +38,12 @@ module Promiscuous::Redis
     redis
   end
 
-  def self.new_celluloid_connection
+  def self.new_blocking_connection
+    # Remove the read/select loop in redis, it's weird and unecessary
     new_connection.tap do |redis|
       redis.nodes.each do |node|
         node.client.connection.instance_eval do
           @sock.instance_eval do
-            def is_a?(klass)
-              klass <= ::TCPSocket ? true : super
-            end
-          end
-
-          @sock = Celluloid::IO::TCPSocket.from_ruby_socket(@sock)
-          @sock.instance_eval do
-            extend ::Redis::Connection::SocketMixin
-            @timeout = nil
-            @buffer = ""
-
             def _read_from_socket(nbytes)
               readpartial(nbytes)
             end
@@ -69,7 +59,7 @@ module Promiscuous::Redis
 
   def self.ensure_connected
     Promiscuous::Redis.master.ping
-  rescue
+  rescue Exception
     raise lost_connection_exception
   end
 

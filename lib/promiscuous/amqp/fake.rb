@@ -39,11 +39,8 @@ class Promiscuous::AMQP::Fake
   def open_queue(options={}, &block)
   end
 
-  module CelluloidSubscriber
+  module Subscriber
     def subscribe(options={}, &block)
-    end
-
-    def wait_for_subscription
     end
 
     def recover

@@ -23,14 +23,6 @@ class Promiscuous::Subscriber::Worker::Message
     @dependencies = parsed_payload['dependencies'].try(:symbolize_keys) || {}
     @dependencies[:read]  ||= []
     @dependencies[:write] ||= []
-
-    # --- backward compatiblity code ---
-    # TODO remove code
-    if global = (parsed_payload['version'] || {})['global']
-      @dependencies[:write] << "global:#{global}"
-    end
-    # --- backward compatiblity code ---
-
     @dependencies[:read].map!  { |dep| Promiscuous::Dependency.parse(dep) }
     @dependencies[:write].map! { |dep| Promiscuous::Dependency.parse(dep) }
     @dependencies
@@ -57,12 +49,13 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def ack
-    time = Time.now
-    Celluloid::Actor[:pump].async.notify_processed_message(self, time)
-    Celluloid::Actor[:stats].async.notify_processed_message(self, time)
+    #time = Time.now
+    #Celluloid::Actor[:pump].async.notify_processed_message(self, time)
+    metadata.ack
+    #Celluloid::Actor[:stats].async.notify_processed_message(self, time)
   rescue Exception
     # We don't care if we fail, the message will be redelivered at some point
-    #STDERR.puts "Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
+    # STDERR.puts "Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
   end
 
   def unit_of_work(type, &block)

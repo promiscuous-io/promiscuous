@@ -10,14 +10,15 @@ describe Promiscuous do
     use_fake_backend
     load_models
     run_subscriber_worker!
-    Promiscuous::Config.recovery_timeout = 1.second
-    @pub_worker = Promiscuous::Publisher::Worker.run!
+    Promiscuous::Config.recovery_timeout = 0.1
+    @pub_worker = Promiscuous::Publisher::Worker.new
+    @pub_worker.start
   end
 
   after do
     @operation_klass.__send__(:remove_const, :LOCK_OPTIONS)
     @operation_klass::LOCK_OPTIONS = @old_lock_options
-    @pub_worker.terminate
+    @pub_worker.stop
   end
 
   context 'when the publisher dies right after the locking' do

@@ -13,12 +13,13 @@ class Promiscuous::CLI
         end
       end
 
-      # XXX Not thread safe (msg has some "@xxx ||= xxx" patterns)
-      if blocked_messages = Celluloid::Actor[:message_synchronizer].try(:blocked_messages)
-        print_status  '----[ Pending Dependencies ]----' + '-' * (100-32)
-        blocked_messages.reverse_each { |msg| print_status msg }
+      if @worker && @worker.respond_to?(:message_synchronizer)
+        if blocked_messages = @worker.message_synchronizer.try(:blocked_messages)
+          print_status  '----[ Pending Dependencies ]----' + '-' * (100-32)
+          blocked_messages.reverse_each { |msg| print_status msg }
+        end
+        print_status  '-' * 80
       end
-      print_status  '-' * 80
     end
   end
 
@@ -27,7 +28,8 @@ class Promiscuous::CLI
       Signal.trap(signal) do
         exit 1 if @stop
         print_status "Exiting..."
-        @worker.terminate if @worker.try(:alive?)
+        @worker.try(:stop)
+        @worker = nil
         @stop = true
       end
     end
@@ -53,9 +55,21 @@ class Promiscuous::CLI
   end
 
   def record
-    @worker = Promiscuous::Subscriber::Worker::Recorder.supervise(options[:log_file])
+    @worker = Promiscuous::Subscriber::Worker::Recorder.new(options[:log_file])
+    @worker.start
     print_status "Recording..."
-    sleep 0.2 until !@worker.alive?
+    sleep 0.2 until !@worker
+  end
+
+  def replay_payload(payload)
+    endpoint = MultiJson.load(payload)['__amqp__']
+    if endpoint
+      # TODO confirm
+      Promiscuous::AMQP.publish(:key => endpoint, :payload => payload)
+      @num_msg += 1
+    else
+      puts "[warn] missing destination in #{payload}"
+    end
   end
 
   def replay
@@ -71,37 +85,25 @@ class Promiscuous::CLI
     end
 
     puts "Replayed #{@num_msg} messages"
-
-    # XXX Hack to prevent hanging on disconnect (go figure)
-    Promiscuous.class_eval { def self.disconnect; end }
   end
 
   def subscribe
-    @worker = Promiscuous::Subscriber::Worker.run!
-    Celluloid::Actor[:pump].wait_for_subscription
+    @worker = Promiscuous::Subscriber::Worker.new
+    @worker.start
     print_status "Replicating..."
-    sleep 0.2 until !@worker.alive?
+    sleep 0.2 until !@worker
+  end
+
+  def publisher_recovery
+    @worker = Promiscuous::Publisher::Worker.new
+    @worker.start
+    print_status "Waiting for messages to recover..."
+    sleep 0.2 until !@worker
   end
 
   def generate_mocks
     f = options[:output] ? File.open(options[:output], 'w') : STDOUT
     f.write Promiscuous::Publisher::MockGenerator.generate
-  end
-
-  def replay_payload(payload)
-    endpoint = MultiJson.load(payload)['__amqp__']
-    if endpoint
-      Promiscuous::AMQP.publish(:key => endpoint, :payload => payload)
-      @num_msg += 1
-    else
-      puts "[warn] missing destination in #{payload}"
-    end
-  end
-
-  def publisher_recovery
-    @worker = Promiscuous::Publisher::Worker.run!
-    print_status "Waiting for messages to recover..."
-    sleep 0.2 until !@worker.alive?
   end
 
   def parse_args(args)
@@ -228,6 +230,6 @@ class Promiscuous::CLI
 
   def print_status(msg)
     Promiscuous.info msg
-    $stderr.puts msg
+    STDERR.puts msg
   end
 end

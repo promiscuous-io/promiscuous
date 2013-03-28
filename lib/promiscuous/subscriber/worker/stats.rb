@@ -1,5 +1,6 @@
 class Promiscuous::Subscriber::Worker::Stats
   include Celluloid
+  task_class TaskThread
 
   def initialize
     url = Promiscuous::Config.redis_stats_url

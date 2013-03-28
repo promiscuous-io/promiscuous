@@ -1,68 +1,54 @@
-class Promiscuous::AMQP::HotBunny
+class Promiscuous::AMQP::HotBunny < Promiscuous::AMQP::Bunny
   attr_accessor :connection
 
-  def initialize
+  def initialize_driver
     require 'hot_bunnies'
   end
 
-  def connect
-    @connection = HotBunnies.connect(:uri => Promiscuous::Config.amqp_url,
-                                     :heartbeat_interval => Promiscuous::Config.heartbeat)
+  def new_connection
+    connection = ::HotBunnies.connect(:uri => Promiscuous::Config.amqp_url,
+                                      :heartbeat_interval => Promiscuous::Config.heartbeat,
+                                      :connection_timeout => Promiscuous::Config.socket_timeout)
 
-    @pub_channel = @connection.create_channel
-    @pub_exchange = exchange(@pub_channel, :pub)
+    channel = connection.create_channel
+    [connection, channel]
   end
 
   def disconnect
-    @connection.close
+    @connection_lock.synchronize do
+      return unless connected?
+      @channel.close rescue nil
+      @connection.close rescue nil
+      @connection = @channel = nil
+    end
   end
 
   def connected?
-    @connection.is_open
+    !!@connection.try(:is_open)
   end
 
-  def publish(options={})
-    @master_exchange.publish(options[:payload], :routing_key => options[:key], :persistent => true)
+  def raw_publish(options={})
+    @exchange.publish(options[:payload], :routing_key => options[:key], :persistent => true)
   end
 
-  def exchange(channel, which)
-    exchange_name = which == :pub ? Promiscuous::AMQP::PUB_EXCHANGE :
-                                    Promiscuous::AMQP::SUB_EXCHANGE
-    channel.exchange(exchange_name, :type => :topic, :durable => true)
+  def confirm_select(channel, &callback)
+    channel.add_confirm_listener(&callback)
+    channel.confirm_select
   end
 
-  module CelluloidSubscriber
-    def subscribe(options={}, &block)
-      queue_name    = options[:queue_name]
-      bindings      = options[:bindings]
-      Promiscuous::AMQP.ensure_connected
+  module Subscriber
+    include Promiscuous::AMQP::Bunny::Subscriber
 
-      @channel = Promiscuous::AMQP::backend.connection.create_channel
-      @channel.prefetch = Promiscuous::Config.prefetch
-      exchange = Promiscuous::AMQP::backend.exchange(@channel, :sub)
-      queue = @channel.queue(queue_name, Promiscuous::Config.queue_options)
-      bindings.each do |binding|
-        queue.bind(exchange, :routing_key => binding)
-        Promiscuous.debug "[bind] #{queue_name} -> #{binding}"
-      end
-      @subscription = queue.subscribe(:ack => true, :blocking => false, &block)
-    end
-
-    def wait_for_subscription
-      # Nothing to do, things are synchronous.
+    def subscribe_queue(queue, &block)
+      queue.subscribe(:ack => true, :blocking => false, &block)
     end
 
     def disconnect
-      begin
-        @subscription.cancel
-      rescue
-        sleep 0.1
-        retry
+      @lock.synchronize do
+        @channel = nil
+        @subscription.shutdown! rescue nil
+        @connection.close rescue nil
       end
-      @channel.close
-    end
-
-    def recover
     end
   end
 end

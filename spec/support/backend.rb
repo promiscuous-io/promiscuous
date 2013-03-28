@@ -22,9 +22,9 @@ module BackendHelper
   end
 
   def run_subscriber_worker!
-    @worker.terminate if @worker
-    @worker = Promiscuous::Subscriber::Worker.run!
-    Celluloid::Actor[:pump].wait_for_subscription
+    @worker.stop if @worker
+    @worker = Promiscuous::Subscriber::Worker.new
+    @worker.start
   end
 
   def use_null_backend(options={})
@@ -58,7 +58,7 @@ end
 RSpec.configure do |config|
   config.after do
     if @worker
-      @worker.terminate
+      @worker.stop
       @worker = nil
     end
   end

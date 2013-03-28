@@ -29,7 +29,11 @@ module Promiscuous::Publisher::Model::Base
       msg[:type]      = @instance.class.publish_as # for backward compatibility
       msg[:ancestors] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
       msg[:id]        = @instance.id.to_s
-      msg[:payload]   = self.attributes unless options[:with_attributes] == false
+      if @instance.respond_to?(:promiscuous_payload)
+        msg[:payload] = @instance.promiscuous_payload
+      else
+        msg[:payload] = self.attributes unless options[:with_attributes] == false
+      end
       msg
     end
 

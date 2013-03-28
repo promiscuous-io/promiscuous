@@ -21,11 +21,9 @@ Gem::Specification.new do |s|
   s.add_dependency "bunny",               ">= 0.9.0.pre8"
   s.add_dependency "ruby-progressbar",    "~> 1.0.2"
   s.add_dependency "redis",               "~> 3.0.2"
-  s.add_dependency "celluloid",           "~> 0.13.0"
-  s.add_dependency "celluloid-io",        "~> 0.13.0"
   s.add_dependency "algorithms",          "~> 0.6.1"
   s.add_dependency "fnv",                 "0.2.0"
-  s.add_dependency "multi_json",          "~> 1.0"
+  s.add_dependency "multi_json",          "~> 1.7.2"
 
   s.files        = Dir["lib/**/*"] + Dir["bin/**/*"]
   s.require_path = 'lib'

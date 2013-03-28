@@ -3,7 +3,7 @@ module Promiscuous::Config
                  :redis_url, :redis_urls, :redis_slave_url, :redis_stats_url,
                  :stats_interval, :queue_options, :heartbeat, :bareback,
                  :hash_size, :recovery, :prefetch, :recovery_timeout,
-                 :socket_timeout
+                 :socket_timeout, :subscriber_threads
 
   def self.backend=(value)
     @@backend = value
@@ -33,11 +33,9 @@ module Promiscuous::Config
     self.hash_size        ||= 2**20 # one million keys ~ 200Mb.
     self.recovery         ||= false
     self.prefetch         ||= 1000
-    self.recovery_timeout ||= 10.seconds
+    self.recovery_timeout ||= 10
     self.logger           ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
-
-    Celluloid.exception_handler { |e| Promiscuous::Config.error_notifier.try(:call, e) }
-    Celluloid.logger = Promiscuous::Config.logger
+    self.subscriber_threads ||= 10
   end
 
   def self.configure(&block)

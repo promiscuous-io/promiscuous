@@ -1,12 +1,12 @@
 class Promiscuous::Subscriber::Worker::Recorder
-  include Celluloid
-
   def initialize(log_file)
-    extend Promiscuous::AMQP::CelluloidSubscriber
-    @file = File.open(log_file, 'a')
+    @log_file = log_file
+    extend Promiscuous::AMQP::Subscriber
+  end
 
+  def start
+    @file = File.open(@log_file, 'a')
     options = {}
-    options[:channel_name] = :pump
     options[:queue_name] = "#{Promiscuous::Config.app}.promiscuous"
     # We need to subscribe to everything to keep up with the version tracking
     options[:bindings] = ['*']
@@ -17,8 +17,8 @@ class Promiscuous::Subscriber::Worker::Recorder
     end
   end
 
-  def close_file
+  def stop
+    disconnect
     @file.try(:close)
   end
-  finalizer :close_file
 end

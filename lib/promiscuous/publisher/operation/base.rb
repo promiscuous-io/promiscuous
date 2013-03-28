@@ -72,6 +72,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def self.recover_payloads_for_rabbitmq
+    return unless Promiscuous::Redis.master
     # This method is regularly called from a worker to resend payloads that
     # never got their confirm. We get the oldest queued message, and test if
     # it's old enough to for a republish (default 10 seconds).
@@ -465,6 +466,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def self.recover_locks
+    return unless Promiscuous::Redis.master
     # This method is regularly called from a worker to recover locks by doing a
     # locking/unlocking cycle.
 
