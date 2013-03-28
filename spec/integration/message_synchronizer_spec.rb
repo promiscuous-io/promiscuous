@@ -9,29 +9,31 @@ describe Promiscuous do
     before do
       class Promiscuous::Subscriber::Worker::MessageSynchronizer
         remove_const :CLEANUP_INTERVAL
+        CLEANUP_INTERVAL = 1
         remove_const :QUEUE_MAX_AGE
-        CLEANUP_INTERVAL = 0.1
-        QUEUE_MAX_AGE = 0.1
+        QUEUE_MAX_AGE = 1
       end
     end
 
     after do
       class Promiscuous::Subscriber::Worker::MessageSynchronizer
         remove_const :CLEANUP_INTERVAL
+        CLEANUP_INTERVAL = 100
         remove_const :QUEUE_MAX_AGE
-        CLEANUP_INTERVAL = 1.minute
-        QUEUE_MAX_AGE = 10.minutes
+        QUEUE_MAX_AGE = 100
       end
     end
 
     before { run_subscriber_worker! }
 
     it 'unsubscribe to idle queues' do
-      Promiscuous.context { PublisherModel.create }
+      Promiscuous.context do
+        5.times { PublisherModel.create }
+      end
 
       eventually do
-        SubscriberModel.num_saves.should == 1
-        Celluloid::Actor[:message_synchronizer].subscriptions.should be_blank
+        SubscriberModel.num_saves.should == 5
+        Celluloid::Actor[:message_synchronizer].subscriptions.size.should == 1
       end
     end
   end
