@@ -12,6 +12,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     @root = root
     @node_synchronizers = {}
     @lock = Mutex.new
+    @reconnect_timer = Promiscuous::Timer.new
   end
 
   def connected?
@@ -44,19 +45,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   end
 
   def reconnect
-    return unless @reconnect_timer == Thread.current
-    @reconnect_timer = nil
-
     self.disconnect
     self.connect
-
+    @reconnect_timer.reset
     Promiscuous.warn "[redis] Reconnected"
-  rescue Exception
-    reconnect_later
-  end
-
-  def reconnect_later
-    @reconnect_timer ||= Thread.new { sleep RECONNECT_INTERVAL; reconnect }
   end
 
   def rescue_connection
@@ -66,7 +58,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Promiscuous::Config.error_notifier.try(:call, e)
 
     # TODO stop the pump to unack all messages
-    reconnect_later
+    @reconnect_timer.run_every(RECONNECT_INTERVAL) { reconnect }
   end
 
   # process_when_ready() is called by the AMQP pump. This is what happens:

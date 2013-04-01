@@ -1,9 +1,10 @@
 class Promiscuous::Subscriber::Worker::Message
-  attr_accessor :metadata, :payload, :parsed_payload
+  attr_accessor :payload, :parsed_payload
 
-  def initialize(metadata, payload)
-    self.metadata = metadata
+  def initialize(payload, options={})
     self.payload = payload
+    @metadata = options[:metadata]
+    @root_worker = options[:root_worker]
   end
 
   def parsed_payload
@@ -49,13 +50,13 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def ack
-    #time = Time.now
-    #Celluloid::Actor[:pump].async.notify_processed_message(self, time)
-    metadata.ack
-    #Celluloid::Actor[:stats].async.notify_processed_message(self, time)
-  rescue Exception
+    time = Time.now
+    @metadata.ack
+    @root_worker.stats.notify_processed_message(self, time)
+  rescue Exception => e
     # We don't care if we fail, the message will be redelivered at some point
-    # STDERR.puts "Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
+    Promiscuous.warn "[receive] Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
+    Promiscuous::Config.error_notifier.try(:call, e)
   end
 
   def unit_of_work(type, &block)

@@ -18,7 +18,7 @@ module Promiscuous
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
            :CLI, :Error, :Loader, :AMQP, :Redis, :ZK, :Config, :DSL, :Key,
-           :Convenience, :Dependency, :Middleware
+           :Convenience, :Dependency, :Middleware, :Timer
 
   extend Promiscuous::DSL
 

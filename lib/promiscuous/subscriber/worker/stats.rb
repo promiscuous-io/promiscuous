@@ -1,23 +1,27 @@
 class Promiscuous::Subscriber::Worker::Stats
-  include Celluloid
-  task_class TaskThread
+  def connect
+    @interval = Promiscuous::Config.stats_interval.to_f
+    return if @interval.zero? || @redis
 
-  def initialize
     url = Promiscuous::Config.redis_stats_url
-    @interval = Promiscuous::Config.stats_interval
+    @redis = ::Redis.new(:url => url)
+    key = Promiscuous::Key.new(:sub).join(Socket.gethostname)
+    @key_processed_message = key.join('__stats__', 'processed_messages').to_s
+    @key_total_response_time = key.join('__stats__', 'total_response_time').to_s
 
-    unless @interval.zero?
-      @redis = Promiscuous::Redis.new_connection(url)
-      key = Promiscuous::Key.new(:sub).join(Socket.gethostname)
-      @key_processed_message = key.join('__stats__', 'processed_messages').to_s
-      @key_total_response_time = key.join('__stats__', 'total_response_time').to_s
+    @redis.set(@key_processed_message, 0)
+    @redis.set(@key_total_response_time, 0)
+    @last_aggregate = Time.now
 
-      @redis.set(@key_processed_message, 0)
-      @redis.set(@key_total_response_time, 0)
-      @last_aggregate = Time.now
+    STDERR.puts ""
 
-      after(@interval) { STDERR.puts ""; aggregate_stats }
-    end
+    @timer ||= Promiscuous::Timer.new
+    @timer.run_every(@interval) { aggregate_stats }
+  end
+
+  def disconnect
+    @timer.try(:reset)
+    @redis.client.disconnect rescue nil if @redis
   end
 
   def aggregate_stats
@@ -44,14 +48,7 @@ class Promiscuous::Subscriber::Worker::Stats
       end
     end
     STDERR.puts "\e[1A" + "\b" * 200 + "Messages: #{processed_messages}  Rate: #{rate} msg/s  Latency: #{latency}" + " " * 30
-
-    after(@interval) { aggregate_stats }
   end
-
-  def disconnect
-    @redis.client.disconnect rescue nil if @redis
-  end
-  finalizer :disconnect
 
   def notify_processed_message(msg, time)
     return if msg.timestamp.zero? || !@redis
