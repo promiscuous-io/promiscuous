@@ -27,9 +27,17 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
       @document.to_yaml
     end
 
-    def self.redo_create_operation_from(model, document, instance_version)
-      document = YAML.load(document).merge(VERSION_FIELD => instance_version)
-      without_promiscuous { model.collection.insert(document) }
+    def self.recover_operation(model, instance_id, document)
+      document = YAML.load(document)
+      instance = Mongoid::Factory.from_db(model, document)
+      new(:collection => model.collection, :document => document, :instance => instance)
+    end
+
+    def recover_db_operation
+      without_promiscuous do
+        return if model.unscoped.where(:id => @instance.id).first # already done?
+        @collection.insert(@document)
+      end
     end
 
     def stash_version_in_write_query
@@ -83,6 +91,26 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       @model ||= Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection_name]
     end
 
+    def self.recover_operation(model, instance_id, document)
+      # TODO We need to use the primary database. We cannot read from a
+      # secondary.
+      query = model.unscoped.where(:id => instance_id).query
+      op = new(:query => query, :change => {})
+      # TODO refactor this not so pretty instance_eval
+      op.instance_eval do
+        reload_instance
+        @instance ||= get_selector_instance
+      end
+      op
+    end
+
+    def recover_db_operation
+      # We no-op the update/destroy operation instead of making it idempotent.
+      # The original caller will fail because the lock was unlocked.
+      without_promiscuous { @query.update(@change) }
+      @operation = :dummy
+    end
+
     def fetch_instance
       @raw_instance = @new_raw_instance || without_promiscuous { @query.first }
       Mongoid::Factory.from_db(model, @raw_instance) if @raw_instance
@@ -121,11 +149,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       # dependencies were incorrect, the locks will be released and
       # reacquired appropriately.
       model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, @selector) }
-    end
-
-    def get_original_selector_instance
-      selector = @query.operation.selector["$query"] || @query.operation.selector
-      model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, selector) }
     end
 
     def execute_persistent(&db_operation)
@@ -327,6 +350,13 @@ class Mongoid::Validations::UniquenessValidator
   alias_method :validate_root_without_promisucous, :validate_root
   def validate_root(*args)
     without_promiscuous { validate_root_without_promisucous(*args) }
+  end
+end
+
+class Moped::BSON::ObjectId
+  # No {"$oid": "123"}, it's horrible
+  def to_json(*args)
+    "\"#{to_s}\""
   end
 end
 

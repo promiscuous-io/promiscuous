@@ -179,154 +179,7 @@ class Promiscuous::Publisher::Operation::Base
     @payload = MultiJson.dump(payload)
   end
 
-  def self._recover_operation(lock, model, instance_id, operation,
-                              document, read_dependencies, write_dependencies)
-    instance_version = write_dependencies.first.version
-
-    if model.is_a? Promiscuous::Publisher::Model::Ephemeral
-      operation = :dummy
-    else
-      # TODO Abstract db operations.
-      # We need to query on the root model
-      model = model.collection.name.singularize.camelize.constantize
-      instance_scope = model.unscoped.where(:id => instance_id)
-      # "lt" means less than.
-      atomic_instance_scope = instance_scope.or({VERSION_FIELD.to_sym.lt => instance_version},
-                                                {VERSION_FIELD => nil})
-    end
-
-    # TODO We need to use the primary database. We cannot read from a
-    # secondary.
-
-    case operation
-    when :create
-      instance = instance_scope.first
-      unless instance
-        # We re-execute the original query, and get caught by the index
-        # constrain issue when clashing ids if we are racing.
-        # We don't really care for any exceptions, as long as it's not a
-        # networking issue (TODO).
-        # Note that we are not racing with a delete, because it would have to
-        # recover the create operation first.
-        redo_create_operation_from(model, document, instance_version) #rescue nil
-        instance = instance_scope.first
-      end
-
-      # The query might not go through because the created document was invalid
-      # to begin with.
-      query_was_executed = !!instance
-    when :update
-      instance = instance_scope.where(VERSION_FIELD => instance_version).first
-
-      unless instance
-        # We must make sure to make the original query fail if we are racing with
-        # it so we can send the same payload.
-        atomic_instance_scope.update(VERSION_FIELD => instance_version)
-        instance = instance_scope.where(VERSION_FIELD => instance_version).first
-      end
-
-      query_was_executed = true
-    when :destroy
-      instance = instance_scope.first
-
-      if instance
-        # Instead of redoing a destroy, we just fail the original query if the delete
-        # did not get executed yet.
-        atomic_instance_scope.update(VERSION_FIELD => instance_version)
-        instance = instance_scope.first
-      end
-
-      query_was_executed = !instance
-    end
-
-    # If we've lost the lock, we must abort because query_was_executed might
-    # not be right.
-    return unless lock.still_locked?
-
-    raise "fatal error in recovery (no instance)..." unless instance || operation != :update
-
-    operation = :dummy unless query_was_executed
-    instance ||= model.new.tap { |m| m.id = instance_id }
-
-    # The following bootstrap a new operation to complete the operation.
-    # We don't want to consider this operation as a dependency in our current
-    # context, which is why the recovery context runs as a root context.
-    Promiscuous.context :operation_recovery, :detached_from_parent => true do
-      new(:instance => instance, :operation => operation).instance_eval do
-        @committed_read_deps  = read_dependencies
-        @committed_write_deps = write_dependencies
-
-        record_timestamp
-        generate_payload_and_clear_operations
-        publish_payload_in_redis
-        publish_payload_in_rabbitmq_async
-      end
-    end
-  end
-
-  def self._recover_operation_shards(read_dependencies, write_dependencies)
-    # TODO XXX DRY with increment_read_and_write_dependencies
-    operation_recovery_key = write_dependencies.first
-    pending_deps = (read_dependencies + write_dependencies).select { |dep| dep.version.nil? }
-    return if pending_deps.blank?
-
-    r = pending_deps & read_dependencies
-    w = pending_deps & write_dependencies
-
-    (w+r).group_by(&:redis_node).each do |node, deps|
-      r_deps = deps.select { |dep| dep.in? r }
-      w_deps = deps.select { |dep| dep.in? w }
-
-      argv = []
-      argv << Promiscuous::Key.new(:pub) # key prefixes
-      argv << MultiJson.dump([r_deps, w_deps])
-      argv << operation_recovery_key.as_json
-
-      @@increment_recovery_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
-        local prefix = ARGV[1] .. ':'
-        local deps = cjson.decode(ARGV[2])
-        local read_deps = deps[1]
-        local write_deps = deps[2]
-        local operation_recovery_key = prefix .. ARGV[3] .. ':operation_recovery'
-
-        local read_versions = {}
-        local write_versions = {}
-
-        if redis.call('exists', operation_recovery_key) == 1 then
-          for i, dep in ipairs(read_deps) do
-            local key = prefix .. dep
-            read_versions[i] = redis.call('get', key .. ':w')
-          end
-          for i, dep in ipairs(write_deps) do
-            local key = prefix .. dep
-            write_versions[i] = redis.call('get', key .. ':w')
-          end
-        else
-          for i, dep in ipairs(read_deps) do
-            local key = prefix .. dep
-            redis.call('incr', key .. ':rw')
-            read_versions[i] = redis.call('get', key .. ':w')
-            redis.call('hset', operation_recovery_key, dep, read_versions[i])
-          end
-
-          for i, dep in ipairs(write_deps) do
-            local key = prefix .. dep
-            write_versions[i] = redis.call('incr', key .. ':rw')
-            redis.call('set', key .. ':w', write_versions[i])
-            redis.call('hset', operation_recovery_key, dep, write_versions[i])
-          end
-        end
-
-        return { read_versions, write_versions }
-      SCRIPT
-      read_versions, write_versions = @@increment_recovery_script.eval(node, :argv => argv)
-
-      r_deps.zip(read_versions).each  { |dep, version| dep.version = version.to_i }
-      w_deps.zip(write_versions).each { |dep, version| dep.version = version.to_i }
-    end
-  end
-
-  def self.recover_operation(lock)
+  def self.recover_operation_from_lock(lock)
     # We happen to have acquired a never released lock.
     # The database instance is thus still prestine.
     # Three cases to consider:
@@ -347,25 +200,36 @@ class Promiscuous::Publisher::Operation::Base
     read_dependencies.map!  { |k| Promiscuous::Dependency.parse(k.to_s) }
     write_dependencies.map! { |k| Promiscuous::Dependency.parse(k.to_s) }
 
-    (write_dependencies + read_dependencies).map(&:redis_node).uniq.each do |node|
-      next if node == master_node # we already have its recovery data
-      recovery_data.merge(node.hgetall("#{lock.key}:operation_recovery"))
+    model = Promiscuous::Publisher::Model.publishers[collection]
+
+    if model.is_a? Promiscuous::Publisher::Model::Ephemeral
+      operation = :dummy
+    else
+      # TODO Abstract db operations.
+      # We need to query on the root model
+      model = model.collection.name.singularize.camelize.constantize
     end
 
-    read_dependencies.each  { |dep| dep.version = recovery_data[dep.to_s].try(:to_i) }
-    write_dependencies.each { |dep| dep.version = recovery_data[dep.to_s].try(:to_i) }
-
-    model = Promiscuous::Publisher::Model.publishers[collection]
     op_klass = model.get_operation_class_for(operation)
-    op_klass._recover_operation_shards(read_dependencies, write_dependencies)
-    op_klass._recover_operation(lock, model, instance_id, operation, document,
-                                read_dependencies, write_dependencies)
+    op = op_klass.recover_operation(model, instance_id, document)
+    op.operation = operation
+
+    Promiscuous.context :operation_recovery, :detached_from_parent => true do
+      op.instance_eval do
+        @read_dependencies  = read_dependencies
+        @write_dependencies = write_dependencies
+        @locks = [lock]
+        execute_persistent_locked { recover_db_operation }
+      end
+    end
+
+    lock.unlock
   rescue Exception => e
     message = "cannot recover #{lock.key} -> #{recovery_data}"
     raise Promiscuous::Error::Recovery.new(message, e)
   end
 
-  def increment_read_and_write_dependencies
+  def increment_read_and_write_dependencies(read_dependencies, write_dependencies)
     # We collapse all operations, ignoring the read/write interleaving.
     # It doesn't matter since all write operations are serialized, so the first
     # write in the transaction can have all the read dependencies.
@@ -477,7 +341,7 @@ class Promiscuous::Publisher::Operation::Base
 
         mutex = Promiscuous::Redis::Mutex.new(key, lock_options.merge(:node => node))
         case mutex.lock
-        when :recovered then recover_operation(mutex)
+        when :recovered then recover_operation_from_lock(mutex)
         when true       then mutex.unlock
         when false      then ;
         end
@@ -593,31 +457,7 @@ class Promiscuous::Publisher::Operation::Base
     @exception = e
   end
 
-  def execute_non_persistent(&db_operation)
-    # We are getting here in the following cases:
-    # * read: we fetch the instance. It's the driver's job to cache the
-    #       raw instance and return it during db_operation.
-    # * multi read: nothing to do, we'll keep our current selector, sadly
-    # * write in a transaction: TODO
-
-    if single?
-      # If the query misses, we don't bother
-      return nil unless reload_instance
-      use_id_selector
-    end
-
-    # We don't do any reload_instance_dependencies at this point (and thus we
-    # won't raise an exception on a multi read that we cannot track).
-    # We'll wait until the commit, and hopefully with tainting, we'll be able to
-    # tell if we should depend the multi read operation in question.
-    perform_db_operation_with_no_exceptions(&db_operation)
-    # If the db_operation raises, we don't consider this failed operation when
-    # committing the next persistent write by omitting the operation in the
-    # context.
-    current_context.add_operation(self) unless failed?
-  end
-
-  def execute_persistent(&db_operation)
+  def lock_instance_for_execute_persistent
     current_context.add_operation(self)
 
     # Note: At first, @instance can be a representation of a selector, to
@@ -636,8 +476,9 @@ class Promiscuous::Publisher::Operation::Base
         # When recovering locks, if we fail, we must not release the lock again
         # to allow another one to do the recovery.
         auto_unlock = false
-        @recovered_locks.each { |lock| self.class.recover_operation(lock) }
+        @recovered_locks.each { |lock| self.class.recover_operation_from_lock(lock) }
         auto_unlock = true
+        raise TryAgain
       end
 
       if operation != :create
@@ -652,18 +493,18 @@ class Promiscuous::Publisher::Operation::Base
         # raises an exception, it's okay to let it bubble up since we haven't
         # touch anything yet except for the locks (which will be unlocked on
         # the way out)
-        return nil unless reload_instance
+        return false unless reload_instance
 
         # If reload_instance changed the current instance because the selector,
         # we need to unlock the old instance, lock this new instance, and
         # retry. XXX What should we do if we are going in a live lock?
         # Sleep with some jitter?
         if reload_instance_dependencies
-          unlock_write_dependencies
           raise TryAgain
         end
       end
     rescue TryAgain
+      unlock_write_dependencies if auto_unlock
       retry
     end
 
@@ -674,12 +515,21 @@ class Promiscuous::Publisher::Operation::Base
       raise "We don't support auto generated id yet"
     end
 
-    # We are in. We are going to commit all the pending writes in the context
-    # if we are doing a transaction commit. We also commit the current write
-    # operation for atomic writes without transactions.
-    # We enable the recovery mechanism by having someone expiring our lock
-    # if we die in the middle.
+    # We are now in the possession of an instance that matches the original
+    # selector, we can proceed.
     auto_unlock = false
+    true
+  ensure
+    # In case of an exception was raised before we updated the version in
+    # redis, we can unlock because we don't need recovery.
+    unlock_write_dependencies if auto_unlock
+  end
+
+  def execute_persistent_locked(&db_operation)
+    # We are going to commit all the pending writes in the context if we are
+    # doing a transaction commit. We also commit the current write operation for
+    # atomic writes without transactions.  We enable the recovery mechanism by
+    # having someone expiring our lock if we die in the middle.
 
     # All the versions are updated and a marked as pending for publish in Redis
     # atomically in case we die before we could write the versions in the
@@ -688,7 +538,7 @@ class Promiscuous::Publisher::Operation::Base
     # old instance. This is a race that we tolerate.
     # XXX We also stash the document for create operations, so the recovery can
     # redo the create to avoid races when instances are getting partitioned.
-    increment_read_and_write_dependencies
+    increment_read_and_write_dependencies(read_dependencies, write_dependencies)
 
     # From this point, if we die, the one expiring our write locks must finish
     # the publish, either by sending a dummy, or by sending the real instance.
@@ -766,13 +616,38 @@ class Promiscuous::Publisher::Operation::Base
     # We don't care if we lost the lock and got recovered, subscribers are
     # immune to duplicate messages.
     publish_payload_in_rabbitmq_async
-  ensure
-    # In case of an exception was raised before we updated the version in
-    # redis, we can unlock because we don't need recovery.
-    unlock_write_dependencies if auto_unlock
   end
 
-  # --- the following methods can be overridden by the driver to improve performance --- #
+  # --- the following methods can be overridden by the driver  --- #
+
+  def execute_persistent(&db_operation)
+    return nil unless lock_instance_for_execute_persistent
+    execute_persistent_locked(&db_operation)
+  end
+
+  def execute_non_persistent(&db_operation)
+    # We are getting here in the following cases:
+    # * read: we fetch the instance. It's the driver's job to cache the
+    #       raw instance and return it during db_operation.
+    # * multi read: nothing to do, we'll keep our current selector, sadly
+    # * write in a transaction: TODO
+
+    if single?
+      # If the query misses, we don't bother
+      return nil unless reload_instance
+      use_id_selector
+    end
+
+    # We don't do any reload_instance_dependencies at this point (and thus we
+    # won't raise an exception on a multi read that we cannot track).
+    # We'll wait until the commit, and hopefully with tainting, we'll be able to
+    # tell if we should depend the multi read operation in question.
+    perform_db_operation_with_no_exceptions(&db_operation)
+    # If the db_operation raises, we don't consider this failed operation when
+    # committing the next persistent write by omitting the operation in the
+    # context.
+    current_context.add_operation(self) unless failed?
+  end
 
   def execute(&db_operation)
     # execute returns the result of the db_operation to perform
@@ -799,6 +674,17 @@ class Promiscuous::Publisher::Operation::Base
   def serialize_document_for_create_recovery
     # Overridden to be able to redo the create during recovery.
     nil
+  end
+
+  def self.recover_operation(model, instance_id, document)
+    # Overriden to reconstruct the operation. If the database is read, only the
+    # primary must be used.
+    new(:instance => model.new { |instance| instance.id = instance_id })
+  end
+
+  def recover_db_operation
+    # Overriden to reexecute the db operation during recovery (or make sure that
+    # it will never succeed).
   end
 
   def use_id_selector(options={})

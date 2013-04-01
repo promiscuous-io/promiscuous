@@ -65,7 +65,8 @@ describe Promiscuous do
       dep['write'].should == hashed["publisher_models/id/#{pub.id}:2",
                                     "publisher_models/field_2/hello:2"]
       payload['id'].should == pub.id.to_s
-      payload['operation'].should == 'update'
+      payload['operation'].should == 'dummy'
+      payload['payload'].should == nil
     end
   end
 
@@ -92,7 +93,8 @@ describe Promiscuous do
       dep['write'].should == hashed["publisher_models/id/#{pub.id}:2",
                                     "publisher_models/field_2/hello:2"]
       payload['id'].should == pub.id.to_s
-      payload['operation'].should == 'update'
+      payload['operation'].should == 'dummy'
+      payload['payload'].should == nil
     end
   end
 
@@ -134,8 +136,8 @@ describe Promiscuous do
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         payload['id'].should == pub.id.to_s
-        payload['operation'].should == 'update'
-        payload['payload']['field_1'].should == '1'
+        payload['operation'].should == 'dummy'
+        payload['payload'].should == nil
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -181,11 +183,13 @@ describe Promiscuous do
     context 'when doing a create' do
       it 'recovers' do
         operation_klass = PublisherModel.get_operation_class_for(:create)
-        operation_klass.any_instance.stubs(:going_to_execute_db_operation).with() { sleep 2 }
+        operation_klass.any_instance.stubs(:going_to_execute_db_operation).with() do
+          operation_klass.any_instance.unstub(:going_to_execute_db_operation)
+          sleep 2
+        end
         expect do
           Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         end.to raise_error(Promiscuous::Error::LostLock)
-        operation_klass.any_instance.unstub(:going_to_execute_db_operation)
 
         pub = PublisherModel.first
         pub.field_1.should == '1'
@@ -216,11 +220,13 @@ describe Promiscuous do
         Promiscuous::AMQP::Fake.get_next_message
 
         operation_klass = PublisherModel.get_operation_class_for(:update)
-        operation_klass.any_instance.stubs(:going_to_execute_db_operation).with() { sleep 2 }
+        operation_klass.any_instance.stubs(:going_to_execute_db_operation).with() do
+          operation_klass.any_instance.unstub(:going_to_execute_db_operation)
+          sleep 2
+        end
         expect do
           Promiscuous.context { pub.update_attributes(:field_1 => '2') }
         end.to raise_error(Promiscuous::Error::LostLock)
-        operation_klass.any_instance.unstub(:going_to_execute_db_operation)
 
         Promiscuous.context { pub.update_attributes(:field_1 => '3') }
 
@@ -229,8 +235,8 @@ describe Promiscuous do
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         payload['id'].should == pub.id.to_s
-        payload['operation'].should == 'update'
-        payload['payload']['field_1'].should == '1'
+        payload['operation'].should == 'dummy'
+        payload['payload'].should == nil
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -248,11 +254,13 @@ describe Promiscuous do
         Promiscuous::AMQP::Fake.get_next_message
 
         operation_klass = PublisherModel.get_operation_class_for(:destroy)
-        operation_klass.any_instance.stubs(:going_to_execute_db_operation).with() { sleep 2 }
+        operation_klass.any_instance.stubs(:going_to_execute_db_operation).with() do
+          operation_klass.any_instance.unstub(:going_to_execute_db_operation)
+          sleep 2
+        end
         expect do
           Promiscuous.context { pub.destroy }
         end.to raise_error(Promiscuous::Error::LostLock)
-        operation_klass.any_instance.unstub(:going_to_execute_db_operation)
 
         Promiscuous.context { pub.update_attributes(:field_1 => '3') }
 
@@ -319,8 +327,8 @@ describe Promiscuous do
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         payload['id'].should == pub.id.to_s
-        payload['operation'].should == 'update'
-        payload['payload']['field_1'].should == '2'
+        payload['operation'].should == 'dummy'
+        payload['payload'].should == nil
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -348,7 +356,7 @@ describe Promiscuous do
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         payload['id'].should == pub.id.to_s
-        payload['operation'].should == 'destroy'
+        payload['operation'].should == 'dummy'
         payload['payload'].should == nil
       end
     end

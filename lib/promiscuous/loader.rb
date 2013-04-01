@@ -6,6 +6,9 @@ module Promiscuous::Loader
       file = defined?(Rails) ?  Rails.root.join(file_name) : File.join('.', file_name)
       load file if File.exists?(file)
     end
+
+    # A one shot recovery on boot
+    Promiscuous::Publisher::Worker.new.try_recover
   end
 
   def self.cleanup

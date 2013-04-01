@@ -16,19 +16,19 @@ if ORM.has(:mongoid)
 
     context 'when doing a blank update' do
       it 'passes through' do
-        pub1 = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         eventually { SubscriberModel.first.should_not == nil }
         Mongoid.purge!
-        expect { Promiscuous.context { pub1.update_attributes(:field_1 => '2') } }.to_not raise_error
+        expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to_not raise_error
       end
     end
 
     context 'when doing a blank destroy' do
       it 'passes through' do
-        pub1 = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         eventually { SubscriberModel.first.should_not == nil }
         Mongoid.purge!
-        expect { Promiscuous.context { pub1.destroy } }.to_not raise_error
+        expect { Promiscuous.context { pub.destroy } }.to_not raise_error
       end
     end
 

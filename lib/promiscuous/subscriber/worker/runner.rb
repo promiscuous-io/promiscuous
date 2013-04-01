@@ -13,6 +13,7 @@ class Promiscuous::Subscriber::Worker::Runner
   end
 
   def stop
+    return unless @threads
     @threads.zip(@locks).each { |thread, lock| lock.synchronize { thread.kill } }
     @threads = @locks = nil
     @messages_to_process.clear
