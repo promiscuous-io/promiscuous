@@ -4,10 +4,13 @@ gemspec
 gem 'rake'
 gem 'rspec'
 gem 'mocha', :require => false
-gem 'pry'
 
 gem 'mongoid', '~> 3.0.0'
 
 platforms :jruby do
   gem 'hot_bunnies'
+end
+
+group :development do
+  gem 'pry'
 end

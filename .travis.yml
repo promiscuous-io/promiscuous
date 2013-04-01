@@ -1,13 +1,22 @@
 language: ruby
+bundler_args: --without development
 script: bundle exec rspec spec
+env: JRUBY_OPTS="--server -Xcompile.invokedynamic=false -J-XX:+TieredCompilation -J-XX:TieredStopAtLevel=1 -J-noverify -J-Xms512m -J-Xmx1024m" TIMEOUT=10
 rvm:
+  - ruby-1.9.3
   - ruby-head
+  - jruby-head
 gemfile:
   - gemfiles/mongoid3.gemfile
-  - gemfiles/active_record.gemfile
+  # - gemfiles/active_record.gemfile
 services:
   - mongodb
   - rabbitmq
   - redis-server
-before_script:
-  - psql -c 'create database promiscuous;' -U postgres
+matrix:
+  include:
+    - rvm: jruby-head
+      jdk: oraclejdk7
+      gemfile: gemfiles/mongoid3.gemfile
+# before_script:
+  # - psql -c 'create database promiscuous;' -U postgres
