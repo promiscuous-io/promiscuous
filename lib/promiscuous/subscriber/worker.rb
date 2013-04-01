@@ -20,8 +20,8 @@ class Promiscuous::Subscriber::Worker
 
   def stop
     @stats.disconnect
+    @runner.stop
     @pump.disconnect
     @message_synchronizer.disconnect
-    @runner.stop
   end
 end

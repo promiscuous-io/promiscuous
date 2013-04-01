@@ -3,7 +3,7 @@ module BackendHelper
   HASH_SIZE = 2**30
 
   def use_real_backend(options={})
-    real_backend = RUBY_PLATFORM == 'java' ? :hot_bunny : :bunny
+    real_backend = RUBY_PLATFORM == 'java' ? :hot_bunnies : :bunny
     if Promiscuous::Config.backend != real_backend
       Promiscuous.configure do |config|
         config.reset

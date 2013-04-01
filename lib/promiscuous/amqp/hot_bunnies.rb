@@ -1,9 +1,11 @@
-class Promiscuous::AMQP::HotBunny < Promiscuous::AMQP::Bunny
+class Promiscuous::AMQP::HotBunnies < Promiscuous::AMQP::Bunny
   attr_accessor :connection
 
   def initialize_driver
     require 'hot_bunnies'
   end
+
+  # TODO auto reconnect
 
   def new_connection
     connection = ::HotBunnies.connect(:uri => Promiscuous::Config.amqp_url,

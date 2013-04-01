@@ -1,6 +1,6 @@
 module Promiscuous::AMQP
   extend Promiscuous::Autoload
-  autoload :HotBunny, :Bunny, :Null, :Fake
+  autoload :HotBunnies, :Bunny, :Null, :Fake
 
   PUB_EXCHANGE = ENV['PUB_EXCHANGE'] || 'promiscuous'
   SUB_EXCHANGE = ENV['SUB_EXCHANGE'] || 'promiscuous'

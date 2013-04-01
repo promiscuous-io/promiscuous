@@ -15,6 +15,19 @@ module Promiscuous::Config
     class_variables.each { |var| class_variable_set(var, nil) }
   end
 
+  def self.best_amqp_backend
+    if RUBY_PLATFORM == 'java'
+      begin
+        require 'hot_bunnies'
+        :hot_bunnies
+      rescue LoadError
+        :bunny
+      end
+    else
+      :bunny
+    end
+  end
+
   def self._configure(&block)
     block.call(self) if block
 
@@ -26,7 +39,7 @@ module Promiscuous::Config
     self.redis_stats_url  ||= self.redis_urls.first
     self.stats_interval   ||= 0
     self.socket_timeout   ||= 10
-    self.backend          ||= RUBY_PLATFORM == 'java' ? :hot_bunny : :bunny
+    self.backend          ||= best_amqp_backend
     self.queue_options    ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.heartbeat        ||= 60
     self.bareback         ||= false
