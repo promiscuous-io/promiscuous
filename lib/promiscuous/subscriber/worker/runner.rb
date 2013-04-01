@@ -7,18 +7,21 @@ class Promiscuous::Subscriber::Worker::Runner
   end
 
   def start
-    @threads ||= Promiscuous::Config.subscriber_threads.times.map { Thread.new { main_loop } }
+    num_threads = Promiscuous::Config.subscriber_threads
+    @locks   ||= num_threads.times.map { Mutex.new }
+    @threads ||= num_threads.times.map { |i| Thread.new { main_loop(@locks[i]) } }
   end
 
   def stop
-    @threads.each(&:kill) # TODO Graceful stop
-    @threads = nil
+    @threads.zip(@locks).each { |thread, lock| lock.synchronize { thread.kill } }
+    @threads = @locks = nil
+    @messages_to_process.clear
   end
 
-  def main_loop
+  def main_loop(lock)
     loop do
       msg = @messages_to_process.pop
-      msg.process
+      lock.synchronize { msg.process }
     end
   end
 end

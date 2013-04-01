@@ -195,7 +195,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     def stop_main_loop
       @stop = true
-      @thread.kill # TODO Graceful exit
+      @thread.kill
     end
 
     def on_version(subscriber_redis, get_redis, key, version, message, &callback)
