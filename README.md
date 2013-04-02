@@ -4,6 +4,7 @@
   </a>
 </p>
 
+[![Gem Version](https://badge.fury.io/rb/promiscuous.png)](http://rubygems.org/gems/promiscuous)
 [![Build Status](https://travis-ci.org/crowdtap/promiscuous.png)](https://travis-ci.org/crowdtap/promiscuous)
 [![Dependency Status](https://gemnasium.com/crowdtap/promiscuous.png)](https://gemnasium.com/crowdtap/promiscuous)
 [![Coverage Status](https://coveralls.io/repos/crowdtap/promiscuous/badge.png)](https://coveralls.io/r/crowdtap/promiscuous)
