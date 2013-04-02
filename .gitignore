@@ -2,3 +2,6 @@ Gemfile.lock
 gemfiles/*.lock
 *swp
 tags
+debug.rb
+coverage
+.coveralls.yml

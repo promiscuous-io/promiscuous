@@ -4,7 +4,9 @@
   </a>
 </p>
 
-[![Build Status](https://travis-ci.org/crowdtap/promiscuous.png?branch=travis)](https://travis-ci.org/crowdtap/promiscuous)
+[![Build Status](https://travis-ci.org/crowdtap/promiscuous.png)](https://travis-ci.org/crowdtap/promiscuous)
+[![Dependency Status](https://gemnasium.com/crowdtap/promiscuous.png)](https://gemnasium.com/crowdtap/promiscuous)
+[![Coverage Status](https://coveralls.io/repos/crowdtap/promiscuous/badge.png)](https://coveralls.io/r/crowdtap/promiscuous)
 
 Introduction
 ------------

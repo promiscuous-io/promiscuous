@@ -4,6 +4,8 @@ gemspec
 gem 'rake'
 gem 'rspec'
 gem 'mocha', :require => false
+gem 'simplecov', :require => false
+gem 'coveralls', :require => false
 
 gem 'mongoid', '~> 3.0.0'
 

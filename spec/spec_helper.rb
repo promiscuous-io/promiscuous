@@ -1,3 +1,4 @@
+load './spec/support/_coverage.rb'
 require 'rubygems'
 require 'bundler'
 Bundler.require
