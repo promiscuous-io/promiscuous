@@ -127,10 +127,5 @@ module Promiscuous::Publisher::Model::Base
       subclass.tracked_attrs   = self.tracked_attrs.dup
       # no copy for published_db_fields
     end
-
-    class None; end
-    def promiscuous_missing_record_exception
-      None
-    end
   end
 end

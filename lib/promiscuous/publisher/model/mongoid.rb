@@ -78,9 +78,5 @@ module Promiscuous::Publisher::Model::Mongoid
         Moped::PromiscuousQueryWrapper::PromiscuousQueryOperation
       end
     end
-
-    def promiscuous_missing_record_exception
-      Mongoid::Errors::DocumentNotFound
-    end
   end
 end
