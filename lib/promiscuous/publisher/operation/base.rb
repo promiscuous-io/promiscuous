@@ -189,7 +189,11 @@ class Promiscuous::Publisher::Operation::Base
 
     master_node = lock.node
     recovery_data = master_node.hgetall("#{lock.key}:operation_recovery")
-    return nil unless recovery_data.present? # case 1)
+
+    unless recovery_data.present? # case 1)
+      lock.unlock
+      return nil
+    end
 
     Promiscuous.info "[operation recovery] #{lock.key} -> #{recovery_data}"
 
