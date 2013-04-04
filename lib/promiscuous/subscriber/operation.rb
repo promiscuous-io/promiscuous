@@ -9,30 +9,21 @@ class Promiscuous::Subscriber::Operation
 
   # XXX TODO Code is not tolerent to losing a lock.
 
-  def update_dependencies_single(node_with_deps)
-    master_node = node_with_deps[0]
-    deps = node_with_deps[1]
+  INCREMENT_DEPENDENCY_SCRIPT = Promiscuous::Redis::Script.new <<-SCRIPT
+    for i, key in ipairs(KEYS) do
+      local v = redis.call('incr', key .. ':rw')
+      redis.call('publish', key .. ':rw', v)
+    end
+  SCRIPT
 
-    @@update_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
-      for i, key in ipairs(KEYS) do
-        local v = redis.call('incr', key .. ':rw')
-        redis.call('publish', key .. ':rw', v)
-      end
-    SCRIPT
+  def update_dependencies_master
+    master_node = master_node_with_deps[0]
+    deps = master_node_with_deps[1]
     keys = deps.map { |dep| dep.key(:sub).to_s }
-    @@update_script.eval(master_node, :keys => keys)
+    INCREMENT_DEPENDENCY_SCRIPT.eval(master_node, :keys => keys)
   end
 
-  def update_dependencies_multi(nodes_with_deps, options={})
-    # With multi nodes, we have to do a 2pc for the lock recovery mechanism:
-    # 1) We do the secondaries first, with a recovery payload.
-    # 2) Then we do the master.
-    # 3) Then we cleanup the secondaries.
-    # We use a recovery_key unique to the operation to avoid any trouble of
-    # touching another operation.
-    secondary_nodes_with_deps = nodes_with_deps[1..-1]
-    recovery_key = @instance_dep.key(:sub).join(@instance_dep.version).to_s
-
+  def update_dependencies_secondaries
     secondary_nodes_with_deps.each do |node, deps|
       @@update_script_secondary ||= Promiscuous::Redis::Script.new <<-SCRIPT
         local recovery_key = ARGV[1]
@@ -41,10 +32,7 @@ class Promiscuous::Subscriber::Operation
           return
         end
 
-        for i, key in ipairs(KEYS) do
-          local v = redis.call('incr', key .. ':rw')
-          redis.call('publish', key .. ':rw', v)
-        end
+        #{INCREMENT_DEPENDENCY_SCRIPT}
 
         redis.call('set', recovery_key, 'done')
       SCRIPT
@@ -52,9 +40,9 @@ class Promiscuous::Subscriber::Operation
       @@update_script_secondary.eval(node, :keys => keys, :argv => [recovery_key])
       after_secondary_update_hook
     end
+  end
 
-    update_dependencies_single(nodes_with_deps.first) unless options[:skip_master]
-
+  def cleanup_dependency_secondaries
     secondary_nodes_with_deps.each do |node, deps|
       node.del(recovery_key)
     end
@@ -62,29 +50,53 @@ class Promiscuous::Subscriber::Operation
 
   def after_secondary_update_hook; end # for tests
 
-  def update_dependencies
-    nodes_with_deps.size == 1 ? update_dependencies_single(nodes_with_deps.first) :
-                                update_dependencies_multi(nodes_with_deps)
+  def update_dependencies(multi_options={})
+    # With multi nodes, we have to do a 2pc for the lock recovery mechanism:
+    # 1) We do the secondaries first, with a recovery payload.
+    # 2) Then we do the master.
+    # 3) Then we cleanup the secondaries.
+    # We use a recovery_key unique to the operation to avoid any trouble of
+    # touching another operation.
+    update_dependencies_secondaries
+    update_dependencies_master
+    cleanup_dependency_secondaries
   end
 
   def verify_dependencies
-    key = @instance_dep.key(:sub).join('rw').to_s
+    key = instance_dep.key(:sub).join('rw').to_s
 
-    if @instance_dep.redis_node.get(key).to_i + 1 > @instance_dep.version
-      if nodes_with_deps.size != 1
-        update_dependencies_multi(nodes_with_deps, :skip_master => true)
-      end
+    #TODO: Send all write dependencies. Redis does max on each dependency.
+    # Return array of whether or not each dependency was already seen
+    if instance_dep.redis_node.get(key).to_i + 1 > instance_dep.version
+      #TODO: Test
+      cleanup_dependency_secondaries
 
       raise Promiscuous::Error::AlreadyProcessed
     end
+  end
+
+  def dependencies
+    @dependencies ||= message.dependencies[:write] + message.dependencies[:read]
   end
 
   def nodes_with_deps
     @nodes_with_deps ||= dependencies.group_by(&:redis_node).to_a
   end
 
-  def dependencies
-    @dependencies ||= message.dependencies[:write] + message.dependencies[:read]
+  def master_node_with_deps
+    nodes_with_deps.first
+  end
+
+  def secondary_nodes_with_deps
+    @secondary_nodes_with_deps ||= nodes_with_deps[1..-1]
+  end
+
+  def instance_dep
+    @instance_dep ||= dependencies.first
+  end
+
+  def recovery_key
+    @recovery_key ||= instance_dep.key(:sub).join(instance_dep.version).to_s
   end
 
   LOCK_OPTIONS = { :timeout => 1.5.minute, # after 1.5 minute , we give up
@@ -94,9 +106,8 @@ class Promiscuous::Subscriber::Operation
   def with_instance_dependencies
     return yield unless message && message.has_dependencies?
 
-    @instance_dep = message.dependencies[:write].first
-    lock_options = LOCK_OPTIONS.merge(:node => @instance_dep.redis_node)
-    mutex = Promiscuous::Redis::Mutex.new(@instance_dep.key(:sub).to_s, lock_options)
+    lock_options = LOCK_OPTIONS.merge(:node => instance_dep.redis_node)
+    mutex = Promiscuous::Redis::Mutex.new(instance_dep.key(:sub).to_s, lock_options)
 
     unless mutex.lock
       raise Promiscuous::Error::LockUnavailable.new(mutex.key)

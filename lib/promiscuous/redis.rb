@@ -78,6 +78,10 @@ module Promiscuous::Redis
       end
       raise e
     end
+
+    def to_s
+      @script
+    end
   end
 
   class Mutex
