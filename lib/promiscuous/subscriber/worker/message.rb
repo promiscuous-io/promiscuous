@@ -20,29 +20,38 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def dependencies
-    return @dependencies if @dependencies
-    @dependencies = parsed_payload['dependencies'].try(:symbolize_keys) || {}
-    @dependencies[:read]  ||= []
-    @dependencies[:write] ||= []
-    @dependencies[:read].map!  { |dep| Promiscuous::Dependency.parse(dep) }
-    @dependencies[:write].map! { |dep| Promiscuous::Dependency.parse(dep) }
-    @dependencies
+    @dependencies ||= begin
+      dependencies = parsed_payload['dependencies'].try(:symbolize_keys) || {}
+      dependencies[:read] ||= []
+      dependencies[:write] ||= []
+      dependencies[:read].map!  { |dep| Promiscuous::Dependency.parse(dep, :type => :read) }
+      dependencies[:write].map! { |dep| Promiscuous::Dependency.parse(dep, :type => :write) }
+      dependencies[:read] + dependencies[:write]
+    end
+  end
+
+  def write_dependencies
+    dependencies.select(&:write?)
+  end
+
+  def read_dependencies
+    dependencies.select(&:read?)
   end
 
   def happens_before_dependencies
-    return @happens_before_dependencies if @happens_before_dependencies
+    @happens_before_dependencies ||= begin
+      deps = []
+      deps += read_dependencies
+      deps += write_dependencies.map { |dep| dep.dup.tap { |d| d.version -= 1 } }
 
-    deps = []
-    deps += dependencies[:read]
-    deps += dependencies[:write].map { |dep| dep.dup.tap { |d| d.version -= 1 } }
-
-    # We return the most difficult condition to satisfy first
-    @happens_before_dependencies = deps.uniq.reverse
+      # We return the most difficult condition to satisfy first
+      deps.uniq.reverse
+    end
   end
 
   def has_dependencies?
     return false if Promiscuous::Config.bareback
-    dependencies[:read].present? || dependencies[:write].present?
+    dependencies.present?
   end
 
   def to_s

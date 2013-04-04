@@ -2,6 +2,7 @@ class Promiscuous::Subscriber::Operation
   attr_accessor :payload
 
   delegate :model, :id, :operation, :message, :to => :payload
+  delegate :write_dependencies, :read_dependencies, :dependencies, :to => :message
 
   def initialize(payload)
     self.payload = payload
@@ -73,10 +74,7 @@ class Promiscuous::Subscriber::Operation
 
       raise Promiscuous::Error::AlreadyProcessed
     end
-  end
 
-  def dependencies
-    @dependencies ||= message.dependencies[:write] + message.dependencies[:read]
   end
 
   def nodes_with_deps
@@ -92,7 +90,7 @@ class Promiscuous::Subscriber::Operation
   end
 
   def instance_dep
-    @instance_dep ||= dependencies.first
+    @instance_dep ||= write_dependencies.first
   end
 
   def recovery_key

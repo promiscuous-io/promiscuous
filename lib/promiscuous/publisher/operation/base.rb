@@ -201,8 +201,8 @@ class Promiscuous::Publisher::Operation::Base
       document, read_dependencies, write_dependencies = *MultiJson.load(recovery_data['payload'])
 
     operation = operation.to_sym
-    read_dependencies.map!  { |k| Promiscuous::Dependency.parse(k.to_s) }
-    write_dependencies.map! { |k| Promiscuous::Dependency.parse(k.to_s) }
+    read_dependencies.map!  { |k| Promiscuous::Dependency.parse(k.to_s, :type => :read) }
+    write_dependencies.map! { |k| Promiscuous::Dependency.parse(k.to_s, :type => :write) }
 
     model = Promiscuous::Publisher::Model.publishers[collection]
 

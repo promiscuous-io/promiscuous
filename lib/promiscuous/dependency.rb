@@ -1,9 +1,12 @@
 require 'fnv'
 
 class Promiscuous::Dependency
-  attr_accessor :internal_key, :version
+  attr_accessor :internal_key, :version, :type
 
   def initialize(*args)
+    options = args.extract_options!
+    @type = options[:type]
+
     @internal_key = args.join('/')
 
     if @internal_key =~ /^[0-9]+$/
@@ -22,6 +25,16 @@ class Promiscuous::Dependency
     end
   end
 
+  def read?
+    raise "Type not set" unless @type
+    @type == :read
+  end
+
+  def write?
+    raise "Type not set" unless @type
+    @type == :write
+  end
+
   def key(role)
     Promiscuous::Key.new(role).join(@internal_key)
   end
@@ -35,10 +48,10 @@ class Promiscuous::Dependency
     @version ? [@internal_key, @version].join(':') : @internal_key
   end
 
-  def self.parse(payload)
+  def self.parse(payload, options={})
     case payload
-    when /^(.+):([0-9]+)$/ then new($1).tap { |d| d.version = $2.to_i }
-    when /^(.+)$/          then new($1)
+    when /^(.+):([0-9]+)$/ then new($1, options).tap { |d| d.version = $2.to_i }
+    when /^(.+)$/          then new($1, options)
     end
   end
 
