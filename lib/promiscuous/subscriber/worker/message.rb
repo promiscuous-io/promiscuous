@@ -21,21 +21,18 @@ class Promiscuous::Subscriber::Worker::Message
 
   def dependencies
     @dependencies ||= begin
-      dependencies = parsed_payload['dependencies'].try(:symbolize_keys) || {}
-      dependencies[:read] ||= []
-      dependencies[:write] ||= []
-      dependencies[:read].map!  { |dep| Promiscuous::Dependency.parse(dep, :type => :read) }
-      dependencies[:write].map! { |dep| Promiscuous::Dependency.parse(dep, :type => :write) }
-      dependencies[:read] + dependencies[:write]
+      dependencies = parsed_payload['dependencies'] || {}
+      dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read) } +
+      dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write) }
     end
   end
 
   def write_dependencies
-    dependencies.select(&:write?)
+    @write_dependencies ||= dependencies.select(&:write?)
   end
 
   def read_dependencies
-    dependencies.select(&:read?)
+    @read_dependencies ||= dependencies.select(&:read?)
   end
 
   def happens_before_dependencies
