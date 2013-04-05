@@ -36,7 +36,7 @@ class Promiscuous::Subscriber::Operation
 
   # XXX TODO Code is not tolerant to losing a lock.
 
-  def _update_dependencies(node_with_deps, options={})
+  def update_dependencies_on_node(node_with_deps, options={})
     # Read and write dependencies are not handled the same way:
     # * Read dependencies are just incremented (which allow parallelization).
     # * Write dependencies are set to be max(current_version, received_version).
@@ -48,7 +48,7 @@ class Promiscuous::Subscriber::Operation
     r_deps = node_with_deps[1].select(&:read?)
     w_deps = node_with_deps[1].select(&:write?)
 
-    unless !options[:only_write_dependencies]
+    if options[:only_write_dependencies]
       r_deps = []
     end
 
@@ -94,12 +94,12 @@ class Promiscuous::Subscriber::Operation
   end
 
   def update_dependencies_master(options={})
-    _update_dependencies(master_node_with_deps, options)
+    update_dependencies_on_node(master_node_with_deps, options)
   end
 
   def update_dependencies_secondaries(options={})
     secondary_nodes_with_deps.each do |node_with_deps|
-      _update_dependencies(node_with_deps, options.merge(:with_recovery => true))
+      update_dependencies_on_node(node_with_deps, options.merge(:with_recovery => true))
       after_secondary_update_hook
     end
   end
@@ -136,7 +136,7 @@ class Promiscuous::Subscriber::Operation
 
       # But, if the message was generated during bootstrap, we don't really know
       # if the other dependencies are up to date (because of the non-atomic
-      # bootstrapping process), so we do the max() trick (see in _update_dependencies).
+      # bootstrapping process), so we do the max() trick (see in update_dependencies_on_node).
       # Since such messages can come arbitrary late, we never really know if we
       # can assume regular operations, thus we always assume that such message
       # can originate from the bootstrapping period.
