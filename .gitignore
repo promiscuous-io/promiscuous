@@ -5,3 +5,4 @@ tags
 debug.rb
 coverage
 .coveralls.yml
+rspec.failures

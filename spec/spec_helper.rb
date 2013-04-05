@@ -13,6 +13,14 @@ load "./spec/spec_helper/#{ENV['TEST_ENV']}.rb"
 
 Dir["./spec/support/**/*.rb"].each {|f| require f}
 
+if ENV['TRAVIS']
+  require 'rspec/retry'
+  RSpec.configure do |config|
+    config.verbose_retry = true
+    config.default_retry_count = 3
+  end
+end
+
 RSpec.configure do |config|
   config.mock_with :mocha
   config.color_enabled = true
