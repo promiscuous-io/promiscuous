@@ -2,9 +2,6 @@ module Promiscuous::AMQP
   extend Promiscuous::Autoload
   autoload :HotBunnies, :Bunny, :Null, :Fake
 
-  PUB_EXCHANGE = ENV['PUB_EXCHANGE'] || 'promiscuous'
-  SUB_EXCHANGE = ENV['SUB_EXCHANGE'] || 'promiscuous'
-
   class << self
     attr_accessor :backend
     attr_accessor :backend_class
@@ -12,7 +9,6 @@ module Promiscuous::AMQP
     def backend=(value)
       disconnect
       @backend_class = value.nil? ? nil : "Promiscuous::AMQP::#{value.to_s.camelize.gsub(/amqp/, 'AMQP')}".constantize
-      connect if @backend_class
     end
 
     def lost_connection_exception

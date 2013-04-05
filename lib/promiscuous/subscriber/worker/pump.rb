@@ -8,7 +8,6 @@ class Promiscuous::Subscriber::Worker::Pump
 
   def connect
     options = {}
-    options[:queue_name] = ENV['QUEUE_NAME'] || "#{Promiscuous::Config.app}.promiscuous"
     # We need to subscribe to everything to keep up with the version tracking
     options[:bindings] = ['*']
     subscribe(options, &method(:on_message))

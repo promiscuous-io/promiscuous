@@ -3,7 +3,8 @@ module Promiscuous::Config
                  :redis_url, :redis_urls, :redis_slave_url, :redis_stats_url,
                  :stats_interval, :queue_options, :heartbeat, :bareback,
                  :hash_size, :recovery, :prefetch, :recovery_timeout,
-                 :socket_timeout, :subscriber_threads
+                 :socket_timeout, :subscriber_threads, :publisher_exchange,
+                 :subscriber_exchange, :queue_name
 
   def self.backend=(value)
     @@backend = value
@@ -31,24 +32,27 @@ module Promiscuous::Config
   def self._configure(&block)
     block.call(self) if block
 
-    self.app              ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
-    self.amqp_url         ||= 'amqp://guest:guest@localhost:5672'
-    self.redis_url        ||= 'redis://localhost/'
-    self.redis_urls       ||= [self.redis_url]
-    #self.redis_slave_url  ||= nil
-    self.redis_stats_url  ||= self.redis_urls.first
-    self.stats_interval   ||= 0
-    self.socket_timeout   ||= 10
-    self.backend          ||= best_amqp_backend
-    self.queue_options    ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
-    self.heartbeat        ||= 60
-    self.bareback         ||= false
-    self.hash_size        ||= 2**20 # one million keys ~ 200Mb.
-    self.recovery         ||= false
-    self.prefetch         ||= 1000
-    self.recovery_timeout ||= 10
-    self.logger           ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
-    self.subscriber_threads ||= 10
+    self.app                 ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
+    self.queue_name          ||= "#{self.app}.promiscuous"
+    self.queue_options       ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
+    self.publisher_exchange  ||= 'promiscuous'
+    self.subscriber_exchange ||= 'promiscuous'
+    self.amqp_url            ||= 'amqp://guest:guest@localhost:5672'
+    self.backend             ||= best_amqp_backend
+    self.redis_url           ||= 'redis://localhost/'
+    self.redis_urls          ||= [self.redis_url]
+    # TODO self.redis_slave_url    ||= nil
+    self.redis_stats_url     ||= self.redis_urls.first
+    self.stats_interval      ||= 0
+    self.socket_timeout      ||= 10
+    self.heartbeat           ||= 60
+    self.bareback            ||= false
+    self.hash_size           ||= 2**20 # one million keys ~ 200Mb.
+    self.recovery            ||= false
+    self.prefetch            ||= 1000
+    self.recovery_timeout    ||= 10
+    self.logger              ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
+    self.subscriber_threads  ||= 10
   end
 
   def self.configure(&block)
@@ -58,7 +62,7 @@ module Promiscuous::Config
       raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
     end
 
-    # amqp connection is done in when setting the backend
+    Promiscuous::AMQP.connect
     Promiscuous::Redis.connect
 
     hook_fork

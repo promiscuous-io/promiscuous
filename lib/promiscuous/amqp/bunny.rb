@@ -61,8 +61,8 @@ class Promiscuous::AMQP::Bunny
   end
 
   def exchange(channel, which)
-    exchange_name = which == :pub ? Promiscuous::AMQP::PUB_EXCHANGE :
-                                    Promiscuous::AMQP::SUB_EXCHANGE
+    exchange_name = which == :pub ? Promiscuous::Config.publisher_exchange :
+                                    Promiscuous::Config.subscriber_exchange
     channel.exchange(exchange_name, :type => :topic, :durable => true)
   end
 
@@ -96,18 +96,17 @@ class Promiscuous::AMQP::Bunny
 
   module Subscriber
     def subscribe(options={}, &block)
-      queue_name    = options[:queue_name]
-      bindings      = options[:bindings]
+      bindings = options[:bindings]
       Promiscuous::AMQP.ensure_connected
 
       @lock = Mutex.new
       @connection, @channel = Promiscuous::AMQP.backend.new_connection
       @channel.basic_qos(Promiscuous::Config.prefetch)
       exchange = Promiscuous::AMQP.backend.exchange(@channel, :sub)
-      @queue = @channel.queue(queue_name, Promiscuous::Config.queue_options)
+      @queue = @channel.queue(Promiscuous::Config.queue_name, Promiscuous::Config.queue_options)
       bindings.each do |binding|
         @queue.bind(exchange, :routing_key => binding)
-        Promiscuous.debug "[bind] #{queue_name} -> #{binding}"
+        Promiscuous.debug "[bind] #{Promiscuous::Config.queue_name} -> #{binding}"
       end
 
       @subscription = subscribe_queue(@queue, &block)
