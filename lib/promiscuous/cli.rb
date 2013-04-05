@@ -115,16 +115,17 @@ class Promiscuous::CLI
 
       opts.separator ""
       opts.separator "Actions:"
-      opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" Model2 Model3..."
+      opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" [Model2 Model3...]"
+      opts.separator "    promiscuous publisher_bootstrap [Model1 Model2...]"
+      opts.separator "    promiscuous publisher_recovery"
       opts.separator "    promiscuous subscribe"
       opts.separator "    promiscuous mocks"
       opts.separator "    promiscuous record logfile"
       opts.separator "    promiscuous replay logfile"
-      opts.separator "    promiscuous publisher_recovery"
       opts.separator ""
       opts.separator "Options:"
 
-      opts.on "-b", "--bareback", "Bareback mode aka no dependencies. Use with extreme caution" do
+      opts.on "-B", "--bareback", "Bareback mode aka no dependencies. Use with extreme caution" do
         Promiscuous::Config.bareback = true
       end
 
@@ -147,6 +148,10 @@ class Promiscuous::CLI
 
       opts.on "-s", "--stat-interval [DURATION]", "Stats refresh rate (0 to disable)" do |duration|
         Promiscuous::Config.stats_interval = duration.to_f
+      end
+
+      opts.on "-b", "--bootstrap", "Bootstrap subscriber" do |duration|
+        Promiscuous::Config.bootstrap = true
       end
 
       opts.on("-h", "--help", "Show this message") do

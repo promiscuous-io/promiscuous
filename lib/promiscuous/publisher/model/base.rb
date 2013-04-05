@@ -53,7 +53,7 @@ module Promiscuous::Publisher::Model::Base
       Promiscuous::Dependency.new(@collection, attr, value)
     end
 
-    def tracked_dependencies(options={})
+    def tracked_dependencies
       # FIXME This is not sufficient, we need to consider the previous and next
       # values in case of an update.
       # Note that the caller expect the id dependency to come first

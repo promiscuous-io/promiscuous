@@ -190,10 +190,7 @@ class Promiscuous::Publisher::Operation::Base
     master_node = lock.node
     recovery_data = master_node.hgetall("#{lock.key}:operation_recovery")
 
-    unless recovery_data.present? # case 1)
-      lock.unlock
-      return nil
-    end
+    return nil unless recovery_data.present? # case 1)
 
     Promiscuous.info "[operation recovery] #{lock.key} -> #{recovery_data}"
 
@@ -226,8 +223,6 @@ class Promiscuous::Publisher::Operation::Base
         execute_persistent_locked { recover_db_operation }
       end
     end
-
-    lock.unlock
   rescue Exception => e
     message = "cannot recover #{lock.key} -> #{recovery_data}"
     raise Promiscuous::Error::Recovery.new(message, e)
@@ -345,7 +340,7 @@ class Promiscuous::Publisher::Operation::Base
 
         mutex = Promiscuous::Redis::Mutex.new(key, lock_options.merge(:node => node))
         case mutex.lock
-        when :recovered then recover_operation_from_lock(mutex)
+        when :recovered then recover_operation_from_lock(mutex); mutex.unlock
         when true       then mutex.unlock
         when false      then ;
         end
@@ -480,7 +475,7 @@ class Promiscuous::Publisher::Operation::Base
         # When recovering locks, if we fail, we must not release the lock again
         # to allow another one to do the recovery.
         auto_unlock = false
-        @recovered_locks.each { |lock| self.class.recover_operation_from_lock(lock) }
+        @recovered_locks.each { |lock| self.class.recover_operation_from_lock(lock); lock.unlock }
         auto_unlock = true
         raise TryAgain
       end

@@ -58,7 +58,7 @@ class Promiscuous::Subscriber::Worker::Message
   def ack
     time = Time.now
     @metadata.ack
-    @root_worker.stats.notify_processed_message(self, time)
+    @root_worker.stats.notify_processed_message(self, time) if @root_worker
   rescue Exception => e
     # We don't care if we fail, the message will be redelivered at some point
     Promiscuous.warn "[receive] Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"

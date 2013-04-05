@@ -2,6 +2,9 @@ module Promiscuous::AMQP
   extend Promiscuous::Autoload
   autoload :HotBunnies, :Bunny, :Null, :Fake
 
+  REGULAR_EXCHANGE   = 'promiscuous'
+  BOOTSTRAP_EXCHANGE = 'promiscuous.bootstrap'
+
   class << self
     attr_accessor :backend
     attr_accessor :backend_class

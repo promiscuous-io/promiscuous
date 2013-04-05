@@ -21,6 +21,12 @@ module BackendHelper
     config_logger(options)
   end
 
+  def run_subscriber_bootstrap_worker!
+    @worker.stop if @worker
+    @worker = Promiscuous::Subscriber::Worker::Bootstrap.new
+    @worker.start
+  end
+
   def run_subscriber_worker!
     @worker.stop if @worker
     @worker = Promiscuous::Subscriber::Worker.new

@@ -4,7 +4,7 @@ module Promiscuous::Config
                  :stats_interval, :queue_options, :heartbeat, :bareback,
                  :hash_size, :recovery, :prefetch, :recovery_timeout,
                  :socket_timeout, :subscriber_threads, :publisher_exchange,
-                 :subscriber_exchange, :queue_name
+                 :subscriber_exchange, :queue_name, :bootstrap, :bootstrap_chunk_size
 
   def self.backend=(value)
     @@backend = value
@@ -32,27 +32,29 @@ module Promiscuous::Config
   def self._configure(&block)
     block.call(self) if block
 
-    self.app                 ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
-    self.queue_name          ||= "#{self.app}.promiscuous"
-    self.queue_options       ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
-    self.publisher_exchange  ||= 'promiscuous'
-    self.subscriber_exchange ||= 'promiscuous'
-    self.amqp_url            ||= 'amqp://guest:guest@localhost:5672'
-    self.backend             ||= best_amqp_backend
-    self.redis_url           ||= 'redis://localhost/'
-    self.redis_urls          ||= [self.redis_url]
-    # TODO self.redis_slave_url    ||= nil
-    self.redis_stats_url     ||= self.redis_urls.first
-    self.stats_interval      ||= 0
-    self.socket_timeout      ||= 10
-    self.heartbeat           ||= 60
-    self.bareback            ||= false
-    self.hash_size           ||= 2**20 # one million keys ~ 200Mb.
-    self.recovery            ||= false
-    self.prefetch            ||= 1000
-    self.recovery_timeout    ||= 10
-    self.logger              ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
-    self.subscriber_threads  ||= 10
+    self.app                  ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
+    self.bootstrap            ||= false
+    self.bootstrap_chunk_size ||= 10000
+    self.queue_options        ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
+    self.queue_name           ||= self.bootstrap ? "#{self.app}.promiscuous.bootstrap" : "#{self.app}.promiscuous"
+    self.publisher_exchange   ||= self.bootstrap ? Promiscuous::AMQP::BOOTSTRAP_EXCHANGE : Promiscuous::AMQP::REGULAR_EXCHANGE
+    self.subscriber_exchange  ||= self.bootstrap ? Promiscuous::AMQP::BOOTSTRAP_EXCHANGE : Promiscuous::AMQP::REGULAR_EXCHANGE
+    self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
+    self.backend              ||= best_amqp_backend
+    self.redis_url            ||= 'redis://localhost/'
+    self.redis_urls           ||= [self.redis_url]
+    # TODO self.redis_slave_u rl    ||= nil
+    self.redis_stats_url      ||= self.redis_urls.first
+    self.stats_interval       ||= 0
+    self.socket_timeout       ||= 10
+    self.heartbeat            ||= 60
+    self.bareback             ||= false
+    self.hash_size            ||= 2**20 # one million keys ~ 200Mb.
+    self.recovery             ||= false
+    self.prefetch             ||= 1000
+    self.recovery_timeout     ||= 10
+    self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
+    self.subscriber_threads   ||= 10
   end
 
   def self.configure(&block)

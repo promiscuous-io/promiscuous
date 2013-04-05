@@ -125,6 +125,9 @@ class Promiscuous::Subscriber::Operation
   end
 
   def check_for_duplicated_message
+    # When we bootstrap, we have to process ALL payloads
+    return if Promiscuous::Config.bootstrap
+
     key = instance_dep.key(:sub).join('rw').to_s
 
     unless instance_dep.redis_node.get(key).to_i + 1 <= instance_dep.version
@@ -193,13 +196,13 @@ class Promiscuous::Subscriber::Operation
     end
   end
 
-  def update
+  def update(options={})
     model.__promiscuous_fetch_existing(id).tap do |instance|
       instance.__promiscuous_update(payload)
       instance.save!
     end
   rescue model.__promiscuous_missing_record_exception
-    Promiscuous.warn "[receive] upserting #{message.payload}"
+    Promiscuous.warn "[receive] upserting #{message.payload}" unless options[:silence_upsert_warn]
     create
   end
 
@@ -223,6 +226,7 @@ class Promiscuous::Subscriber::Operation
       when :create  then create
       when :update  then update
       when :destroy then destroy
+      when :sync    then update(:silence_upsert_warn => true)
       when :dummy   then nil
       end
     end

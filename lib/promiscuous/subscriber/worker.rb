@@ -1,6 +1,6 @@
 class Promiscuous::Subscriber::Worker
   extend Promiscuous::Autoload
-  autoload :Message, :Pump, :MessageSynchronizer, :Runner, :Stats, :Recorder
+  autoload :Message, :Pump, :MessageSynchronizer, :Runner, :Stats, :Recorder, :Bootstrap
 
   attr_accessor :message_synchronizer, :pump, :runner, :stats
 
