@@ -65,7 +65,7 @@ class Promiscuous::Subscriber::Operation
       local write_versions = _args[3]
       local recovery_key = ARGV[2]
 
-      if redis.call('exists', recovery_key) == 1 then
+      if recovery_key and redis.call('exists', recovery_key) == 1 then
         return
       end
 
@@ -85,7 +85,9 @@ class Promiscuous::Subscriber::Operation
         end
       end
 
-      redis.call('set', recovery_key, 'done')
+      if recovery_key then
+        redis.call('set', recovery_key, 'done')
+      end
     SCRIPT
 
     @@update_script_secondary.eval(node, :argv => argv)
