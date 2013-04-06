@@ -18,6 +18,7 @@ class Promiscuous::Timer
   end
 
   def main_loop(options={})
+    Thread.current[:promiscuous_timer_instance] = self
     options = options.dup
 
     loop do
@@ -36,7 +37,7 @@ class Promiscuous::Timer
   end
 
   def reset
-    if @thread == Thread.current
+    if Thread.current[:promiscuous_timer_instance] == self
       # We already hold the lock (the callback called reset)
       @thread = nil
     else

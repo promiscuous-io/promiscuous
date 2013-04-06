@@ -269,6 +269,17 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
         refresh_activity
       end
 
+      def with_rescue_connection(node, &block)
+        block.call
+      rescue Exception => e
+        # TODO only catch exceptions related to network issues
+        node_synchronizer.root_synchronizer.rescue_connection(node, e)
+      end
+
+      def redis_exec_raw(node, *commands)
+        with_rescue_connection(node) { node.client.process([commands]) }
+      end
+
       def total_num_processed_messages
         node_synchronizer.root_synchronizer.num_processed_messages
       end
@@ -284,7 +295,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
       def cleanup_if_old
         if is_old?
-          subscriber_redis.client.process([[:unsubscribe, key]])
+          redis_exec_raw(subscriber_redis, :unsubscribe, key)
           node_synchronizer.subscriptions.delete(key) # lock is already held
         end
       end
@@ -295,11 +306,12 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
           @subscription_requested = true
         end
 
-        subscriber_redis.client.process([[:subscribe, key]])
+        redis_exec_raw(subscriber_redis, :subscribe, key)
       end
 
       def finalize_subscription
-        signal_version(get_redis.get(key))
+        v = with_rescue_connection(get_redis) { get_redis.get(key) }
+        signal_version(v)
       end
 
       def signal_version(current_version)
