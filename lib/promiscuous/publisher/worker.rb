@@ -1,11 +1,10 @@
 class Promiscuous::Publisher::Worker
   def initialize
-    @recovery_timer = Promiscuous::Timer.new
-    @timeout = Promiscuous::Config.recovery_timeout
+    @recovery_timer = Promiscuous::Timer.new("recovery", Promiscuous::Config.recovery_timeout) { try_recover }
   end
 
   def start
-    @recovery_timer.run_every(@timeout, :run_immediately => true) { try_recover }
+    @recovery_timer.start(:run_immediately => true)
   end
 
   def stop

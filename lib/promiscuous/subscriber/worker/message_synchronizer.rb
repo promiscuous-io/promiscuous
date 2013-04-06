@@ -12,7 +12,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     @root = root
     @node_synchronizers = {}
     @lock = Mutex.new
-    @reconnect_timer = Promiscuous::Timer.new
+    @reconnect_timer = Promiscuous::Timer.new("redis", RECONNECT_INTERVAL) { reconnect }
   end
 
   def connected?
@@ -51,14 +51,13 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     Promiscuous.warn "[redis] Reconnected"
   end
 
-  def rescue_connection
-    e = Promiscuous::Redis.lost_connection_exception
+  def rescue_connection(node, exception)
+    # TODO stop the pump to unack all messages
+    @reconnect_timer.start
 
+    e = Promiscuous::Redis.lost_connection_exception(node, :inner => exception)
     Promiscuous.warn "[redis] #{e}. Reconnecting..."
     Promiscuous::Config.error_notifier.try(:call, e)
-
-    # TODO stop the pump to unack all messages
-    @reconnect_timer.run_every(RECONNECT_INTERVAL) { reconnect }
   end
 
   # process_when_ready() is called by the AMQP pump. This is what happens:
@@ -181,16 +180,16 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
           notify_key_change(subscription, arg)
         end
       end
-    rescue EOFError, Errno::ECONNRESET
+    rescue EOFError, Errno::ECONNRESET => e
       # Unwanted disconnection
-      @root_synchronizer.rescue_connection unless @stop
-    rescue IOError => e
-      raise e unless @stop
+      @root_synchronizer.rescue_connection(redis_client, e) unless @stop
     rescue Exception => e
-      Promiscuous.warn "[redis] #{e.class} #{e.message}"
-      Promiscuous.warn "[redis] #{e} #{e.backtrace.join("\n")}"
+      unless @stop
+        Promiscuous.warn "[redis] #{e.class} #{e.message}"
+        Promiscuous.warn "[redis] #{e} #{e.backtrace.join("\n")}"
 
-      Promiscuous::Config.error_notifier.try(:call, e)
+        Promiscuous::Config.error_notifier.try(:call, e)
+      end
     end
 
     def stop_main_loop

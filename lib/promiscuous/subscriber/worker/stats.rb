@@ -15,8 +15,8 @@ class Promiscuous::Subscriber::Worker::Stats
 
     STDERR.puts ""
 
-    @timer ||= Promiscuous::Timer.new
-    @timer.run_every(@interval) { aggregate_stats }
+    @timer ||= Promiscuous::Timer.new("stats", @interval) { aggregate_stats }
+    @timer.start
   end
 
   def disconnect

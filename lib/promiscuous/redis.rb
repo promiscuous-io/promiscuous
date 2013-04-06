@@ -39,7 +39,8 @@ module Promiscuous::Redis
   end
 
   def self.new_blocking_connection
-    # Remove the read/select loop in redis, it's weird and unecessary
+    # This removes the read/select loop in redis, it's weird and unecessary when
+    # blocking on the connection.
     new_connection.tap do |redis|
       redis.nodes.each do |node|
         node.client.connection.instance_eval do
@@ -53,14 +54,18 @@ module Promiscuous::Redis
     end
   end
 
-  def self.lost_connection_exception
-    Promiscuous::Error::Connection.new(:service => :redis)
+  def self.ensure_connected
+    Promiscuous::Redis.master.nodes.each do |node|
+      begin
+        node.ping
+      rescue Exception => e
+        raise lost_connection_exception(node, :inner => e)
+      end
+    end
   end
 
-  def self.ensure_connected
-    Promiscuous::Redis.master.ping
-  rescue Exception
-    raise lost_connection_exception
+  def self.lost_connection_exception(node, options={})
+    Promiscuous::Error::Connection.new("redis://#{node.location}", options)
   end
 
   class Script

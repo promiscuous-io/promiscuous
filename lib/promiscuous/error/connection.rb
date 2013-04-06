@@ -1,18 +1,20 @@
 class Promiscuous::Error::Connection < Promiscuous::Error::Base
-  attr_accessor :service, :url
+  attr_accessor :url, :inner
 
-  def initialize(options={})
+  def initialize(url, options={})
     super(nil)
-    self.service = options[:service]
-    self.url = case service
-    when :zookeeper then "zookeeper://#{Promiscuous::Config.zookeeper_hosts}"
-    when :redis     then Promiscuous::Config.redis_url
-    when :amqp      then Promiscuous::Config.amqp_url
-    end
+    # XXX TODO The url may contain a password, we should filter it out
+    @url = url
+    @inner = options[:inner]
+    set_backtrace(@inner.backtrace) if @inner
   end
 
   def message
-    "Lost connection with #{url}"
+    if @inner
+      "Lost connection with #{@url}: #{@inner.class}: #{@inner.message}"
+    else
+      "Lost connection with #{@url}"
+    end
   end
 
   alias to_s message
