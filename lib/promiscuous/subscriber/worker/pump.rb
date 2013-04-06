@@ -15,7 +15,12 @@ class Promiscuous::Subscriber::Worker::Pump
 
   def on_message(metadata, payload)
     msg = Promiscuous::Subscriber::Worker::Message.new(payload, :metadata => metadata, :root_worker => @root)
-    @root.message_synchronizer.process_when_ready(msg)
+    if Promiscuous::Config.bootstrap
+      # Bootstrapping doesn't require synchronzation
+      @root.runner.messages_to_process << msg
+    else
+      @root.message_synchronizer.process_when_ready(msg)
+    end
   rescue Exception => e
     Promiscuous.warn "[receive] cannot process message: #{e} #{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.try(:call, e)

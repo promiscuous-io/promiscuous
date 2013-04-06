@@ -66,31 +66,32 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   #    If not we bail out and rely on the subscription to kick the processing.
   # Because we subscribed in advanced, we will not miss the notification.
   def process_when_ready(msg)
+    unless msg.has_dependencies?
+      process_message!(msg)
+      return
+    end
+
     # Dropped messages will be redelivered as we (re)connect
     return unless self.redis
 
-    @lock.synchronize do
-      @num_queued_messages += 1
-    end
+    @lock.synchronize { @num_queued_messages += 1 }
 
-    if msg.has_dependencies?
-      process_message_proc = proc { process_message!(msg) }
-      msg.happens_before_dependencies.reduce(process_message_proc) do |chain, dep|
-        get_redis = dep.redis_node
-        subscriber_redis = dep.redis_node(@redis)
+    process_message_proc = proc { process_message!(msg) }
+    msg.happens_before_dependencies.reduce(process_message_proc) do |chain, dep|
+      get_redis = dep.redis_node
+      subscriber_redis = dep.redis_node(@redis)
 
-        key = dep.key(:sub).join('rw').to_s
-        version = dep.version
-        node_synchronizer = @node_synchronizers[subscriber_redis]
-        proc { node_synchronizer.on_version(subscriber_redis, get_redis, key, version, msg) { chain.call } }
-      end.call
-    else
-      process_message!(msg)
-    end
+      key = dep.key(:sub).join('rw').to_s
+      version = dep.version
+      node_synchronizer = @node_synchronizers[subscriber_redis]
+      proc { node_synchronizer.on_version(subscriber_redis, get_redis, key, version, msg) { chain.call } }
+    end.call
   end
 
   def process_message!(msg)
     @root.runner.messages_to_process << msg
+
+    return unless msg.has_dependencies?
 
     cleanup = false
     @lock.synchronize do

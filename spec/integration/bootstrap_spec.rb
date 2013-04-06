@@ -2,36 +2,57 @@ require 'spec_helper'
 
 describe Promiscuous, 'bootstrapping' do
   before { use_real_backend }
-  before { Promiscuous::Config.hash_size = 100 }
+  before { Promiscuous::Config.hash_size = 10 }
   before { load_models }
+  after  { use_null_backend }
 
+  def switch_mode(options={})
+    @worker.try(:stop)
+    @worker = nil
+    reconfigure_backend do |config|
+      config.bootstrap = options[:bootstrap]
+      config.hash_size = 10
+    end
+    @worker = Promiscuous::Subscriber::Worker.new
+    @worker.start
+  end
 
-  describe 'versions' do
-    it 'publishes' do
-      num_models = 100
-      Promiscuous.context do
-        num_models.times { PublisherModel.create }
-      end
+  context 'when there are no races with publishers' do
+    it 'bootstraps' do
+      Promiscuous.context { 10.times { PublisherModel.create } }
 
-      Promiscuous::Config.bootstrap = true
-      run_subscriber_bootstrap_worker!
+      switch_mode(:bootstrap => true)
+      Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
+      Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
+      eventually { SubscriberModel.count.should == PublisherModel.count }
 
-      Promiscuous::Publisher::Bootstrap.new.bootstrap
+      switch_mode(:bootstrap => false)
+      PublisherModel.all.each { |pub| Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') } }
+      eventually { SubscriberModel.each { |sub| sub.field_1.should == 'ohai' } }
+    end
+  end
 
-      eventually { SubscriberModel.count.should == num_models }
-      Promiscuous::Config.bootstrap = false
-      run_subscriber_worker!
+  context 'when updates happens after the version bootstrap, but before the document is replicated', :pending => true do
+    it 'bootstraps' do
+      Promiscuous.context { 10.times { PublisherModel.create } }
 
-      use_null_backend
-      use_real_backend
+      switch_mode(:bootstrap => true)
+      Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
 
-      Promiscuous.context do
-        PublisherModel.all.without_promiscuous.each { |pub| pub.update_attributes(:field_1 => 'ohai') }
-      end
+      switch_mode(:bootstrap => false)
+      @worker.stop; @worker = nil
+      Promiscuous.context { PublisherModel.first.update_attributes(:field_2 => 'hello') }
 
-      eventually do
-        SubscriberModel.each { |sub| sub.field_1.should == 'ohai' }
-      end
+      switch_mode(:bootstrap => true)
+      Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
+      eventually { SubscriberModel.count.should == PublisherModel.count }
+
+      SubscriberModel.first.field_2.should == nil
+
+      switch_mode(:bootstrap => false)
+      eventually { SubscriberModel.first.field_2.should == 'hello' }
+      PublisherModel.all.each { |pub| Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') } }
+      eventually { SubscriberModel.each { |sub| sub.field_1.should == 'ohai' } }
     end
   end
 end

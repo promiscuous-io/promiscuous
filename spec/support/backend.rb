@@ -2,29 +2,31 @@ module BackendHelper
   NUM_SHARDS = 8
   HASH_SIZE = 2**30
 
-  def use_real_backend(options={})
-    real_backend = RUBY_PLATFORM == 'java' ? :hot_bunnies : :bunny
-    if Promiscuous::Config.backend != real_backend
-      Promiscuous.configure do |config|
-        config.reset
-        config.redis_urls = NUM_SHARDS.times.map { |i| "redis://localhost/#{i}" }
-        config.hash_size = HASH_SIZE
-        config.backend = real_backend
-        config.app = options[:app] || 'test_subscriber'
-        config.queue_options = {:auto_delete => true}
-      end
+  def reconfigure_backend(&block)
+    Promiscuous.configure do |config|
+      config.reset
+      config.redis_urls = NUM_SHARDS.times.map { |i| "redis://localhost/#{i}" }
+      config.app = 'test_subscriber'
+      config.queue_options = {:auto_delete => true}
+      config.hash_size = HASH_SIZE
+      config.logger = Logger.new(STDERR)
+      config.logger.level = ENV["LOGGER_LEVEL"] ? ENV["LOGGER_LEVEL"].to_i : Logger::WARN
+      config.stats_interval = 0
+      block.call(config) if block
     end
-    Promiscuous::Config.error_notifier = options[:error_notifier] if options[:error_notifier]
-
-    Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
-
-    config_logger(options)
   end
 
-  def run_subscriber_bootstrap_worker!
-    @worker.stop if @worker
-    @worker = Promiscuous::Subscriber::Worker::Bootstrap.new
-    @worker.start
+  def use_real_backend(options={}, &block)
+    real_backend = RUBY_PLATFORM == 'java' ? :hot_bunnies : :bunny
+    unless Promiscuous::Config.backend == real_backend
+      reconfigure_backend do |config|
+        config.backend = real_backend
+        Promiscuous::Config.error_notifier = options[:error_notifier] if options[:error_notifier]
+        block.call(config) if block
+      end
+    end
+
+    Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
   end
 
   def run_subscriber_worker!
@@ -33,31 +35,19 @@ module BackendHelper
     @worker.start
   end
 
-  def use_null_backend(options={})
-    Promiscuous.configure do |config|
-      config.reset
+  def use_null_backend(&block)
+    reconfigure_backend do |config|
       config.backend = :null
-      config.app = options[:app] || 'test_publisher'
+      block.call(config) if block
     end
-    config_logger(options)
   end
 
-  def use_fake_backend(options={})
-    Promiscuous.configure do |config|
-      config.reset
-      config.redis_urls = NUM_SHARDS.times.map { |i| "redis://localhost/#{i}" }
-      config.hash_size = HASH_SIZE
+  def use_fake_backend(&block)
+    reconfigure_backend do |config|
       config.backend = :fake
-      config.app = options[:app] || 'test_publisher'
+      block.call(config) if block
     end
     Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
-    config_logger(options)
-  end
-
-  def config_logger(options={})
-    Promiscuous::Config.logger.level = ENV["LOGGER_LEVEL"].to_i if ENV["LOGGER_LEVEL"]
-    Promiscuous::Config.logger.level = options[:logger_level] if options[:logger_level]
-    Promiscuous::Config.stats_interval = 0
   end
 end
 

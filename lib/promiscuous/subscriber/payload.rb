@@ -4,11 +4,11 @@ class Promiscuous::Subscriber::Payload
   def initialize(payload, message=nil)
     self.message = message
 
-    if payload.is_a?(Hash) && payload['__amqp__']
+    if payload.is_a?(Hash)
       self.id         = payload['id']
       self.operation  = payload['operation'].try(:to_sym)
       self.attributes = payload['payload'] # TODO payload payload... not great.
-      self.model      = self.class.get_subscribed_model(payload)
+      self.model      = self.class.get_subscribed_model(payload) if payload['__amqp__']
     end
   end
 

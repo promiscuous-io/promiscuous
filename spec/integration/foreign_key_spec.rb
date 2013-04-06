@@ -62,7 +62,7 @@ describe Promiscuous do
       eventually { SubscriberModel.first.should_not == nil }
 
       SubscriberModel.first.destroy
-      config_logger(:logger_level => Logger::FATAL)
+      Promiscuous::Config.logger.level = Logger::FATAL
 
       Promiscuous.context do
         pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')

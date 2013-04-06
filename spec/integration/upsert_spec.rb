@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models }
-  before { use_real_backend(:logger_level => Logger::FATAL) }
+  before { use_real_backend { |config| config.logger.level = Logger::FATAL } }
   before { run_subscriber_worker! }
 
   context 'when creating' do

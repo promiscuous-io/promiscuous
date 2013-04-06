@@ -2,7 +2,7 @@ module Promiscuous::AMQP
   extend Promiscuous::Autoload
   autoload :HotBunnies, :Bunny, :Null, :Fake
 
-  REGULAR_EXCHANGE   = 'promiscuous'
+  LIVE_EXCHANGE      = 'promiscuous'
   BOOTSTRAP_EXCHANGE = 'promiscuous.bootstrap'
 
   class << self
@@ -22,12 +22,6 @@ module Promiscuous::AMQP
       raise lost_connection_exception unless connected?
     end
 
-    def publish(options={})
-      ensure_connected
-      Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}"
-      backend.respond_to?(:async) ? backend.async.publish(options) : backend.publish(options)
-    end
-
     def connect
       return if @backend
       @backend = backend_class.new
@@ -41,7 +35,7 @@ module Promiscuous::AMQP
       @backend = nil
     end
 
-    delegate :connected?, :to => :backend
+    delegate :publish, :raw_publish, :connected?, :to => :backend
 
     def const_missing(sym)
       backend_class.const_get(sym)

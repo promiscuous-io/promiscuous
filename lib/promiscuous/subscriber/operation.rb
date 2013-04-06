@@ -34,6 +34,10 @@ class Promiscuous::Subscriber::Operation
     @recovery_key ||= instance_dep.key(:sub).join(instance_dep.version).to_s
   end
 
+  def get_current_instance_version
+    master_node.get(instance_dep.key(:sub).join('rw').to_s).to_i
+  end
+
   # XXX TODO Code is not tolerant to losing a lock.
 
   def update_dependencies_on_node(node_with_deps, options={})
@@ -43,6 +47,9 @@ class Promiscuous::Subscriber::Operation
     #   This allow the version bootstrapping process to be non-atomic.
     #   Publishers upgrade their reads dependencies to write dependencies
     #   during bootstrapping to permit the mechanism to function properly.
+
+    # TODO Evaluate the performance hit of this heavy mechanism, and see if it's
+    # worth optimizing it for the non-bootstrap case.
 
     node = node_with_deps[0]
     r_deps = node_with_deps[1].select(&:read?)
@@ -125,12 +132,7 @@ class Promiscuous::Subscriber::Operation
   end
 
   def check_for_duplicated_message
-    # When we bootstrap, we have to process ALL payloads
-    return if Promiscuous::Config.bootstrap
-
-    key = instance_dep.key(:sub).join('rw').to_s
-
-    unless instance_dep.redis_node.get(key).to_i + 1 <= instance_dep.version
+    unless instance_dep.version >= get_current_instance_version + 1
       # We happen to get a duplicate message, or we are recovering a dead
       # worker. During regular operations, we just need to cleanup the 2pc (from
       # the dead worker), and ack the message to rabbit.
@@ -158,7 +160,7 @@ class Promiscuous::Subscriber::Operation
                    :sleep   => 0.1,        # polling every 100ms.
                    :expire  => 1.minute }  # after one minute, we are considered dead
 
-  def with_instance_dependencies
+  def synchronize_dependencies
     return yield unless message.try(:has_dependencies?)
 
     lock_options = LOCK_OPTIONS.merge(:node => master_node)
@@ -214,21 +216,44 @@ class Promiscuous::Subscriber::Operation
     Promiscuous.warn "[receive] ignoring missing record #{message.payload}"
   end
 
-  def operation
-    # We must process messages with versions to stay in sync even if we
-    # don't have a subscriber.
-    payload.model.nil? ? :dummy : payload.operation
+  def bootstrap_versions
+    keys = message.parsed_payload['keys']
+    keys.map { |k| Promiscuous::Dependency.parse(k) }.group_by(&:redis_node).each do |node, deps|
+      node.pipelined do
+        deps.each do |dep|
+          node.set(dep.key(:sub).join('rw').to_s, dep.version)
+        end
+      end
+    end
+  end
+
+  def bootstrap_data
+    if instance_dep.version <= get_current_instance_version
+      create
+    else
+      # We don't save the instance if we don't have a matching version in redis.
+      # It would mean that the document got update since the bootstrap_versions.
+      # We'll get it on the live queue.
+
+      # TODO
+    end
   end
 
   def commit
-    with_instance_dependencies do
-      case operation
-      when :create  then create
-      when :update  then update
-      when :destroy then destroy
-      when :sync    then update(:silence_upsert_warn => true)
-      when :dummy   then nil
-      end
+    case operation
+    # Operations received on the live queue
+    # Note that we still synchronize dependencies if we don't have a subscribed
+    # model, as we need to keep in sync with the publisher.
+    when :create  then synchronize_dependencies { create  if model }
+    when :update  then synchronize_dependencies { update  if model }
+    when :destroy then synchronize_dependencies { destroy if model }
+    when :dummy   then synchronize_dependencies { }
+
+    # Operations received on the bootstrap queue
+    when :bootstrap_versions then bootstrap_versions
+    when :bootstrap_data     then bootstrap_data if model
+
+    else raise "Unknown operation: #{operation}"
     end
   end
 end

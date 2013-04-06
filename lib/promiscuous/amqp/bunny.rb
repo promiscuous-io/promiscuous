@@ -57,6 +57,7 @@ class Promiscuous::AMQP::Bunny
   end
 
   def raw_publish(options)
+    Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}"
     @exchange.publish(options[:payload], :key => options[:key], :persistent => true)
   end
 

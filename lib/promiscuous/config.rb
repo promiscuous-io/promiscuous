@@ -36,14 +36,14 @@ module Promiscuous::Config
     self.bootstrap            ||= false
     self.bootstrap_chunk_size ||= 10000
     self.queue_options        ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
+    self.publisher_exchange   ||= self.bootstrap ? Promiscuous::AMQP::BOOTSTRAP_EXCHANGE : Promiscuous::AMQP::LIVE_EXCHANGE
+    self.subscriber_exchange  ||= self.bootstrap ? Promiscuous::AMQP::BOOTSTRAP_EXCHANGE : Promiscuous::AMQP::LIVE_EXCHANGE
     self.queue_name           ||= self.bootstrap ? "#{self.app}.promiscuous.bootstrap" : "#{self.app}.promiscuous"
-    self.publisher_exchange   ||= self.bootstrap ? Promiscuous::AMQP::BOOTSTRAP_EXCHANGE : Promiscuous::AMQP::REGULAR_EXCHANGE
-    self.subscriber_exchange  ||= self.bootstrap ? Promiscuous::AMQP::BOOTSTRAP_EXCHANGE : Promiscuous::AMQP::REGULAR_EXCHANGE
     self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
     self.backend              ||= best_amqp_backend
     self.redis_url            ||= 'redis://localhost/'
     self.redis_urls           ||= [self.redis_url]
-    # TODO self.redis_slave_u rl    ||= nil
+    # TODO self.redis_slave_url ||= nil
     self.redis_stats_url      ||= self.redis_urls.first
     self.stats_interval       ||= 0
     self.socket_timeout       ||= 10
@@ -58,14 +58,15 @@ module Promiscuous::Config
   end
 
   def self.configure(&block)
+    Promiscuous.disconnect
+
     self._configure(&block)
 
     unless self.app
       raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
     end
 
-    Promiscuous::AMQP.connect
-    Promiscuous::Redis.connect
+    Promiscuous.connect
 
     hook_fork
   end

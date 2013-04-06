@@ -146,7 +146,7 @@ if ORM.has(:mongoid)
     end
 
     context 'when processing half duplicated messages' do
-      before { config_logger :logger_level => Logger::FATAL }
+      before { Promiscuous::Config.logger.level = Logger::FATAL }
 
       context 'when completing half of the secondaries' do
         it 'skips duplicates' do
@@ -227,7 +227,7 @@ if ORM.has(:mongoid)
 
     context 'when recovering' do
       before do
-        config_logger :logger_level => Logger::FATAL
+        Promiscuous::Config.logger.level = Logger::FATAL
         Promiscuous::Config.prefetch = 5
         Promiscuous::Config.recovery = true
       end
