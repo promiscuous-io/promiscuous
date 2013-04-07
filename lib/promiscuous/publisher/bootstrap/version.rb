@@ -1,18 +1,20 @@
-class Promiscuous::Publisher::Bootstrap::Version
-  def bootstrap
+class Promiscuous::Publisher::Bootstrap::Version < Promiscuous::Publisher::Bootstrap::Base
+  def _bootstrap
     Promiscuous::Redis.master.nodes.each_with_index do |node, node_index|
       begin_at = 0
+      chunk_size = Promiscuous::Config.bootstrap_chunk_size
 
       while begin_at < Promiscuous::Config.hash_size do
-        end_at = [begin_at + Promiscuous::Config.bootstrap_chunk_size, Promiscuous::Config.hash_size].min
-        Chunk.new(node, node_index, (begin_at...end_at)).fetch_and_send
-        begin_at += 1000
+        end_at = [begin_at + chunk_size, Promiscuous::Config.hash_size].min
+        Chunk.new(self, node, node_index, (begin_at...end_at)).fetch_and_send
+        begin_at += chunk_size
       end
     end
   end
 
   class Chunk
-    def initialize(node, node_index, range)
+    def initialize(parent, node, node_index, range)
+      @parent = parent
       @node = node
       @range = range
       @node_index = node_index
@@ -32,7 +34,7 @@ class Promiscuous::Publisher::Bootstrap::Version
       payload = {}
       payload[:operation] = :bootstrap_versions
       payload[:keys] = futures.map { |i, f| "#{i}:#{f.value}" if f.value }.compact
-      Promiscuous::AMQP.publish(:key => Promiscuous::Config.app, :payload => MultiJson.dump(payload))
+      @parent.publish(:payload => MultiJson.dump(payload))
     end
   end
 end

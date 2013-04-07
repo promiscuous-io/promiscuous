@@ -1,4 +1,4 @@
 module Promiscuous::Publisher::Bootstrap
   extend Promiscuous::Autoload
-  autoload :Version, :Data
+  autoload :Base, :Version, :Data
 end

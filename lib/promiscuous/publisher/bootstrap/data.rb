@@ -1,4 +1,4 @@
-class Promiscuous::Publisher::Bootstrap::Data
+class Promiscuous::Publisher::Bootstrap::Data < Promiscuous::Publisher::Bootstrap::Base
   def initialize(options={})
     @models = options[:models]
     @models ||= Promiscuous::Publisher::Model.publishers.values
@@ -24,7 +24,7 @@ class Promiscuous::Publisher::Bootstrap::Data
         payload = instance.promiscuous.payload
         payload[:operation] = :bootstrap_data
         payload[:dependencies] = {:write => [dep]}
-        Promiscuous::AMQP.publish(:key => payload[:__amqp__], :payload => MultiJson.dump(payload))
+        self.publish(:key => payload[:__amqp__], :payload => MultiJson.dump(payload))
       end
     end
   end

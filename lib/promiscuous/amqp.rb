@@ -15,7 +15,7 @@ module Promiscuous::AMQP
     end
 
     def lost_connection_exception(options={})
-      Promiscuous::Error::Connection.new(Promiscuous::Config.amqp_url, options)
+      Promiscuous::Error::Connection.new(Promiscuous::Config.publisher_amqp_url, options)
     end
 
     def ensure_connected
@@ -35,7 +35,7 @@ module Promiscuous::AMQP
       @backend = nil
     end
 
-    delegate :publish, :connected?, :to => :backend
+    delegate :new_connection, :publish, :connected?, :to => :backend
 
     def const_missing(sym)
       backend_class.const_get(sym)

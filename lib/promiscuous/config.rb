@@ -1,10 +1,10 @@
 module Promiscuous::Config
-  mattr_accessor :app, :logger, :error_notifier, :backend, :amqp_url,
-                 :redis_url, :redis_urls, :redis_slave_url, :redis_stats_url,
-                 :stats_interval, :queue_options, :heartbeat, :bareback,
-                 :hash_size, :recovery, :prefetch, :recovery_timeout,
-                 :socket_timeout, :subscriber_threads, :publisher_exchange,
-                 :subscriber_exchange, :queue_name, :bootstrap, :bootstrap_chunk_size
+  mattr_accessor :app, :bootstrap, :bootstrap_chunk_size, :backend, :amqp_url,
+                 :publisher_amqp_url, :subscriber_amqp_url, :publisher_exchange,
+                 :subscriber_exchange, :queue_name, :queue_options, :redis_url,
+                 :redis_urls, :redis_stats_url, :stats_interval,
+                 :socket_timeout, :heartbeat, :bareback, :hash_size, :recovery,
+                 :prefetch, :recovery_timeout, :logger, :subscriber_threads
 
   def self.backend=(value)
     @@backend = value
@@ -35,12 +35,14 @@ module Promiscuous::Config
     self.app                  ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
     self.bootstrap            ||= false
     self.bootstrap_chunk_size ||= 10000
-    self.queue_options        ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
+    self.backend              ||= best_amqp_backend
+    self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
+    self.publisher_amqp_url   ||= self.amqp_url
+    self.subscriber_amqp_url  ||= self.amqp_url
     self.publisher_exchange   ||= Promiscuous::AMQP::LIVE_EXCHANGE
     self.subscriber_exchange  ||= Promiscuous::AMQP::LIVE_EXCHANGE
     self.queue_name           ||= "#{self.app}.promiscuous"
-    self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
-    self.backend              ||= best_amqp_backend
+    self.queue_options        ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.redis_url            ||= 'redis://localhost/'
     self.redis_urls           ||= [self.redis_url]
     # TODO self.redis_slave_url ||= nil

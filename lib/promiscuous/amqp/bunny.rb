@@ -28,20 +28,22 @@ class Promiscuous::AMQP::Bunny
   end
 
   def connect
-    @connection, @channel = new_connection
-    @exchange = exchange(@channel, Promiscuous::Config.publisher_exchange)
+    connection_options = { :url      => Promiscuous::Config.publisher_amqp_url,
+                           :exchange => Promiscuous::Config.publisher_exchange }
+    @connection, @channel, @exchange = new_connection(connection_options)
     confirm_select(@channel, &method(:on_confirm))
   end
 
-  def new_connection
-    connection = ::Bunny.new(Promiscuous::Config.amqp_url,
+  def new_connection(options={})
+    connection = ::Bunny.new(options[:url],
                              :heartbeat_interval => Promiscuous::Config.heartbeat,
                              :socket_timeout     => Promiscuous::Config.socket_timeout,
                              :connect_timeout    => Promiscuous::Config.socket_timeout)
     connection.start
-
     channel = connection.create_channel
-    [connection, channel]
+    exchange = channel.exchange(options[:exchange], :type => :topic, :durable => true)
+
+    [connection, channel, exchange]
   end
 
   def disconnect
@@ -58,10 +60,6 @@ class Promiscuous::AMQP::Bunny
 
   def raw_publish(options)
     options[:exchange].publish(options[:payload], :key => options[:key], :persistent => true)
-  end
-
-  def exchange(channel, exchange_name)
-    channel.exchange(exchange_name, :type => :topic, :durable => true)
   end
 
   def publish(options={})
@@ -96,15 +94,17 @@ class Promiscuous::AMQP::Bunny
   module Subscriber
     def subscribe(options={}, &block)
       bindings = options[:bindings]
-      Promiscuous::AMQP.ensure_connected
-
       @lock = Mutex.new
-      @connection, @channel = Promiscuous::AMQP.backend.new_connection
+
+      connection_options = { :url      => Promiscuous::Config.subscriber_amqp_url,
+                             :exchange => Promiscuous::Config.subscriber_exchange }
+      @connection, @channel, @exchange = Promiscuous::AMQP.new_connection(connection_options)
+
       @channel.basic_qos(Promiscuous::Config.prefetch)
-      exchange = Promiscuous::AMQP.backend.exchange(@channel, Promiscuous::Config.subscriber_exchange)
+
       @queue = @channel.queue(Promiscuous::Config.queue_name, Promiscuous::Config.queue_options)
       bindings.each do |binding|
-        @queue.bind(exchange, :routing_key => binding)
+        @queue.bind(@exchange, :routing_key => binding)
         Promiscuous.debug "[bind] #{Promiscuous::Config.queue_name} -> #{binding}"
       end
 
