@@ -29,7 +29,7 @@ class Promiscuous::AMQP::Bunny
 
   def connect
     @connection, @channel = new_connection
-    @exchange = exchange(@channel, :pub)
+    @exchange = exchange(@channel, Promiscuous::Config.publisher_exchange)
     confirm_select(@channel, &method(:on_confirm))
   end
 
@@ -61,9 +61,7 @@ class Promiscuous::AMQP::Bunny
     @exchange.publish(options[:payload], :key => options[:key], :persistent => true)
   end
 
-  def exchange(channel, which)
-    exchange_name = which == :pub ? Promiscuous::Config.publisher_exchange :
-                                    Promiscuous::Config.subscriber_exchange
+  def exchange(channel, exchange_name)
     channel.exchange(exchange_name, :type => :topic, :durable => true)
   end
 
@@ -103,7 +101,7 @@ class Promiscuous::AMQP::Bunny
       @lock = Mutex.new
       @connection, @channel = Promiscuous::AMQP.backend.new_connection
       @channel.basic_qos(Promiscuous::Config.prefetch)
-      exchange = Promiscuous::AMQP.backend.exchange(@channel, :sub)
+      exchange = Promiscuous::AMQP.backend.exchange(@channel, Promiscuous::Config.subscriber_exchange)
       @queue = @channel.queue(Promiscuous::Config.queue_name, Promiscuous::Config.queue_options)
       bindings.each do |binding|
         @queue.bind(exchange, :routing_key => binding)

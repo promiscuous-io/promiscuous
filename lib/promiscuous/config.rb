@@ -36,9 +36,9 @@ module Promiscuous::Config
     self.bootstrap            ||= false
     self.bootstrap_chunk_size ||= 10000
     self.queue_options        ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
-    self.publisher_exchange   ||= self.bootstrap ? Promiscuous::AMQP::BOOTSTRAP_EXCHANGE : Promiscuous::AMQP::LIVE_EXCHANGE
-    self.subscriber_exchange  ||= self.bootstrap ? Promiscuous::AMQP::BOOTSTRAP_EXCHANGE : Promiscuous::AMQP::LIVE_EXCHANGE
-    self.queue_name           ||= self.bootstrap ? "#{self.app}.promiscuous.bootstrap" : "#{self.app}.promiscuous"
+    self.publisher_exchange   ||= Promiscuous::AMQP::LIVE_EXCHANGE
+    self.subscriber_exchange  ||= Promiscuous::AMQP::LIVE_EXCHANGE
+    self.queue_name           ||= "#{self.app}.promiscuous"
     self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
     self.backend              ||= best_amqp_backend
     self.redis_url            ||= 'redis://localhost/'
