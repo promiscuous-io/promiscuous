@@ -13,6 +13,15 @@ class Promiscuous::AMQP::HotBunnies < Promiscuous::AMQP::Bunny
                          :connection_timeout => Promiscuous::Config.socket_timeout)
   end
 
+  def raw_confirm_select(channel, &callback)
+    channel.add_confirm_listener(&callback)
+    channel.confirm_select
+  end
+
+  def raw_publish(options={})
+    options[:exchange].publish(options[:payload], :routing_key => options[:key], :persistent => true)
+  end
+
   def disconnect
     @connection_lock.synchronize do
       return unless connected?
@@ -24,15 +33,6 @@ class Promiscuous::AMQP::HotBunnies < Promiscuous::AMQP::Bunny
 
   def connected?
     !!@connection.try(:is_open)
-  end
-
-  def raw_publish(options={})
-    options[:exchange].publish(options[:payload], :routing_key => options[:key], :persistent => true)
-  end
-
-  def confirm_select(channel, &callback)
-    channel.add_confirm_listener(&callback)
-    channel.confirm_select
   end
 
   module Subscriber

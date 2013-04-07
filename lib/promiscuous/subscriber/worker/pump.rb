@@ -27,7 +27,7 @@ class Promiscuous::Subscriber::Worker::Pump
       @root.message_synchronizer.process_when_ready(msg)
     end
   rescue Exception => e
-    Promiscuous.warn "[receive] cannot process message: #{e} #{e.backtrace.join("\n")}"
+    Promiscuous.warn "[receive] cannot process message: #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 end

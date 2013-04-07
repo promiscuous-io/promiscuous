@@ -187,7 +187,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     rescue Exception => e
       unless @stop
         Promiscuous.warn "[redis] #{e.class} #{e.message}"
-        Promiscuous.warn "[redis] #{e} #{e.backtrace.join("\n")}"
+        Promiscuous.warn "[redis] #{e}\n#{e.backtrace.join("\n")}"
 
         Promiscuous::Config.error_notifier.try(:call, e)
       end

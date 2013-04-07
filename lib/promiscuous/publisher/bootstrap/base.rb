@@ -18,8 +18,8 @@ class Promiscuous::Publisher::Bootstrap::Base
   end
 
   def publish(options={})
-    options = { :key      => "#{Promiscuous::Config.app}/__bootstrap__",
-                :exchange => @exchange }.merge(options)
+    options[:key]      ||= "#{Promiscuous::Config.app}/__bootstrap__"
+    options[:exchange] ||= @exchange
     Promiscuous::AMQP.publish(options)
   end
 end

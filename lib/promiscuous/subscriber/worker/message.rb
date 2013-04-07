@@ -88,11 +88,11 @@ class Promiscuous::Subscriber::Worker::Message
     ack
   rescue Promiscuous::Error::AlreadyProcessed => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
-    Promiscuous.debug "[receive] #{e}"
+    Promiscuous.debug "[receive] #{e}\n#{e.backtrace.join("\n")}"
     ack
   rescue Exception => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
-    Promiscuous.warn "[receive] #{e} #{e.backtrace.join("\n")}"
+    Promiscuous.warn "[receive] #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 end

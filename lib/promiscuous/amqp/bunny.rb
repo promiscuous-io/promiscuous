@@ -35,11 +35,15 @@ class Promiscuous::AMQP::Bunny
     connection
   end
 
+  def raw_confirm_select(channel, &callback)
+    channel.confirm_select(callback)
+  end
+
   def new_connection(options={})
     connection = raw_new_connection(options)
     channel = connection.create_channel
     channel.basic_qos(options[:prefetch]) if options[:prefetch]
-    channel.confirm_select(&method(:on_confirm)) if options[:confirm]
+    raw_confirm_select(channel, &method(:on_confirm)) if options[:confirm]
 
     if options[:exchanges]
       exchanges = options[:exchanges].map do |exchange_name|
@@ -76,15 +80,17 @@ class Promiscuous::AMQP::Bunny
   end
 
   def publish(options={})
-    Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}"
+    options[:exchange] ||= @exchange
+    Promiscuous.debug "[publish] #{options[:exchange].name}/#{options[:key]} #{options[:payload]}"
+
     @connection_lock.synchronize do
       tag = @channel.next_publish_seq_no if options[:on_confirm]
-      raw_publish(options.merge(:exchange => @exchange))
+      raw_publish(options)
       @callback_mapping[tag] = options[:on_confirm] if options[:on_confirm]
     end
   rescue Exception => e
     e = Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
-    Promiscuous.warn "[publish] #{e} #{e.backtrace.join("\n")}"
+    Promiscuous.warn "[publish] #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 
@@ -113,7 +119,7 @@ class Promiscuous::AMQP::Bunny
       exchanges.zip(options[:bindings].values).each do |exchange, bindings|
         bindings.each do |binding|
           @queue.bind(exchange, :routing_key => binding)
-          Promiscuous.debug "[bind] #{exchange.name} -> #{binding} -> #{Promiscuous::Config.queue_name}"
+          Promiscuous.debug "[bind] #{exchange.name}/#{binding}/#{Promiscuous::Config.queue_name}"
         end
       end
 

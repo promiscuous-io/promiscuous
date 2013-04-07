@@ -74,7 +74,7 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
     msg += "\n\nProTip: Try again with TRACE=2 in the shell or ENV['TRACE']='2' in the console.\n" unless ENV['TRACE']
     msg
   rescue Exception => e
-    "#{e.to_s}\n#{e.backtrace.join("\n")}"
+    "#{e}\n#{e.backtrace.join("\n")}"
   end
 
   def self.explain_operation(operation, limit=100)
