@@ -3,10 +3,13 @@ require 'spec_helper'
 describe Promiscuous do
   before do
     @operation_klass = Promiscuous::Publisher::Operation::Base
-    @old_lock_options = @operation_klass::LOCK_OPTIONS
-    @operation_klass.__send__(:remove_const, :LOCK_OPTIONS)
-    # Hard to go down under one second because it's the granularity of our lock.
-    @operation_klass::LOCK_OPTIONS = {:timeout => 1.hour, :sleep => 0.01, :expire => 1.second}
+    @operation_klass.stubs(:lock_options).returns(
+      :timeout => 1.year,
+      :sleep   => 0.01.seconds,
+      :expire  => 0.seconds, # in reality, we'll have a 1 second expire time
+      :lock_set => Promiscuous::Key.new(:pub).join('lock_set').to_s
+    )
+
     use_fake_backend
     load_models
     run_subscriber_worker!
@@ -15,11 +18,7 @@ describe Promiscuous do
     @pub_worker.start
   end
 
-  after do
-    @operation_klass.__send__(:remove_const, :LOCK_OPTIONS)
-    @operation_klass::LOCK_OPTIONS = @old_lock_options
-    @pub_worker.stop
-  end
+  after { @pub_worker.stop }
 
   context 'when the publisher dies right after the locking' do
     it 'recovers' do
@@ -362,16 +361,25 @@ describe Promiscuous do
     end
 
     context 'when the lock times out' do
-      before { @operation_klass::LOCK_OPTIONS[:timeout] = 0.5 }
-
-      it 'throws an exception' do
+      it 'the app instance throws an exception' do
         pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
+
+        @operation_klass.stubs(:lock_options).returns(
+          :timeout => 0,
+          :sleep   => 0.01.seconds,
+          :expire  => 0.seconds,
+          :lock_set => Promiscuous::Key.new(:pub).join('lock_set').to_s
+        )
 
         @operation_klass.any_instance.stubs(:increment_read_and_write_dependencies).raises
         expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
         @operation_klass.any_instance.unstub(:increment_read_and_write_dependencies)
-        expect { Promiscuous.context { pub.update_attributes(:field_1 => '3') } }.to raise_error
+
+        expect do
+          Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+        end.to raise_error(Promiscuous::Error::LockUnavailable)
+
       end
     end
 

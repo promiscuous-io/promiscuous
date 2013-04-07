@@ -94,9 +94,9 @@ module Promiscuous::Redis
       # TODO remove old code with orig_key
       @orig_key = key.to_s
       @key      = "#{key}:lock"
-      @timeout  = options[:timeout]
-      @sleep    = options[:sleep]
-      @expire   = options[:expire]
+      @timeout  = options[:timeout].to_i
+      @sleep    = options[:sleep].to_f
+      @expire   = options[:expire].to_i
       @lock_set = options[:lock_set]
       @node     = options[:node]
       raise "Which node?" unless @node
@@ -111,19 +111,13 @@ module Promiscuous::Redis
     end
 
     def lock
-      if @timeout > 0
-        # Blocking mode
-        result = false
-        start_at = Time.now
-        while Time.now - start_at < @timeout
-          break if result = try_lock
-          sleep @sleep
-        end
-        result
-      else
-        # Non-blocking mode
-        try_lock
+      result = false
+      start_at = Time.now
+      while Time.now - start_at < @timeout
+        break if result = try_lock
+        sleep @sleep
       end
+      result
     end
 
     def try_lock

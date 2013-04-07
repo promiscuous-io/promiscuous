@@ -10,7 +10,7 @@ module AsyncHelper
       end
       return if error.nil?
       raise error if Time.now >= time_limit
-      sleep interval
+      sleep interval.to_f
     end
   end
 end

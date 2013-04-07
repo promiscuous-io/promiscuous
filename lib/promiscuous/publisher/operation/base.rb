@@ -320,13 +320,15 @@ class Promiscuous::Publisher::Operation::Base
     @instance_version = w.first.version
   end
 
-  LOCK_OPTIONS = { :timeout => 10.seconds, # after 10 seconds, we give up
-                   :sleep   => 0.01,       # polling every 10ms.
-                   :expire  => 1.minute }  # after one minute, we are considered dead
-
   def self.lock_options
-    LOCK_OPTIONS.merge({ :lock_set => Promiscuous::Key.new(:pub).join('lock_set').to_s })
+    @@lock_options ||= {
+      :timeout  => 10.seconds,   # after 10 seconds, we give up so we don't queue requests
+      :sleep    => 0.01.seconds, # polling every 10ms.
+      :expire   => 1.minute,     # after one minute, we are considered dead
+      :lock_set => Promiscuous::Key.new(:pub).join('lock_set').to_s
+    }
   end
+  delegate :lock_options, :to => self
 
   def self.recover_locks
     return unless Promiscuous::Redis.master
@@ -352,7 +354,7 @@ class Promiscuous::Publisher::Operation::Base
     # XXX TODO Support multi row writes
     instance_dep = write_dependencies.first
     return [] unless instance_dep
-    options = self.class.lock_options.merge(:node => instance_dep.redis_node)
+    options = lock_options.merge(:node => instance_dep.redis_node)
     [Promiscuous::Redis::Mutex.new(instance_dep.key(:pub).to_s, options)]
   end
 
@@ -367,7 +369,11 @@ class Promiscuous::Publisher::Operation::Base
     locks = locks_from_write_dependencies
     locks.reduce(->{ @locks = locks; true }) do |chain, l|
       lambda do
-        return false if Time.now - start_at > LOCK_OPTIONS[:timeout]
+        if Time.now - start_at > lock_options[:timeout]
+          @unavailable_lock = l
+          return false
+        end
+
         case l.lock
           # Note that we do not unlock the recovered lock if the chain fails
         when :recovered then @recovered_locks << l; chain.call
