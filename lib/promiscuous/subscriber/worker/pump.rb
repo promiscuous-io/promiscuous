@@ -8,8 +8,13 @@ class Promiscuous::Subscriber::Worker::Pump
 
   def connect
     options = {}
+    options[:bindings] = {}
     # We need to subscribe to everything to keep up with the version tracking
-    options[:bindings] = ['*']
+    options[:bindings][Promiscuous::Config.subscriber_exchange] = ['*']
+    if Promiscuous::Config.bootstrap
+      options[:bindings][Promiscuous::AMQP::BOOTSTRAP_EXCHANGE] = ['*']
+    end
+
     subscribe(options, &method(:on_message))
   end
 

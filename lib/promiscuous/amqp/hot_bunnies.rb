@@ -7,14 +7,10 @@ class Promiscuous::AMQP::HotBunnies < Promiscuous::AMQP::Bunny
 
   # TODO auto reconnect
 
-  def new_connection(options={})
-    connection = ::HotBunnies.connect(:uri => options[:url],
-                                      :heartbeat_interval => Promiscuous::Config.heartbeat,
-                                      :connection_timeout => Promiscuous::Config.socket_timeout)
-
-    channel = connection.create_channel
-    exchange = channel.exchange(options[:exchange], :type => :topic, :durable => true)
-    [connection, channel, exchange]
+  def raw_new_connection(options={})
+    ::HotBunnies.connect(:uri => options[:url],
+                         :heartbeat_interval => Promiscuous::Config.heartbeat,
+                         :connection_timeout => Promiscuous::Config.socket_timeout)
   end
 
   def disconnect

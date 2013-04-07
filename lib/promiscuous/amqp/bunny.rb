@@ -27,23 +27,36 @@ class Promiscuous::AMQP::Bunny
     @callback_mapping = {}
   end
 
-  def connect
-    connection_options = { :url      => Promiscuous::Config.publisher_amqp_url,
-                           :exchange => Promiscuous::Config.publisher_exchange }
-    @connection, @channel, @exchange = new_connection(connection_options)
-    confirm_select(@channel, &method(:on_confirm))
+  def raw_new_connection(options={})
+    connection = ::Bunny.new(options[:url], :heartbeat_interval => Promiscuous::Config.heartbeat,
+                                            :socket_timeout     => Promiscuous::Config.socket_timeout,
+                                            :connect_timeout    => Promiscuous::Config.socket_timeout)
+    connection.start
+    connection
   end
 
   def new_connection(options={})
-    connection = ::Bunny.new(options[:url],
-                             :heartbeat_interval => Promiscuous::Config.heartbeat,
-                             :socket_timeout     => Promiscuous::Config.socket_timeout,
-                             :connect_timeout    => Promiscuous::Config.socket_timeout)
-    connection.start
+    connection = raw_new_connection(options)
     channel = connection.create_channel
-    exchange = channel.exchange(options[:exchange], :type => :topic, :durable => true)
+    channel.basic_qos(options[:prefetch]) if options[:prefetch]
+    channel.confirm_select(&method(:on_confirm)) if options[:confirm]
 
-    [connection, channel, exchange]
+    if options[:exchanges]
+      exchanges = options[:exchanges].map do |exchange_name|
+        channel.exchange(exchange_name, :type => :topic, :durable => true)
+      end
+      [connection, channel, exchanges]
+    else
+      exchange = channel.exchange(options[:exchange], :type => :topic, :durable => true)
+      [connection, channel, exchange]
+    end
+  end
+
+  def connect
+    connection_options = { :url      => Promiscuous::Config.publisher_amqp_url,
+                           :exchange => Promiscuous::Config.publisher_exchange,
+                           :confirm  => true }
+    @connection, @channel, @exchange = new_connection(connection_options)
   end
 
   def disconnect
@@ -75,10 +88,6 @@ class Promiscuous::AMQP::Bunny
     Promiscuous::Config.error_notifier.try(:call, e)
   end
 
-  def confirm_select(channel, &callback)
-    channel.confirm_select(callback)
-  end
-
   def on_confirm(tag, multiple, nack=false)
     if multiple
       cbs = @callback_mapping.keys
@@ -93,19 +102,19 @@ class Promiscuous::AMQP::Bunny
 
   module Subscriber
     def subscribe(options={}, &block)
-      bindings = options[:bindings]
       @lock = Mutex.new
 
-      connection_options = { :url      => Promiscuous::Config.subscriber_amqp_url,
-                             :exchange => Promiscuous::Config.subscriber_exchange }
-      @connection, @channel, @exchange = Promiscuous::AMQP.new_connection(connection_options)
-
-      @channel.basic_qos(Promiscuous::Config.prefetch)
+      connection_options = { :url       => Promiscuous::Config.subscriber_amqp_url,
+                             :exchanges => options[:bindings].keys,
+                             :prefetch  => Promiscuous::Config.prefetch }
+      @connection, @channel, exchanges = Promiscuous::AMQP.new_connection(connection_options)
 
       @queue = @channel.queue(Promiscuous::Config.queue_name, Promiscuous::Config.queue_options)
-      bindings.each do |binding|
-        @queue.bind(@exchange, :routing_key => binding)
-        Promiscuous.debug "[bind] #{Promiscuous::Config.queue_name} -> #{binding}"
+      exchanges.zip(options[:bindings].values).each do |exchange, bindings|
+        bindings.each do |binding|
+          @queue.bind(exchange, :routing_key => binding)
+          Promiscuous.debug "[bind] #{exchange.name} -> #{binding} -> #{Promiscuous::Config.queue_name}"
+        end
       end
 
       @subscription = subscribe_queue(@queue, &block)
