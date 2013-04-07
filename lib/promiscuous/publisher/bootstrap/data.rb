@@ -24,7 +24,7 @@ class Promiscuous::Publisher::Bootstrap::Data
         payload = instance.promiscuous.payload
         payload[:operation] = :bootstrap_data
         payload[:dependencies] = {:write => [dep]}
-        Promiscuous::AMQP.raw_publish(:key => payload[:__amqp__], :payload => MultiJson.dump(payload))
+        Promiscuous::AMQP.publish(:key => payload[:__amqp__], :payload => MultiJson.dump(payload))
       end
     end
   end

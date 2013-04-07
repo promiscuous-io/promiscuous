@@ -32,7 +32,7 @@ class Promiscuous::Publisher::Bootstrap::Version
       payload = {}
       payload[:operation] = :bootstrap_versions
       payload[:keys] = futures.map { |i, f| "#{i}:#{f.value}" if f.value }.compact
-      Promiscuous::AMQP.raw_publish(:key => Promiscuous::Config.app, :payload => MultiJson.dump(payload))
+      Promiscuous::AMQP.publish(:key => Promiscuous::Config.app, :payload => MultiJson.dump(payload))
     end
   end
 end

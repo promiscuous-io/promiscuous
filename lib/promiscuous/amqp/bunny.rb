@@ -57,8 +57,7 @@ class Promiscuous::AMQP::Bunny
   end
 
   def raw_publish(options)
-    Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}"
-    @exchange.publish(options[:payload], :key => options[:key], :persistent => true)
+    options[:exchange].publish(options[:payload], :key => options[:key], :persistent => true)
   end
 
   def exchange(channel, exchange_name)
@@ -66,9 +65,10 @@ class Promiscuous::AMQP::Bunny
   end
 
   def publish(options={})
+    Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}"
     @connection_lock.synchronize do
       tag = @channel.next_publish_seq_no if options[:on_confirm]
-      raw_publish(options)
+      raw_publish(options.merge(:exchange => @exchange))
       @callback_mapping[tag] = options[:on_confirm] if options[:on_confirm]
     end
   rescue Exception => e

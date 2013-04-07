@@ -35,7 +35,7 @@ module Promiscuous::AMQP
       @backend = nil
     end
 
-    delegate :publish, :raw_publish, :connected?, :to => :backend
+    delegate :publish, :connected?, :to => :backend
 
     def const_missing(sym)
       backend_class.const_get(sym)

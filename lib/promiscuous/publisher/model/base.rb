@@ -23,17 +23,19 @@ module Promiscuous::Publisher::Model::Base
 
     def payload(options={})
       # It's nice to see the entire payload in one piece, not merged 36 times
-      # TODO migrate this format to something that makes more sense once the store is out
+      # TODO migrate this format to something that makes more sense once crowdstore is out
       msg = {}
       msg[:__amqp__]  = @instance.class.publish_to
       msg[:type]      = @instance.class.publish_as # for backward compatibility
       msg[:ancestors] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
       msg[:id]        = @instance.id.to_s
-      if @instance.respond_to?(:promiscuous_payload)
-        msg[:payload] = @instance.promiscuous_payload
-      else
-        msg[:payload] = self.attributes unless options[:with_attributes] == false
+
+      unless options[:with_attributes] == false
+        # promiscuous_payload is useful to implement relays
+        msg[:payload] = @instance.respond_to?(:promiscuous_payload) ? @instance.promiscuous_payload :
+                                                                      self.attributes
       end
+
       msg
     end
 

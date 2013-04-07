@@ -30,8 +30,7 @@ class Promiscuous::AMQP::HotBunnies < Promiscuous::AMQP::Bunny
   end
 
   def raw_publish(options={})
-    Promiscuous.debug "[publish] #{options[:key]} -> #{options[:payload]}"
-    @exchange.publish(options[:payload], :routing_key => options[:key], :persistent => true)
+    options[:exchange].publish(options[:payload], :routing_key => options[:key], :persistent => true)
   end
 
   def confirm_select(channel, &callback)
