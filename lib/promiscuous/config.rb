@@ -59,7 +59,7 @@ module Promiscuous::Config
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10
     self.error_notifier       ||= proc {}
-    self.strict_multi_read    ||= true
+    self.strict_multi_read    = true if self.strict_multi_read.nil?
   end
 
   def self.configure(&block)
