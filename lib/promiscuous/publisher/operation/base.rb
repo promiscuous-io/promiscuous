@@ -210,6 +210,22 @@ class Promiscuous::Publisher::Operation::Base
         execute_persistent_locked { recover_db_operation }
       end
     end
+
+  ### TODO DEBUG CODE - REMOVE AT SOME POINT ###
+  rescue Redis::CommandError => e
+    key_type = nil
+    begin
+      require 'base64'
+      key_type = master_node.type("#{lock.key}:operation_recovery")
+      recovery_data = master_node.dump("#{lock.key}:operation_recovery") unless recovery_data
+      recovery_data = Base64.strict_encode64(recovery_data)
+    rescue Exception
+    end
+    message = "cannot recover #{lock.key}, failed to fetch raw recovery data"
+    message = "cannot recover #{lock.key}, key_type: #{key_type}, raw recovery data: #{recovery_data}" if recovery_data
+    raise Promiscuous::Error::Recovery.new(message, e)
+  ### TODO DEBUG CODE - REMOVE AT SOME POINT ###
+
   rescue Exception => e
     message = "cannot recover #{lock.key}, failed to fetch recovery data"
     message = "cannot recover #{lock.key}, recovery data: #{recovery_data}" if recovery_data
