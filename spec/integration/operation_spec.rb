@@ -267,6 +267,49 @@ if ORM.has(:mongoid)
       end
     end
 
+    context 'when not in strict mode for multi reads' do
+      before { Promiscuous::Config.strict_multi_read = false }
+      after  { Promiscuous::Config.strict_multi_read = true }
+
+      it "doesn't raise when a multi read cannot be tracked" do
+        pub1 = pub2 = nil
+        without_promiscuous do
+          pub1 = PublisherModel.create(:field_1 => 123)
+          pub2 = PublisherModel.create(:field_1 => 123)
+        end
+
+        Promiscuous.context do
+          expect do
+            PublisherModel.all.where(:field_1 => 123).each do |p|
+              p.update_attributes(:field_1 => 321)
+            end
+          end.to_not raise_error
+        end
+      end
+    end
+
+    context 'when in strict mode for multi reads' do
+      before { Promiscuous::Config.strict_multi_read = true }
+      after  { Promiscuous::Config.strict_multi_read = false }
+
+      it "doesn't raise when a multi read cannot be tracked" do
+        pub1 = pub2 = nil
+        without_promiscuous do
+          pub1 = PublisherModel.create(:field_1 => 123)
+          pub2 = PublisherModel.create(:field_1 => 123)
+        end
+
+        Promiscuous.context do
+          expect do
+            PublisherModel.all.where(:field_1 => 123).each do |p|
+              p.update_attributes(:field_1 => 321)
+            end
+          end.to raise_error
+        end
+      end
+    end
+
+
     context 'when using hashing' do
       before { PublisherModel.track_dependencies_of :field_1 }
       before { Promiscuous::Config.hash_size = 1 }

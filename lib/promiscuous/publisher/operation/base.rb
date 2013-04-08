@@ -414,10 +414,12 @@ class Promiscuous::Publisher::Operation::Base
       # pick the first one. In most cases, it should resolve to the id
       # dependency.
       best_dependency = @instance.promiscuous.tracked_dependencies.first
-      unless best_dependency
-        raise Promiscuous::Error::Dependency.new(:operation => self)
+      if Promiscuous::Config.strict_multi_read
+        unless best_dependency
+          raise Promiscuous::Error::Dependency.new(:operation => self)
+        end
       end
-      [best_dependency]
+      [best_dependency].compact
     else
       # Note that tracked_dependencies will not return the id dependency if it
       # doesn't exist which can only happen for create operations and auto
