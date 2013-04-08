@@ -105,15 +105,15 @@ class Promiscuous::Publisher::Operation::Base
     w = @committed_write_deps
 
     master_node = w.first.redis_node
-    operation_recovery_key = w.first.key(:pub).join('operation_recovery').to_s
-    # We identify a payload with a unique key (id:id_value:current_version) to
-    # avoid collisions with other updates on the same document.
+
+    # We identify a payload with a unique key (id:id_value:current_version:payload_recovery)
+    # to avoid collisions with other updates on the same document.
     @payload_recovery_node = master_node
-    @payload_recovery_key = w.first.key(:pub).join(w.first.version).to_s
+    @payload_recovery_key = w.first.key(:pub).join(w.first.version, 'payload_recovery').to_s
 
     # We need to be able to recover from a redis failure. By sending the
     # payload to the slave first, we ensure that we can replay the lost
-    # payloads if the primary came to fail.
+    # payloads if the master came to fail.
     # We still need to recover the lost operations. This can be done by doing a
     # version diff from what is stored in the database and the recovered redis slave.
     # XXX TODO
@@ -123,31 +123,22 @@ class Promiscuous::Publisher::Operation::Base
     # happen if we lost the lock without knowing about it.
     # The payload can be sent twice, which is okay since the subscribers
     # tolerate it.
-
-    nodes = (w+r).map(&:redis_node).uniq
-    if nodes.size == 1
-      # We just have the master node. Since we are atomic, we don't need to do
-      # the 2pc dance.
-      master_node.multi do
-        master_node.del(operation_recovery_key)
-        master_node.set(@payload_recovery_key, @payload)
-        master_node.zadd(rabbitmq_staging_set_key, Time.now.to_i, @payload_recovery_key)
-      end
-    else
-      master_node.multi do
-        master_node.set(@payload_recovery_key, @payload)
-        master_node.zadd(rabbitmq_staging_set_key, Time.now.to_i, @payload_recovery_key)
-      end
-
-      # The payload is safe now. We can cleanup all the versions on the
-      # secondary. Note that we need to clear the master node at the end,
-      # as it acts as a lock on the other keys. This is important to avoid a
-      # race where we would delete data that doesn't belong to the current
-      # operation due to a lock loss.
-      nodes.reject { |node| node == master_node }
-            .each  { |node| node.del(operation_recovery_key) }
-      master_node.del(operation_recovery_key)
+    master_operation_recovery_key = w.first.key(:pub).join('operation_recovery').to_s
+    master_node.multi do
+      master_node.set(@payload_recovery_key, @payload)
+      master_node.zadd(rabbitmq_staging_set_key, Time.now.to_i, @payload_recovery_key)
+      master_node.del(master_operation_recovery_key)
     end
+
+    # The payload is safe now. We can cleanup all the versions on the
+    # secondary. There are no harmful races that can happen since the
+    # secondary_operation_recovery_key is unique to the operation.
+    # XXX The caveat is that if we die here, the
+    # secondary_operation_recovery_key will never be cleaned up.
+    secondary_operation_recovery_key = w.first.key(:pub).join(w.first.version, 'operation_recovery').to_s
+    (w+r).map(&:redis_node).uniq
+      .reject { |node| node == master_node }
+      .each   { |node| node.del(secondary_operation_recovery_key) }
   end
 
   def generate_payload_and_clear_operations
@@ -182,15 +173,11 @@ class Promiscuous::Publisher::Operation::Base
   def self.recover_operation_from_lock(lock)
     # We happen to have acquired a never released lock.
     # The database instance is thus still prestine.
-    # Three cases to consider:
-    # 1) the key is not an id dependency or the payload queue stage was passed
-    # 2) The write query was never executed, we must send a dummy operation
-    # 3) The write query was executed, but never passed the payload queue stage
 
     master_node = lock.node
     recovery_data = master_node.hgetall("#{lock.key}:operation_recovery")
 
-    return nil unless recovery_data.present? # case 1)
+    return unless recovery_data.present?
 
     Promiscuous.info "[operation recovery] #{lock.key} -> #{recovery_data}"
 
@@ -224,7 +211,8 @@ class Promiscuous::Publisher::Operation::Base
       end
     end
   rescue Exception => e
-    message = "cannot recover #{lock.key} -> #{recovery_data}"
+    message = "cannot recover #{lock.key}, failed to fetch recovery data"
+    message = "cannot recover #{lock.key} -> #{recovery_data}" if recovery_data
     raise Promiscuous::Error::Recovery.new(message, e)
   end
 
@@ -256,6 +244,9 @@ class Promiscuous::Publisher::Operation::Base
 
       # Each shard have their own recovery payload. The master recovery node
       # has the full operation recovery, and the others just have their versions.
+      # Note that the operation_recovery_key on the secondaries have the current
+      # version of the instance appended to them. It's easier to cleanup when
+      # locks get lost.
       argv << operation_recovery_key.as_json
       if node == master_node
         # We are on the master node, which holds the recovery payload
@@ -263,6 +254,8 @@ class Promiscuous::Publisher::Operation::Base
         argv << MultiJson.dump([@instance.class.promiscuous_collection_name,
                                 @instance.id, operation, document, r, w])
       end
+
+      # FIXME If the lock is lost, we need to backoff
 
       # We are going to store all the versions in redis, to be able to recover.
       # We store all our increments in a transaction_id key in JSON format.
@@ -280,31 +273,38 @@ class Promiscuous::Publisher::Operation::Base
 
         if redis.call('exists', operation_recovery_key) == 1 then
           for i, dep in ipairs(read_deps) do
-            local key = prefix .. dep
-            read_versions[i] = redis.call('get', key .. ':w')
-          end
-          for i, dep in ipairs(write_deps) do
-            local key = prefix .. dep
-            write_versions[i] = redis.call('get', key .. ':w')
-          end
-        else
-          for i, dep in ipairs(read_deps) do
-            local key = prefix .. dep
-            redis.call('incr', key .. ':rw')
-            read_versions[i] = redis.call('get', key .. ':w')
-            redis.call('hset', operation_recovery_key, dep, read_versions[i])
+            read_versions[i] = redis.call('hget', operation_recovery_key, dep)
+            if not read_versions[i] then
+              return redis.error_reply('Failed to recovery dependency ' .. dep)
+            end
           end
 
           for i, dep in ipairs(write_deps) do
-            local key = prefix .. dep
-            write_versions[i] = redis.call('incr', key .. ':rw')
-            redis.call('set', key .. ':w', write_versions[i])
-            redis.call('hset', operation_recovery_key, dep, write_versions[i])
+            write_versions[i] = redis.call('hget', operation_recovery_key, dep)
+            if not write_versions[i] then
+              return redis.error_reply('Failed to recovery dependency ' .. dep)
+            end
           end
 
-          if operation_recovery_payload then
-            redis.call('hset', operation_recovery_key, 'payload', operation_recovery_payload)
-          end
+          return { read_versions, write_versions }
+        end
+
+        for i, dep in ipairs(read_deps) do
+          local key = prefix .. dep
+          redis.call('incr', key .. ':rw')
+          read_versions[i] = redis.call('get', key .. ':w')
+          redis.call('hset', operation_recovery_key, dep, read_versions[i] or 0)
+        end
+
+        for i, dep in ipairs(write_deps) do
+          local key = prefix .. dep
+          write_versions[i] = redis.call('incr', key .. ':rw')
+          redis.call('set', key .. ':w', write_versions[i])
+          redis.call('hset', operation_recovery_key, dep, write_versions[i] or 0)
+        end
+
+        if operation_recovery_payload then
+          redis.call('hset', operation_recovery_key, 'payload', operation_recovery_payload)
         end
 
         return { read_versions, write_versions }

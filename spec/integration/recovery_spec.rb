@@ -5,7 +5,7 @@ describe Promiscuous do
     @operation_klass = Promiscuous::Publisher::Operation::Base
     @operation_klass.stubs(:lock_options).returns(
       :timeout => 1.year,
-      :sleep   => 0.01.seconds,
+      :sleep   => 0.1.seconds,
       :expire  => 0.seconds, # in reality, we'll have a 1 second expire time
       :lock_set => Promiscuous::Key.new(:pub).join('lock_set').to_s
     )
