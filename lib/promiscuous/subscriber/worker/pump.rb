@@ -28,6 +28,6 @@ class Promiscuous::Subscriber::Worker::Pump
     end
   rescue Exception => e
     Promiscuous.warn "[receive] cannot process message: #{e}\n#{e.backtrace.join("\n")}"
-    Promiscuous::Config.error_notifier.try(:call, e)
+    Promiscuous::Config.error_notifier.call(e)
   end
 end

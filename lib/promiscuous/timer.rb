@@ -13,7 +13,7 @@ class Promiscuous::Timer
     unless @last_exception == e.to_s
       @last_exception = e.to_s
       Promiscuous.warn "[#{@name}] #{e}"
-      Promiscuous::Config.error_notifier.try(:call, e)
+      Promiscuous::Config.error_notifier.call(e)
     end
   end
 

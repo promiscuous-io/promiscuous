@@ -6,7 +6,7 @@ class Promiscuous::AMQP::Bunny
 
       def handle_network_failure(e)
         Promiscuous.warn "[amqp] #{e}. Reconnecting..."
-        Promiscuous::Config.error_notifier.try(:call, e)
+        Promiscuous::Config.error_notifier.call(e)
         handle_network_failure_without_promiscuous(e)
       end
     end
@@ -91,7 +91,7 @@ class Promiscuous::AMQP::Bunny
   rescue Exception => e
     e = Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
     Promiscuous.warn "[publish] #{e}\n#{e.backtrace.join("\n")}"
-    Promiscuous::Config.error_notifier.try(:call, e)
+    Promiscuous::Config.error_notifier.call(e)
   end
 
   def on_confirm(tag, multiple, nack=false)

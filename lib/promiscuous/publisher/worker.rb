@@ -16,6 +16,6 @@ class Promiscuous::Publisher::Worker
     Promiscuous::Publisher::Operation::Base.recover_payloads_for_rabbitmq
   rescue Exception => e
     Promiscuous.warn "[recovery] #{e}\n#{e.backtrace.join("\n")}"
-    Promiscuous::Config.error_notifier.try(:call, e)
+    Promiscuous::Config.error_notifier.call(e)
   end
 end

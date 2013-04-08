@@ -4,7 +4,8 @@ module Promiscuous::Config
                  :subscriber_exchange, :queue_name, :queue_options, :redis_url,
                  :redis_urls, :redis_stats_url, :stats_interval,
                  :socket_timeout, :heartbeat, :bareback, :hash_size, :recovery,
-                 :prefetch, :recovery_timeout, :logger, :subscriber_threads
+                 :prefetch, :recovery_timeout, :logger, :subscriber_threads,
+                 :error_notifier
 
   def self.backend=(value)
     @@backend = value
@@ -57,6 +58,7 @@ module Promiscuous::Config
     self.recovery_timeout     ||= 10
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10
+    self.error_notifier       ||= proc {}
   end
 
   def self.configure(&block)

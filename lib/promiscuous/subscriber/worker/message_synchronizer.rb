@@ -57,7 +57,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     e = Promiscuous::Redis.lost_connection_exception(node, :inner => exception)
     Promiscuous.warn "[redis] #{e}. Reconnecting..."
-    Promiscuous::Config.error_notifier.try(:call, e)
+    Promiscuous::Config.error_notifier.call(e)
   end
 
   # process_when_ready() is called by the AMQP pump. This is what happens:
@@ -139,7 +139,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     e = Promiscuous::Error::Recovery.new(recovery_msg)
     Promiscuous.error "[synchronization recovery] #{e}"
     # TODO Don't report when doing the initial sync
-    Promiscuous::Config.error_notifier.try(:call, e)
+    Promiscuous::Config.error_notifier.call(e)
   end
 
   def blocked_messages
@@ -189,7 +189,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
         Promiscuous.warn "[redis] #{e.class} #{e.message}"
         Promiscuous.warn "[redis] #{e}\n#{e.backtrace.join("\n")}"
 
-        Promiscuous::Config.error_notifier.try(:call, e)
+        Promiscuous::Config.error_notifier.call(e)
       end
     end
 
