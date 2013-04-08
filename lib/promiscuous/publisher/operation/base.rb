@@ -212,7 +212,7 @@ class Promiscuous::Publisher::Operation::Base
     end
   rescue Exception => e
     message = "cannot recover #{lock.key}, failed to fetch recovery data"
-    message = "cannot recover #{lock.key} -> #{recovery_data}" if recovery_data
+    message = "cannot recover #{lock.key}, recovery data: #{recovery_data}" if recovery_data
     raise Promiscuous::Error::Recovery.new(message, e)
   end
 
