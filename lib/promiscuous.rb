@@ -55,7 +55,8 @@ module Promiscuous
     end
 
     def disabled
-      Thread.current[:promiscuous_disabled] || $promiscuous_disabled
+      return $promiscuous_disabled if Thread.current[:promiscuous_disabled].nil?
+      Thread.current[:promiscuous_disabled]
     end
 
     def disabled=(value)
