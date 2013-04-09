@@ -47,7 +47,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def has_dependencies?
-    return false if Promiscuous::Config.bareback
+    return false if Promiscuous::Config.no_deps
     dependencies.present?
   end
 

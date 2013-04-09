@@ -125,8 +125,8 @@ class Promiscuous::CLI
       opts.separator ""
       opts.separator "Options:"
 
-      opts.on "-B", "--bareback", "Bareback mode aka no dependencies. Use with extreme caution" do
-        Promiscuous::Config.bareback = true
+      opts.on "-d", "--no-deps", "Skip dependency tracking (subscribe only option)" do
+        Promiscuous::Config.no_deps = true
       end
 
       opts.on "-l", "--require FILE", "File to require to load your app. Don't worry about it with rails" do |file|
@@ -209,7 +209,6 @@ class Promiscuous::CLI
   def boot
     self.options = parse_args(ARGV)
     load_app
-    show_bareback_warnings
     run
   end
 
@@ -222,14 +221,6 @@ class Promiscuous::CLI
     when :replay    then replay
     when :mocks     then generate_mocks
     when :publisher_recovery then publisher_recovery
-    end
-  end
-
-  def show_bareback_warnings
-    if Promiscuous::Config.bareback == true
-      print_status "WARNING: --- BAREBACK MODE ----"
-      print_status "WARNING: You are replicating without protection, you can get out of sync in no time"
-      print_status "WARNING: --- BAREBACK MODE ----"
     end
   end
 

@@ -3,7 +3,7 @@ module Promiscuous::Config
                  :publisher_amqp_url, :subscriber_amqp_url, :publisher_exchange,
                  :subscriber_exchange, :queue_name, :queue_options, :redis_url,
                  :redis_urls, :redis_stats_url, :stats_interval,
-                 :socket_timeout, :heartbeat, :bareback, :hash_size, :recovery,
+                 :socket_timeout, :heartbeat, :no_deps, :hash_size, :recovery,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
                  :error_notifier, :strict_multi_read
 
@@ -51,7 +51,7 @@ module Promiscuous::Config
     self.stats_interval       ||= 0
     self.socket_timeout       ||= 10
     self.heartbeat            ||= 60
-    self.bareback             ||= false
+    self.no_deps              ||= false
     self.hash_size            ||= 2**20 # one million keys ~ 200Mb.
     self.recovery             ||= false
     self.prefetch             ||= 1000
