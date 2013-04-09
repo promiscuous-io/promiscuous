@@ -229,7 +229,7 @@ class Promiscuous::Subscriber::Operation
   # - Promiscuous::Subscriber::Operation#bootstrap_missing_data is not implemented
   #   properly (see comment in code)
   # - Automatic switching from pass1, pass2, pass3, live
-  # - Unbinding the bootstrap exchange when going live
+  # - Unbinding the bootstrap exchange when going live, and reset prefetch
   # - The publisher should upgrade its read dependencies into write dependencies
   #   during the version bootstrap phase.
   # - CLI interface and progress bars
