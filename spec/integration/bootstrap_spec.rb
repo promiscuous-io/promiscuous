@@ -6,50 +6,54 @@ describe Promiscuous, 'bootstrapping' do
   before { load_models }
   after  { use_null_backend }
 
-  def switch_mode(options={})
-    @worker.try(:stop)
-    @worker = nil
-    reconfigure_backend do |config|
-      config.bootstrap = options[:bootstrap]
-      config.hash_size = 10
+  def switch_bootstrap_mode(bootstrap_mode)
+    Promiscuous::Config.bootstrap = bootstrap_mode
+    if @worker
+      @worker.pump.recover # send the nacked message again
+    else
+      run_subscriber_worker!
     end
-    @worker = Promiscuous::Subscriber::Worker.new
-    @worker.start
   end
 
   context 'when there are no races with publishers' do
     it 'bootstraps' do
       Promiscuous.context { 10.times { PublisherModel.create } }
 
-      switch_mode(:bootstrap => true)
+      switch_bootstrap_mode(:pass1)
       Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
+      sleep 1
+
+      switch_bootstrap_mode(:pass2)
       Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
+
       eventually { SubscriberModel.count.should == PublisherModel.count }
 
-      switch_mode(:bootstrap => false)
+      switch_bootstrap_mode(false)
       PublisherModel.all.each { |pub| Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') } }
       eventually { SubscriberModel.each { |sub| sub.field_1.should == 'ohai' } }
     end
   end
 
-  context 'when updates happens after the version bootstrap, but before the document is replicated', :pending => true do
+  context 'when updates happens after the version bootstrap, but before the document is replicated' do
     it 'bootstraps' do
       Promiscuous.context { 10.times { PublisherModel.create } }
 
-      switch_mode(:bootstrap => true)
+      switch_bootstrap_mode(:pass1)
       Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
+      sleep 1
 
-      switch_mode(:bootstrap => false)
-      @worker.stop; @worker = nil
       Promiscuous.context { PublisherModel.first.update_attributes(:field_2 => 'hello') }
 
-      switch_mode(:bootstrap => true)
+      switch_bootstrap_mode(:pass2)
       Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
-      eventually { SubscriberModel.count.should == PublisherModel.count }
+      eventually { SubscriberModel.count.should == PublisherModel.count - 1 }
 
       SubscriberModel.first.field_2.should == nil
 
-      switch_mode(:bootstrap => false)
+      switch_bootstrap_mode(:pass3)
+      eventually { SubscriberModel.first.field_2.should == 'hello' }
+
+      switch_bootstrap_mode(false)
       eventually { SubscriberModel.first.field_2.should == 'hello' }
       PublisherModel.all.each { |pub| Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') } }
       eventually { SubscriberModel.each { |sub| sub.field_1.should == 'ohai' } }

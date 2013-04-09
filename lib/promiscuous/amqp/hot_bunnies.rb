@@ -39,7 +39,20 @@ class Promiscuous::AMQP::HotBunnies < Promiscuous::AMQP::Bunny
     include Promiscuous::AMQP::Bunny::Subscriber
 
     def subscribe_queue(queue, &block)
-      queue.subscribe(:ack => true, :blocking => false, &block)
+      queue.subscribe(:ack => true, :blocking => false) do |metadata, payload|
+        block.call(MetaData.new(self, metadata), payload)
+      end
+    end
+
+    class MetaData < Promiscuous::AMQP::Bunny::Subscriber::MetaData
+      def initialize(subscriber, metadata)
+        @subscriber = subscriber
+        @metadata = metadata
+      end
+
+      def ack
+        @metadata.ack
+      end
     end
 
     def disconnect

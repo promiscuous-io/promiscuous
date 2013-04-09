@@ -57,11 +57,21 @@ class Promiscuous::Subscriber::Worker::Message
 
   def ack
     time = Time.now
+    Promiscuous.debug "[receive] #{payload}"
     @metadata.ack
     @root_worker.stats.notify_processed_message(self, time) if @root_worker
   rescue Exception => e
     # We don't care if we fail, the message will be redelivered at some point
     Promiscuous.warn "[receive] Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
+    Promiscuous::Config.error_notifier.call(e)
+  end
+
+  def postpone
+    # Only used during bootstrapping
+    @metadata.postpone
+  rescue Exception => e
+    # We don't care if we fail
+    Promiscuous.warn "[receive] (postpone) Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.call(e)
   end
 
@@ -80,19 +90,16 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def process
-    Promiscuous.debug "[receive] #{payload}"
     unit_of_work(endpoint) do
       payload = Promiscuous::Subscriber::Payload.new(parsed_payload, self)
       Promiscuous::Subscriber::Operation.new(payload).commit
     end
-    ack
   rescue Promiscuous::Error::AlreadyProcessed => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
-    Promiscuous.debug "[receive] #{e}\n#{e.backtrace.join("\n")}"
-    ack
+    Promiscuous.debug "[receive] #{payload} #{e}\n#{e.backtrace.join("\n")}"
   rescue Exception => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
-    Promiscuous.warn "[receive] #{e}\n#{e.backtrace.join("\n")}"
+    Promiscuous.warn "[receive] #{payload} #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.call(e)
   end
 end

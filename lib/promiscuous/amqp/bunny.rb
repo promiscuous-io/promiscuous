@@ -109,10 +109,11 @@ class Promiscuous::AMQP::Bunny
   module Subscriber
     def subscribe(options={}, &block)
       @lock = Mutex.new
+      @prefetch = Promiscuous::Config.prefetch
 
       connection_options = { :url       => Promiscuous::Config.subscriber_amqp_url,
                              :exchanges => options[:bindings].keys,
-                             :prefetch  => Promiscuous::Config.prefetch }
+                             :prefetch  => @prefetch }
       @connection, @channel, exchanges = Promiscuous::AMQP.new_connection(connection_options)
 
       @queue = @channel.queue(Promiscuous::Config.queue_name, Promiscuous::Config.queue_options)
@@ -141,10 +142,25 @@ class Promiscuous::AMQP::Bunny
       def ack
         @subscriber.ack_message(@delivery_info.delivery_tag)
       end
+
+      def postpone
+        @subscriber.postpone_message
+      end
     end
 
     def ack_message(tag)
       @lock.synchronize { @channel.ack(tag) } if @channel
+    end
+
+    def postpone_message
+      # Not using nacks, because the message gets sent back right away, so we'll
+      # increase the prefetch window
+      return unless @prefetch
+
+      @lock.synchronize do
+        @prefetch += 1
+        @channel.basic_qos(@prefetch)
+      end
     end
 
     def recover

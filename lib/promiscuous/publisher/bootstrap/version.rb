@@ -34,7 +34,7 @@ class Promiscuous::Publisher::Bootstrap::Version < Promiscuous::Publisher::Boots
       payload = {}
       payload[:operation] = :bootstrap_versions
       payload[:keys] = futures.map { |i, f| "#{i}:#{f.value}" if f.value }.compact
-      @parent.publish(:payload => MultiJson.dump(payload))
+      @parent.publish(:payload => MultiJson.dump(payload)) if payload[:keys].present?
     end
   end
 end
