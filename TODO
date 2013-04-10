@@ -1,0 +1,16 @@
+    - Comment out pass3 (tolerate upserts)
+    - The publisher should upgrade its read dependencies into write dependencies
+      during the version bootstrap phase.
+    - CLI interface and progress bars
+    - Sync Fiance
+
+    - Sharding
+    - Create a new sniper2 and verify before switching to it
+
+    - Sync paparazzi
+
+    - Async callbacks
+    - Sync iris
+
+    - Unbinding the bootstrap exchange when going live + reset prefetch
+    - Automatic switching from pass1, pass2, pass3, live
