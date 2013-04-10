@@ -125,15 +125,15 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       [dep, key, to_skip] if to_skip > 0
     end.compact
 
-    return not_recovering if versions_to_skip.blank?
+    return unless versions_to_skip.present?
 
-    recovery_msg = "Skipping "
+    recovery_msg = "Incrementing: "
     recovery_msg += versions_to_skip.map do |dep, key, to_skip|
       dep.redis_node.set(key, dep.version)
       dep.redis_node.publish(key, dep.version)
 
       # Note: the skipped message would have a write dependency with dep.to_s
-      "#{to_skip} message(s) on #{dep}"
+      "#{dep} by #{to_skip}"
     end.join(", ")
 
     e = Promiscuous::Error::Recovery.new(recovery_msg)
@@ -148,10 +148,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       .flatten
       .uniq
       .sort_by { |msg| msg.timestamp }
-  end
-
-  def not_recovering
-    Promiscuous.warn "[synchronization recovery] Nothing to recover from"
   end
 
   class NodeSynchronizer

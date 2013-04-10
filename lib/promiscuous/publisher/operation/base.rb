@@ -291,14 +291,14 @@ class Promiscuous::Publisher::Operation::Base
           for i, dep in ipairs(read_deps) do
             read_versions[i] = redis.call('hget', operation_recovery_key, dep)
             if not read_versions[i] then
-              return redis.error_reply('Failed to recovery dependency ' .. dep)
+              return redis.error_reply('Failed to read dependency ' .. dep .. ' during recovery')
             end
           end
 
           for i, dep in ipairs(write_deps) do
             write_versions[i] = redis.call('hget', operation_recovery_key, dep)
             if not write_versions[i] then
-              return redis.error_reply('Failed to recovery dependency ' .. dep)
+              return redis.error_reply('Failed to read dependency ' .. dep .. ' during recovery')
             end
           end
 

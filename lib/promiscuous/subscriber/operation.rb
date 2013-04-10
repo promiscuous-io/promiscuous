@@ -152,6 +152,8 @@ class Promiscuous::Subscriber::Operation
       # It is thus okay to assume the worse and be inefficient.
       update_dependencies(:only_write_dependencies => true)
 
+      message.ack
+
       raise Promiscuous::Error::AlreadyProcessed
     end
   end
@@ -179,6 +181,7 @@ class Promiscuous::Subscriber::Operation
       check_for_duplicated_message
       yield
       update_dependencies
+      message.ack
     ensure
       unless mutex.unlock
         # TODO Be safe in case we have a duplicate message and lost the lock on it
@@ -186,7 +189,6 @@ class Promiscuous::Subscriber::Operation
               "received a duplicate message, and we got screwed.\n"
       end
     end
-    message.ack
   end
 
   def create(options={})
