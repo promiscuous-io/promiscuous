@@ -24,4 +24,10 @@ class Promiscuous::Subscriber::Worker
     @pump.disconnect
     @message_synchronizer.disconnect
   end
+
+  def show_stop_status
+    @num_show_stop_requests ||= 0
+    @num_show_stop_requests += 1
+    @runner.show_stop_status(@num_show_stop_requests)
+  end
 end

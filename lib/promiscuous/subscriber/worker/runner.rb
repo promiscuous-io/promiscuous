@@ -8,21 +8,61 @@ class Promiscuous::Subscriber::Worker::Runner
 
   def start
     num_threads = Promiscuous::Config.subscriber_threads
-    @locks   ||= num_threads.times.map { Mutex.new }
-    @threads ||= num_threads.times.map { |i| Thread.new { main_loop(@locks[i]) } }
+    @runner_threads ||= num_threads.times.map { RunnerThread.new(@messages_to_process) }
   end
 
   def stop
-    return unless @threads
-    @threads.zip(@locks).each { |thread, lock| lock.synchronize { thread.kill } }
-    @threads = @locks = nil
+    return unless @runner_threads
+
+    @runner_threads.each { |runner_thread| runner_thread.stop }
+    @runner_threads = nil
+
     @messages_to_process.clear
   end
 
-  def main_loop(lock)
-    loop do
-      msg = @messages_to_process.pop
-      lock.synchronize { msg.process }
+  def show_stop_status(num_requests)
+    @runner_threads.each { |runner_thread| runner_thread.show_stop_status(num_requests) }
+  end
+
+  class RunnerThread
+    def initialize(message_queue)
+      @message_queue = message_queue
+      @kill_lock = Mutex.new
+      @thread = Thread.new { main_loop }
+    end
+
+    def main_loop
+      loop do
+        msg = @message_queue.pop
+        @kill_lock.synchronize do
+          @current_message = msg
+          msg.process # msg.process does not throw
+          @current_message = nil
+        end
+      end
+    end
+
+    def stop
+      @kill_lock.synchronize { @thread.kill }
+    end
+
+    def show_stop_status(num_requests)
+      msg = @current_message
+      backtrace = @thread.backtrace
+
+      if msg
+        STDERR.puts "Still processing #{msg.payload}"
+
+        if num_requests > 1 && backtrace
+          STDERR.puts
+          STDERR.puts backtrace.map { |line| "  \e[1;30m#{line}\e[0m\n" }
+          STDERR.puts
+          STDERR.puts "Look at the stack trace, I'm busy."
+          STDERR.puts "Be patient (or kill me with -9, but that wouldn't be very nice of you)."
+        else
+          STDERR.puts "Just a second..."
+        end
+      end
     end
   end
 end

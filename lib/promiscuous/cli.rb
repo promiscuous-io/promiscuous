@@ -26,11 +26,14 @@ class Promiscuous::CLI
   def trap_exit_signals
     %w(SIGTERM SIGINT).each do |signal|
       Signal.trap(signal) do
-        exit 1 if @stop
         print_status "Exiting..."
-        @worker.try(:stop)
-        @worker = nil
-        @stop = true
+        if @stop
+          @worker.try(:show_stop_status)
+        else
+          @stop = true
+          @worker.try(:stop)
+          @worker = nil
+        end
       end
     end
   end
