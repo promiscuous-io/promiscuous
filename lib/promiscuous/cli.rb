@@ -18,7 +18,7 @@ class Promiscuous::CLI
           print_status  '----[ Pending Dependencies ]----' + '-' * (100-32)
           blocked_messages.reverse_each { |msg| print_status msg }
         end
-        print_status  '-' * 80
+        print_status  '-' * 100
       end
     end
   end
@@ -46,7 +46,7 @@ class Promiscuous::CLI
       title = criteria.name
       title = "#{title}#{' ' * [0, 20 - title.size].max}"
       bar = ProgressBar.create(:format => '%t |%b>%i| %c/%C %e', :title => title, :total => criteria.count)
-      criteria.unscoped.each do |doc|
+      criteria.each do |doc|
         break if @stop
         Promiscuous.context("cli/sync") { doc.promiscuous.sync }
         bar.increment
