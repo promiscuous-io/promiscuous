@@ -143,7 +143,7 @@ module Promiscuous::Redis
 
         if old_value then return 'recovered' else return true end
       SCRIPT
-      result = @@lock_script.eval(@node, :keys => [@key, @lock_set], :argv => [now, @orig_key, @expires_at, @token])
+      result = @@lock_script.eval(@node, :keys => [@key, @lock_set].compact, :argv => [now, @orig_key, @expires_at, @token])
       return :recovered if result == 'recovered'
       !!result
     end
@@ -168,7 +168,7 @@ module Promiscuous::Redis
           return false
         end
       SCRIPT
-      @@unlock_script.eval(@node, :keys => [@key, @lock_set], :argv => [@orig_key, @expires_at, @token])
+      @@unlock_script.eval(@node, :keys => [@key, @lock_set].compact, :argv => [@orig_key, @expires_at, @token])
     end
 
     def still_locked?
