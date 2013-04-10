@@ -15,6 +15,14 @@ class Promiscuous::Subscriber::Worker::Message
     parsed_payload['__amqp__']
   end
 
+  def publisher_app
+    if endpoint =~ /^([^\/]+)\//
+      $1
+    else
+      raise "Invalid endpoint: #{endpoint}"
+    end
+  end
+
   def timestamp
     parsed_payload['timestamp'].to_i
   end
@@ -22,8 +30,17 @@ class Promiscuous::Subscriber::Worker::Message
   def dependencies
     @dependencies ||= begin
       dependencies = parsed_payload['dependencies'] || {}
-      dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read) } +
-      dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write) }
+      deps = dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read) } +
+             dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write) }
+
+      # ------------------------------------------------------------------------------------
+      # TODO Remove hack once we migrated the data format on the subscribers
+      unless Promiscuous::Config.app.in? ['sniper', 'iris']
+        deps.each { |dep| dep.internal_key = "#{publisher_app}:#{dep.internal_key}" }
+      end
+      # ------------------------------------------------------------------------------------
+
+      deps
     end
   end
 
