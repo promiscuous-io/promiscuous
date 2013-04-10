@@ -108,38 +108,57 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       # We also know that we are not processing messages (@num_queued_messages is
       # decremented before we send the message to the runners), and we are called
       # after adding a pending callback.
-      recover
+      recover_dependencies_for(blocked_messages.first)
     end
   end
 
-  def recover
+  def recover_dependencies_for(msg)
     # XXX This recovery mechanism only works with one worker.
     # We are taking the earliest message to unblock, but in reality we should
     # do the DAG of the happens before dependencies, take root nodes
     # of the disconnected graphs, and sort by timestamps if needed.
-    msg = blocked_messages.first
 
-    versions_to_skip = msg.happens_before_dependencies.map do |dep|
-      key = dep.key(:sub).join('rw').to_s
-      to_skip = dep.version - dep.redis_node.get(key).to_i
-      [dep, key, to_skip] if to_skip > 0
-    end.compact
+    incremented_deps = {}
 
-    return unless versions_to_skip.present?
+    msg.happens_before_dependencies.each do |dep|
+      key = dep.key(:sub).join('rw')
+      guard_key = key.join('guard') if dep.write?
+      version = dep.version
 
-    recovery_msg = "Incrementing: "
-    recovery_msg += versions_to_skip.map do |dep, key, to_skip|
-      dep.redis_node.set(key, dep.version)
-      dep.redis_node.publish(key, dep.version)
+      @@version_recovery_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
+        local key = ARGV[1]
+        local wanted_version = tonumber(ARGV[2])
+        local guard_key = ARGV[3]
 
-      # Note: the skipped message would have a write dependency with dep.to_s
-      "#{dep} by #{to_skip}"
-    end.join(", ")
+        if redis.call('exists', guard_key) == 1 then
+          return
+        end
 
-    e = Promiscuous::Error::Recovery.new(recovery_msg)
-    Promiscuous.error "[synchronization recovery] #{e}"
-    # TODO Should we report the error?
-    # Promiscuous::Config.error_notifier.call(e)
+        local current_version = tonumber(redis.call('get', key)) or 0
+
+        if wanted_version > current_version then
+          redis.call('set', guard_key, 1)
+          redis.call('expire', guard_key, 10)
+
+          redis.call('set', key, wanted_version)
+          redis.call('publish', key, wanted_version)
+          return wanted_version - current_version
+        end
+      SCRIPT
+      increment = @@version_recovery_script.eval(dep.redis_node, :argv => [key, version, guard_key].compact)
+      incremented_deps[dep] = increment if increment
+    end
+
+    if incremented_deps.present?
+      recovery_msg = "Incrementing "
+      recovery_msg += incremented_deps.map { |dep, increment| "#{dep} by #{increment}" }.join(", ")
+
+      e = Promiscuous::Error::Recovery.new(recovery_msg)
+      Promiscuous.error "[synchronization recovery] #{e}"
+
+      # TODO Should we report the error to the notifier, or the log file is enough?
+      # Promiscuous::Config.error_notifier.call(e)
+    end
   end
 
   def blocked_messages
