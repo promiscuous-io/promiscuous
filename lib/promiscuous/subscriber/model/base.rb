@@ -46,12 +46,16 @@ module Promiscuous::Subscriber::Model::Base
 
       # TODO reject invalid options
 
-      if attributes.present? && self.subscribe_from && options[:from] && self.subscribe_from != options[:from]
+      if attributes.present? && self.subscribe_from && options[:from] && self.subscribe_from.scan(/[^\/]+$/).first != options[:from]
         raise 'Subscribing from different publishers is not supported yet'
       end
 
       unless self.subscribe_from
-        self.subscribe_from = options[:from] || ".*/#{self.name.underscore}"
+        from = options[:from] || self.name.underscore
+        unless from =~ /^__promiscuous__/
+          from = ".*/#{from}"
+        end
+        self.subscribe_from = from
         from_regexp = Regexp.new("^#{self.subscribe_from}$")
         Promiscuous::Subscriber::Model.mapping[from_regexp] = self
       end

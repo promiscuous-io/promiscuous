@@ -32,6 +32,7 @@ class Promiscuous::Publisher::Bootstrap::Version < Promiscuous::Publisher::Boots
       end
 
       payload = {}
+      payload[:__amqp__] = Promiscuous::Config.app
       payload[:operation] = :bootstrap_versions
       payload[:keys] = futures.map { |i, f| "#{i}:#{f.value}" if f.value }.compact
       @parent.publish(:payload => MultiJson.dump(payload)) if payload[:keys].present?

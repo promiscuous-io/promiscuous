@@ -105,8 +105,9 @@ if ORM.has(:mongoid)
           pub.update_attributes(:field_1 => '/')
           eventually { SubscriberModel.first.field_1.should == '/' }
 
-          dep = pub.promiscuous.tracked_dependencies.first.tap { |d| d.version = 123 }
-          dep.redis_node.get(dep.key(:sub).join('rw').to_s).to_i.should == 4
+          pub_dep = pub.promiscuous.tracked_dependencies.first.tap { |d| d.version = 123 }
+          sub_dep = Promiscuous::Dependency.new(pub_dep.internal_key, :publisher_app => 'test')
+          sub_dep.redis_node.get(sub_dep.key(:sub).join('rw').to_s).to_i.should == 4
         end
       end
     end
@@ -123,8 +124,9 @@ if ORM.has(:mongoid)
           pub.update_attributes(:field_1 => ':')
           eventually { SubscriberModel.first.field_1.should == ':' }
 
-          dep = pub.promiscuous.tracked_dependencies.first.tap { |d| d.version = 123 }
-          dep.redis_node.get(dep.key(:sub).join('rw').to_s).to_i.should == 4
+          pub_dep = pub.promiscuous.tracked_dependencies.first.tap { |d| d.version = 123 }
+          sub_dep = Promiscuous::Dependency.new(pub_dep.internal_key, :publisher_app => 'test')
+          sub_dep.redis_node.get(sub_dep.key(:sub).join('rw').to_s).to_i.should == 4
         end
       end
     end
@@ -170,7 +172,7 @@ if ORM.has(:mongoid)
           @worker.pump.recover # this will retry the message
           eventually { SubscriberModel.first.field_1.should == '2' }
 
-          @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s) }
+          @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s, :publisher_app => 'test') }
             .each { |dep| dep.redis_node.get(dep.key(:sub).join('rw').to_s).should == '1' }
         end
       end
@@ -197,7 +199,7 @@ if ORM.has(:mongoid)
           @worker.pump.recover # this will retry the message
           eventually { SubscriberModel.first.field_1.should == '2' }
 
-          @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s) }
+          @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s, :publisher_app => 'test') }
             .each { |dep| dep.redis_node.get(dep.key(:sub).join('rw').to_s).should == '1' }
         end
       end

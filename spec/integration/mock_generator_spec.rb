@@ -20,7 +20,7 @@ if ORM.has(:mongoid)
 
         class PublisherModel
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'crowdtap/publisher_model'
+          publish :to => 'test/publisher_model'
           mock    :id => :bson
 
           publish :field_1
@@ -44,7 +44,7 @@ if ORM.has(:mongoid)
 
         class PublisherModelOther
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'crowdtap/publisher_model_other'
+          publish :to => 'test/publisher_model_other'
           mock    :id => :bson
 
           publish :field_1
@@ -56,7 +56,7 @@ if ORM.has(:mongoid)
 
         class PublisherModelEmbedded
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'crowdtap/publisher_model_embedded'
+          publish :to => 'test/publisher_model_embedded'
           mock    :id => :bson
 
           publish :embedded_field_1
@@ -73,7 +73,7 @@ if ORM.has(:mongoid)
 
         class PublisherModelEmbed
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'crowdtap/publisher_model_embed'
+          publish :to => 'test/publisher_model_embed'
           mock    :id => :bson
 
           publish :field_1
@@ -86,7 +86,7 @@ if ORM.has(:mongoid)
 
         class PublisherModelEmbedMany
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'crowdtap/publisher_model_embed_many'
+          publish :to => 'test/publisher_model_embed_many'
           mock    :id => :bson
 
           publish :field_1

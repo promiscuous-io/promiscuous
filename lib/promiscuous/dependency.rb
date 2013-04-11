@@ -6,6 +6,7 @@ class Promiscuous::Dependency
   def initialize(*args)
     options = args.extract_options!
     @type = options[:type]
+    @publisher_app = options[:publisher_app]
 
     @internal_key = args.join('/')
 
@@ -21,6 +22,11 @@ class Promiscuous::Dependency
         # function properly.
         @internal_key = @hash % Promiscuous::Config.hash_size.to_i
         @hash = @internal_key
+      end
+    end
+    if @publisher_app
+      unless Promiscuous::Config.app.in? ['sniper', 'iris'] # TODO Remove hack once we migrated the data format on the subscribers
+        @internal_key = "#{@publisher_app}:#{@internal_key}"
       end
     end
   end
@@ -50,6 +56,7 @@ class Promiscuous::Dependency
 
   def self.parse(payload, options={})
     case payload
+    when /^(.+):^(.+):([0-9]+)$/ then new($2, options).tap { |d| d.version = $3.to_i }
     when /^(.+):([0-9]+)$/ then new($1, options).tap { |d| d.version = $2.to_i }
     when /^(.+)$/          then new($1, options)
     end

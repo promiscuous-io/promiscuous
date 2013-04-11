@@ -30,15 +30,8 @@ class Promiscuous::Subscriber::Worker::Message
   def dependencies
     @dependencies ||= begin
       dependencies = parsed_payload['dependencies'] || {}
-      deps = dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read) } +
-             dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write) }
-
-      # ------------------------------------------------------------------------------------
-      # TODO Remove hack once we migrated the data format on the subscribers
-      unless Promiscuous::Config.app.in? ['sniper', 'iris']
-        deps.each { |dep| dep.internal_key = "#{publisher_app}:#{dep.internal_key}" }
-      end
-      # ------------------------------------------------------------------------------------
+      deps = dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read, :publisher_app => publisher_app) } +
+             dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write, :publisher_app => publisher_app) }
 
       deps
     end
