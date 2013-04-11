@@ -15,7 +15,7 @@ class Promiscuous::Subscriber::Worker::Message
     parsed_payload['__amqp__']
   end
 
-  def publisher_app
+  def owner
     if endpoint =~ /^([^\/]+)\//
       $1
     else
@@ -30,15 +30,8 @@ class Promiscuous::Subscriber::Worker::Message
   def dependencies
     @dependencies ||= begin
       dependencies = parsed_payload['dependencies'] || {}
-      deps = dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read) } +
-             dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write) }
-
-      # ------------------------------------------------------------------------------------
-      # TODO Remove hack once we migrated the data format on the subscribers
-      unless Promiscuous::Config.app.in? ['sniper', 'iris']
-        deps.each { |dep| dep.internal_key = "#{publisher_app}:#{dep.internal_key}" }
-      end
-      # ------------------------------------------------------------------------------------
+      deps = dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read, :owner => owner) } +
+             dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write, :owner => owner) }
 
       deps
     end

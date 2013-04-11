@@ -6,6 +6,7 @@ class Promiscuous::Dependency
   def initialize(*args)
     options = args.extract_options!
     @type = options[:type]
+    @owner = options[:owner]
 
     @internal_key = args.join('/')
 
@@ -21,6 +22,12 @@ class Promiscuous::Dependency
         # function properly.
         @internal_key = @hash % Promiscuous::Config.hash_size.to_i
         @hash = @internal_key
+      end
+    end
+
+    if @owner
+      unless Promiscuous::Config.app.in? ['sniper', 'iris'] # TODO Remove hack once we migrated the data format on the subscribers
+        @internal_key = "#{@owner}:#{@internal_key}"
       end
     end
   end

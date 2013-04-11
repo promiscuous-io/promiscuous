@@ -393,7 +393,7 @@ describe Promiscuous do
         eventually(:timeout => 5.seconds) { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
         message = Promiscuous::AMQP::Fake.get_next_message
-        message[:key].should == 'crowdtap/publisher_model'
+        message[:key].should == 'test/publisher_model'
         payload = JSON.parse(message[:payload])
         dep = payload['dependencies']
         dep['read'].should  == nil
@@ -414,7 +414,7 @@ describe Promiscuous do
         eventually(:timeout => 5.seconds) { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
         message = Promiscuous::AMQP::Fake.get_next_message
-        message[:key].should == 'crowdtap/publisher_model'
+        message[:key].should == 'test/publisher_model'
         payload = JSON.parse(message[:payload])
         dep = payload['dependencies']
         dep['read'].should  == nil

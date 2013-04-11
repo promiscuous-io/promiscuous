@@ -238,7 +238,7 @@ class Promiscuous::Subscriber::Operation
 
   def bootstrap_versions
     keys = message.parsed_payload['keys']
-    keys.map { |k| Promiscuous::Dependency.parse(k) }.group_by(&:redis_node).each do |node, deps|
+    keys.map { |k| Promiscuous::Dependency.parse(k, :owner => message.parsed_payload['__amqp__']) }.group_by(&:redis_node).each do |node, deps|
       node.pipelined do
         deps.each do |dep|
           node.set(dep.key(:sub).join('rw').to_s, dep.version)
