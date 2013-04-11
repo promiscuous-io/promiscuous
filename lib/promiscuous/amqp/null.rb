@@ -10,6 +10,7 @@ class Promiscuous::AMQP::Null
   end
 
   def publish(options={})
+    options[:on_confirm].try(:call)
   end
 
   def open_queue(options={}, &block)
