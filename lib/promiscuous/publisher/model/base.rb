@@ -87,7 +87,7 @@ module Promiscuous::Publisher::Model::Base
 
       # TODO reject invalid options
 
-      if attributes.present? && self.publish_to && options[:to] && self.publish_to.scan(/[^\/]+$/).first != options[:to]
+      if attributes.present? && self.publish_to && options[:to] && self.publish_to != "#{Promiscuous::Config.app}/#{options[:to]}"
         raise 'versioned publishing is not supported yet'
       end
       self.publish_to ||= begin
