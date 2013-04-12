@@ -63,6 +63,7 @@ module Promiscuous::Publisher::MockGenerator
 
   def self.publishers
     Promiscuous::Publisher::Model.publishers.values
+      .reject { |publisher| publisher.ancestors.include?(Promiscuous::Publisher::Model::Mock) }
       .reject { |publisher| publisher.publish_to =~ /^__promiscuous__\// }
       .map    { |publisher| [publisher, publisher.descendants] }
       .flatten

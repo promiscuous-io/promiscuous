@@ -3,6 +3,7 @@ require 'spec_helper'
 if ORM.has(:mongoid)
   describe Promiscuous::Publisher::MockGenerator do
     before { load_models }
+    before { load_mocks }
     before { use_null_backend { |config| config.app = 'test_publisher' } }
 
     subject { Promiscuous::Publisher::MockGenerator }
