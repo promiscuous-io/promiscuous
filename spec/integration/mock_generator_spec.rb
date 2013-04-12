@@ -32,6 +32,9 @@ if ORM.has(:mongoid)
           publish :child_field_2
           publish :child_field_3
         end
+        class PublisherModelChildOfChild < PublisherModelChild
+          publish :child_of_child_field_1
+        end
         class PublisherModelAnotherChild < PublisherModel
           publish :another_child_field_1
           publish :another_child_field_2

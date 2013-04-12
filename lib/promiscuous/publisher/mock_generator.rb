@@ -34,8 +34,8 @@ module Promiscuous::Publisher::MockGenerator
         end
 
         <% publisher.descendants.each do |subclass| -%>
-        class <%= subclass.publish_as %> < <%= publisher.publish_as %>
-          <% attributes_for(subclass, publisher).each do |attr| -%>
+        class <%= subclass.publish_as %> < <%= subclass.superclass.publish_as %>
+          <% attributes_for(subclass, subclass.superclass).each do |attr| -%>
           publish :<%= attr %>
           <% end -%>
         end

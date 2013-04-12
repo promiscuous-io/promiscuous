@@ -30,6 +30,13 @@ module ModelsHelper
       publish :child_field_1, :child_field_2, :child_field_3
     end
 
+    define_constant('PublisherModelChildOfChild', PublisherModelChild) do
+      field :child_of_child_field_1
+
+      publish :as => :PublisherModelChildOfChild
+      publish :child_of_child_field_1
+    end
+
     define_constant :PublisherModelAnotherChild, PublisherModel do
       field :another_child_field_1
       field :another_child_field_2
