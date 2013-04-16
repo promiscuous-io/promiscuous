@@ -287,6 +287,13 @@ class Promiscuous::Publisher::Operation::Base
         local read_versions = {}
         local write_versions = {}
 
+        if redis.call('exists', '#{Promiscuous::Publisher::Bootstrap::KEY}') == 1 then
+          for i=1, #read_deps do
+            write_deps[#write_deps+1] = read_deps[i]
+          end
+          read_deps = {}
+        end
+
         if redis.call('exists', operation_recovery_key) == 1 then
           for i, dep in ipairs(read_deps) do
             read_versions[i] = redis.call('hget', operation_recovery_key, dep)
@@ -303,20 +310,6 @@ class Promiscuous::Publisher::Operation::Base
           end
 
           return { read_versions, write_versions }
-        end
-
-        for i, dep in ipairs(read_deps) do
-          local key = prefix .. dep
-          redis.call('incr', key .. ':rw')
-          read_versions[i] = redis.call('get', key .. ':w')
-          redis.call('hset', operation_recovery_key, dep, read_versions[i] or 0)
-        end
-
-        for i, dep in ipairs(write_deps) do
-          local key = prefix .. dep
-          write_versions[i] = redis.call('incr', key .. ':rw')
-          redis.call('set', key .. ':w', write_versions[i])
-          redis.call('hset', operation_recovery_key, dep, write_versions[i] or 0)
         end
 
         if operation_recovery_payload then

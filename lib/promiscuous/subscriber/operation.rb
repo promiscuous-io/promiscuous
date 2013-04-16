@@ -227,15 +227,6 @@ class Promiscuous::Subscriber::Operation
     Promiscuous.warn "[receive] ignoring missing record #{message.payload}"
   end
 
-  # XXX Bootstrapping is a WIP. Here's what's left to do:
-  # - Promiscuous::Subscriber::Operation#bootstrap_missing_data is not implemented
-  #   properly (see comment in code)
-  # - Automatic switching from pass1, pass2, pass3, live
-  # - Unbinding the bootstrap exchange when going live, and reset prefetch
-  # - The publisher should upgrade its read dependencies into write dependencies
-  #   during the version bootstrap phase.
-  # - CLI interface and progress bars
-
   def bootstrap_versions
     keys = message.parsed_payload['keys']
     keys.map { |k| Promiscuous::Dependency.parse(k, :owner => message.parsed_payload['__amqp__']) }.group_by(&:redis_node).each do |node, deps|
@@ -286,11 +277,10 @@ class Promiscuous::Subscriber::Operation
       # a mismatch on the version.
       on_bootstrap_operation(:bootstrap_data) { bootstrap_data }
 
-    when :pass3
+    # when :pass3
       # Finally, we create the rows that we've skipped, we postpone them to make
       # our lives easier. We'll detect the message as duplicates when re-processed.
-      on_bootstrap_operation(:update, :always_postpone => true) { bootstrap_missing_data if model }
-
+      # on_bootstrap_operation(:update, :always_postpone => true) { bootstrap_missing_data if model }
       # TODO unbind the bootstrap exchange
     else
       synchronize_and_update_dependencies do

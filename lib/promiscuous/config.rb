@@ -73,6 +73,12 @@ module Promiscuous::Config
 
     Promiscuous.connect
 
+    if self.bootstrap == :pass1
+      Promiscuous::Publisher::Bootstrap.enable
+    else
+      Promiscuous::Publisher::Bootstrap.disable
+    end
+
     hook_fork
   end
 

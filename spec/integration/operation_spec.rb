@@ -309,7 +309,6 @@ if ORM.has(:mongoid)
       end
     end
 
-
     context 'when using hashing' do
       before { PublisherModel.track_dependencies_of :field_1 }
       before { Promiscuous::Config.hash_size = 1 }
