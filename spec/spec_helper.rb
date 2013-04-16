@@ -32,6 +32,7 @@ RSpec.configure do |config|
   config.include EphemeralsHelper
   config.include CallbacksHelper
   config.include DependencyHelper
+  config.include MocksHelper
 
   config.after { Promiscuous::Loader.cleanup }
 end

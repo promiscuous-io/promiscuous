@@ -8,14 +8,14 @@ module ModelsHelper
       field :field_2
       field :field_3
 
-      publish :field_1, :field_2, :field_3, :to => 'crowdtap/publisher_model'
+      publish :field_1, :field_2, :field_3, :to => 'publisher_model'
     end
 
     define_constant :PublisherModelOther do
       include Mongoid::Document
       include Promiscuous::Publisher
 
-      publish :to => 'crowdtap/publisher_model_other' do
+      publish :to => 'publisher_model_other' do
         field :field_1
         field :field_2
         field :field_3
@@ -28,6 +28,13 @@ module ModelsHelper
       field :child_field_3
 
       publish :child_field_1, :child_field_2, :child_field_3
+    end
+
+    define_constant('PublisherModelChildOfChild', PublisherModelChild) do
+      field :child_of_child_field_1
+
+      publish :as => :PublisherModelChildOfChild
+      publish :child_of_child_field_1
     end
 
     define_constant :PublisherModelAnotherChild, PublisherModel do
@@ -48,7 +55,7 @@ module ModelsHelper
       field :embedded_field_2
       field :embedded_field_3
 
-      publish :to => 'crowdtap/publisher_model_embedded'
+      publish :to => 'publisher_model_embedded'
       publish :embedded_field_1, :embedded_field_2, :embedded_field_3
     end
 
@@ -72,7 +79,7 @@ module ModelsHelper
       field :field_2
       field :field_3
 
-      publish :to => 'crowdtap/publisher_model_embed'
+      publish :to => 'publisher_model_embed'
       publish :field_1, :field_2, :field_3, :model_embedded
     end
 
@@ -85,7 +92,7 @@ module ModelsHelper
       field :field_2
       field :field_3
 
-      publish :to => 'crowdtap/publisher_model_embed_many'
+      publish :to => 'publisher_model_embed_many'
       publish :field_1, :field_2, :field_3, :models_embedded
     end
 
@@ -111,14 +118,14 @@ module ModelsHelper
 
       field :publisher_id, :type => BSON::ObjectId
 
-      subscribe :field_1, :field_2, :field_3, :from => 'crowdtap/publisher_model'
+      subscribe :field_1, :field_2, :field_3, :from => 'publisher_model'
     end
 
     define_constant('SubscriberModelOther') do
       include Mongoid::Document
       include Promiscuous::Subscriber
 
-      subscribe :from => 'crowdtap/publisher_model_other' do
+      subscribe :from => 'publisher_model_other' do
         field :field_1
         field :field_2
         field :field_3
@@ -152,7 +159,7 @@ module ModelsHelper
       field :embedded_field_2
       field :embedded_field_3
 
-      subscribe :from => 'crowdtap/publisher_model_embedded'
+      subscribe :from => 'publisher_model_embedded'
       subscribe :embedded_field_1, :embedded_field_2, :embedded_field_3
     end
 
@@ -176,7 +183,7 @@ module ModelsHelper
       field :field_2
       field :field_3
 
-      subscribe :from => 'crowdtap/publisher_model_embed'
+      subscribe :from => 'publisher_model_embed'
       subscribe :field_1, :field_2, :field_3, :model_embedded
     end
 
@@ -190,7 +197,7 @@ module ModelsHelper
       field :field_2
       field :field_3
 
-      subscribe :from => 'crowdtap/publisher_model_embed_many'
+      subscribe :from => 'publisher_model_embed_many'
       subscribe :field_1, :field_2, :field_3, :models_embedded
     end
 

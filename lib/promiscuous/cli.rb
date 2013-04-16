@@ -93,7 +93,9 @@ class Promiscuous::CLI
   def subscribe
     @worker = Promiscuous::Subscriber::Worker.new
     @worker.start
-    print_status "Replicating..."
+    Promiscuous::Config.subscriber_threads.tap do |threads|
+      print_status "Replicating [#{threads} thread#{'s' if threads > 1}]..."
+    end
     sleep 0.2 until !@worker
   end
 
@@ -157,9 +159,8 @@ class Promiscuous::CLI
         Promiscuous::Config.bootstrap = true
       end
 
-      opts.on("-h", "--help", "Show this message") do
-        puts opts
-        exit
+      opts.on "-t", "--threads [NUM]", "Number of subscriber worker threads to run. Defaults to 10." do |threads|
+        Promiscuous::Config.subscriber_threads = threads.to_i
       end
 
       opts.on("-V", "--version", "Show version") do

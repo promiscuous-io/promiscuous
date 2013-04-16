@@ -10,7 +10,10 @@ class Promiscuous::Subscriber::Worker::Pump
     options = {}
     options[:bindings] = {}
     # We need to subscribe to everything to keep up with the version tracking
-    options[:bindings][Promiscuous::Config.subscriber_exchange] = ['*']
+    Promiscuous::Config.subscriber_exchanges.each do |exchange|
+      options[:bindings][exchange] = ['*']
+    end
+
     if Promiscuous::Config.bootstrap
       options[:bindings][Promiscuous::AMQP::BOOTSTRAP_EXCHANGE] = ['*']
     end

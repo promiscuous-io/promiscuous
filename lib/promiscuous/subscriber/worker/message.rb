@@ -15,6 +15,14 @@ class Promiscuous::Subscriber::Worker::Message
     parsed_payload['__amqp__']
   end
 
+  def owner
+    if endpoint =~ /^([^\/]+)\//
+      $1
+    else
+      raise "Invalid endpoint: #{endpoint}"
+    end
+  end
+
   def timestamp
     parsed_payload['timestamp'].to_i
   end
@@ -22,8 +30,10 @@ class Promiscuous::Subscriber::Worker::Message
   def dependencies
     @dependencies ||= begin
       dependencies = parsed_payload['dependencies'] || {}
-      dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read) } +
-      dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write) }
+      deps = dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read, :owner => owner) } +
+             dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write, :owner => owner) }
+
+      deps
     end
   end
 
