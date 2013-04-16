@@ -312,6 +312,20 @@ class Promiscuous::Publisher::Operation::Base
           return { read_versions, write_versions }
         end
 
+        for i, dep in ipairs(read_deps) do
+          local key = prefix .. dep
+          redis.call('incr', key .. ':rw')
+          read_versions[i] = redis.call('get', key .. ':w')
+          redis.call('hset', operation_recovery_key, dep, read_versions[i] or 0)
+        end
+
+        for i, dep in ipairs(write_deps) do
+          local key = prefix .. dep
+          write_versions[i] = redis.call('incr', key .. ':rw')
+          redis.call('set', key .. ':w', write_versions[i])
+          redis.call('hset', operation_recovery_key, dep, write_versions[i] or 0)
+        end
+
         if operation_recovery_payload then
           redis.call('hset', operation_recovery_key, 'payload', operation_recovery_payload)
         end
