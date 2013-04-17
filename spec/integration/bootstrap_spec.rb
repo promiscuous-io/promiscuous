@@ -21,9 +21,8 @@ describe Promiscuous, 'bootstrapping dependencies' do
       end
       dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
 
-      binding.pry
       dep['read'].should == nil
-      dep['write'].should == hashed["publisher_models/id/#{pub2.id}:1", "publisher_models/id/#{pub1.id}:1"]
+      dep['write'].should == hashed["publisher_models/id/#{pub2.id}:1", "publisher_models/id/#{pub1.id}:2"]
     end
   end
 

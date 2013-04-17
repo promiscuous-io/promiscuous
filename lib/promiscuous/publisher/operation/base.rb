@@ -254,85 +254,93 @@ class Promiscuous::Publisher::Operation::Base
       r_deps = deps.select { |dep| dep.in? r }
       w_deps = deps.select { |dep| dep.in? w }
 
-      argv = []
-      argv << Promiscuous::Key.new(:pub) # key prefixes
-      argv << MultiJson.dump([r_deps, w_deps])
+      increment_redis = lambda {
+        argv = []
+        argv << Promiscuous::Key.new(:pub) # key prefixes
+        argv << MultiJson.dump([r_deps, w_deps])
 
-      # Each shard have their own recovery payload. The master recovery node
-      # has the full operation recovery, and the others just have their versions.
-      # Note that the operation_recovery_key on the secondaries have the current
-      # version of the instance appended to them. It's easier to cleanup when
-      # locks get lost.
-      argv << operation_recovery_key.as_json
-      if node == master_node
-        # We are on the master node, which holds the recovery payload
-        document = serialize_document_for_create_recovery if operation == :create
-        argv << MultiJson.dump([@instance.class.promiscuous_collection_name,
-                                @instance.id, operation, document, r, w])
-      end
-
-      # FIXME If the lock is lost, we need to backoff
-
-      # We are going to store all the versions in redis, to be able to recover.
-      # We store all our increments in a transaction_id key in JSON format.
-      # Note that the transaction_id is the id of the current instance.
-      @@increment_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
-        local prefix = ARGV[1] .. ':'
-        local deps = cjson.decode(ARGV[2])
-        local read_deps = deps[1]
-        local write_deps = deps[2]
-        local operation_recovery_key = prefix .. ARGV[3] .. ':operation_recovery'
-        local operation_recovery_payload = ARGV[4]
-
-        local read_versions = {}
-        local write_versions = {}
-
-        if redis.call('exists', '#{Promiscuous::Publisher::Bootstrap::KEY}') == 1 then
-          for i=1, #read_deps do
-            write_deps[#write_deps+1] = read_deps[i]
-          end
-          read_deps = {}
+        # Each shard have their own recovery payload. The master recovery node
+        # has the full operation recovery, and the others just have their versions.
+        # Note that the operation_recovery_key on the secondaries have the current
+        # version of the instance appended to them. It's easier to cleanup when
+        # locks get lost.
+        argv << operation_recovery_key.as_json
+        if node == master_node
+          # We are on the master node, which holds the recovery payload
+          document = serialize_document_for_create_recovery if operation == :create
+          argv << MultiJson.dump([@instance.class.promiscuous_collection_name,
+                                  @instance.id, operation, document, r, w])
         end
 
-        if redis.call('exists', operation_recovery_key) == 1 then
-          for i, dep in ipairs(read_deps) do
-            read_versions[i] = redis.call('hget', operation_recovery_key, dep)
-            if not read_versions[i] then
-              return redis.error_reply('Failed to read dependency ' .. dep .. ' during recovery')
+        # FIXME If the lock is lost, we need to backoff
+
+        # We are going to store all the versions in redis, to be able to recover.
+        # We store all our increments in a transaction_id key in JSON format.
+        # Note that the transaction_id is the id of the current instance.
+        @@increment_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
+          local prefix = ARGV[1] .. ':'
+          local deps = cjson.decode(ARGV[2])
+          local read_deps = deps[1]
+          local write_deps = deps[2]
+          local operation_recovery_key = prefix .. ARGV[3] .. ':operation_recovery'
+          local operation_recovery_payload = ARGV[4]
+
+          if redis.call('exists', '#{Promiscuous::Publisher::Bootstrap::KEY}') == 1 and #read_deps > 0 then
+            return -1
+          end
+
+          local read_versions = {}
+          local write_versions = {}
+
+          if redis.call('exists', operation_recovery_key) == 1 then
+            for i, dep in ipairs(read_deps) do
+              read_versions[i] = redis.call('hget', operation_recovery_key, dep)
+              if not read_versions[i] then
+                return redis.error_reply('Failed to read dependency ' .. dep .. ' during recovery')
+              end
             end
+
+            for i, dep in ipairs(write_deps) do
+              write_versions[i] = redis.call('hget', operation_recovery_key, dep)
+              if not write_versions[i] then
+                return redis.error_reply('Failed to read dependency ' .. dep .. ' during recovery')
+              end
+            end
+
+            return { read_versions, write_versions }
+          end
+
+          for i, dep in ipairs(read_deps) do
+            local key = prefix .. dep
+            redis.call('incr', key .. ':rw')
+            read_versions[i] = redis.call('get', key .. ':w')
+            redis.call('hset', operation_recovery_key, dep, read_versions[i] or 0)
           end
 
           for i, dep in ipairs(write_deps) do
-            write_versions[i] = redis.call('hget', operation_recovery_key, dep)
-            if not write_versions[i] then
-              return redis.error_reply('Failed to read dependency ' .. dep .. ' during recovery')
-            end
+            local key = prefix .. dep
+            write_versions[i] = redis.call('incr', key .. ':rw')
+            redis.call('set', key .. ':w', write_versions[i])
+            redis.call('hset', operation_recovery_key, dep, write_versions[i] or 0)
+          end
+
+          if operation_recovery_payload then
+            redis.call('hset', operation_recovery_key, 'payload', operation_recovery_payload)
           end
 
           return { read_versions, write_versions }
-        end
+        SCRIPT
+        @@increment_script.eval(node, :argv => argv)
+      }
+      result = increment_redis.call
+      if result == -1 # Bootstrapping
+        w_deps += r_deps; r_deps = []
+        w += r; r = []
 
-        for i, dep in ipairs(read_deps) do
-          local key = prefix .. dep
-          redis.call('incr', key .. ':rw')
-          read_versions[i] = redis.call('get', key .. ':w')
-          redis.call('hset', operation_recovery_key, dep, read_versions[i] or 0)
-        end
+        result = increment_redis.call
+      end
 
-        for i, dep in ipairs(write_deps) do
-          local key = prefix .. dep
-          write_versions[i] = redis.call('incr', key .. ':rw')
-          redis.call('set', key .. ':w', write_versions[i])
-          redis.call('hset', operation_recovery_key, dep, write_versions[i] or 0)
-        end
-
-        if operation_recovery_payload then
-          redis.call('hset', operation_recovery_key, 'payload', operation_recovery_payload)
-        end
-
-        return { read_versions, write_versions }
-      SCRIPT
-      read_versions, write_versions = @@increment_script.eval(node, :argv => argv)
+      read_versions, write_versions = result
 
       r_deps.zip(read_versions).each  { |dep, version| dep.version = version.to_i }
       w_deps.zip(write_versions).each { |dep, version| dep.version = version.to_i }
