@@ -5,8 +5,8 @@ describe Promiscuous, 'bootstrapping dependencies' do
   before { load_models }
   before { run_subscriber_worker! }
 
-  context 'during :pass1' do
-    before { switch_bootstrap_mode(:pass1) }
+  context 'when in publisher is in bootstrapping mode' do
+    before { Promiscuous::Publisher::Bootstrap.enable }
 
     it 'read dependencies are upgraded to write dependencies' do
       pub1 = pub2 = nil
@@ -26,8 +26,8 @@ describe Promiscuous, 'bootstrapping dependencies' do
     end
   end
 
-  context 'during :pass2' do
-    before { switch_bootstrap_mode(:pass2) }
+  context 'when in publisher is not in bootstrapping mode' do
+    before { Promiscuous::Publisher::Bootstrap.disable }
 
     it 'read dependencies are not upgraded to write dependencies' do
       pub1 = pub2 = nil
