@@ -285,7 +285,7 @@ class Promiscuous::Publisher::Operation::Base
           local operation_recovery_key = prefix .. ARGV[3] .. ':operation_recovery'
           local operation_recovery_payload = ARGV[4]
 
-          if redis.call('exists', '#{Promiscuous::Publisher::Bootstrap::KEY}') == 1 and #read_deps > 0 then
+          if redis.call('exists', '#{Promiscuous::Publisher::Bootstrap.bootstrap_mode_key}') == 1 and #read_deps > 0 then
             return -1
           end
 

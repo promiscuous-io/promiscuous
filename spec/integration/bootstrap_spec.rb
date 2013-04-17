@@ -26,7 +26,7 @@ describe Promiscuous, 'bootstrapping dependencies' do
     end
   end
 
-  context 'when in publisher is not in bootstrapping mode' do
+  context 'when publisher is not in bootstrapping mode' do
     before { Promiscuous::Publisher::Bootstrap.disable }
 
     it 'read dependencies are not upgraded to write dependencies' do
