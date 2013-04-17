@@ -173,9 +173,6 @@ class Promiscuous::CLI
         Promiscuous::Config.bootstrap = mode.to_sym
       end
 
-      opts.on "-m", "--bootstrap-mode [on|off]", "Put the pubsliher in bootstrap mode" do |mode|
-      end
-
       opts.on "-t", "--threads [NUM]", "Number of subscriber worker threads to run. Defaults to 10." do |threads|
         Promiscuous::Config.subscriber_threads = threads.to_i
       end
