@@ -250,6 +250,9 @@ class Promiscuous::Publisher::Operation::Base
     # We group all the dependencies by their respective shards
     # The master node will have the responsability to hold the recovery data.
     # We do the master node first. The seconaries can be done in parallel.
+    @committed_read_deps  = []
+    @committed_write_deps = []
+
     (w+r).group_by(&:redis_node).each do |node, deps|
       r_deps = deps.select { |dep| dep.in? r }
       w_deps = deps.select { |dep| dep.in? w }
@@ -335,7 +338,6 @@ class Promiscuous::Publisher::Operation::Base
       result = increment_redis.call
       if result == -1 # Bootstrapping
         w_deps += r_deps; r_deps = []
-        w += r; r = []
 
         result = increment_redis.call
       end
@@ -344,10 +346,11 @@ class Promiscuous::Publisher::Operation::Base
 
       r_deps.zip(read_versions).each  { |dep, version| dep.version = version.to_i }
       w_deps.zip(write_versions).each { |dep, version| dep.version = version.to_i }
+
+      @committed_read_deps  += r_deps
+      @committed_write_deps += w_deps
     end
 
-    @committed_read_deps  = r
-    @committed_write_deps = w
     @instance_version = w.first.version
   end
 
