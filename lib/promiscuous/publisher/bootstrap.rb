@@ -7,7 +7,7 @@ module Promiscuous::Publisher::Bootstrap
   end
 
   def self.disable
-    Promiscuous::Redis.master.nodes.each { |node| node.del(bootstrap_mode_key, 1) }
+    Promiscuous::Redis.master.nodes.each { |node| node.del(bootstrap_mode_key) }
   end
 
   def self.bootstrap_mode_key
