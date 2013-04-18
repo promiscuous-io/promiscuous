@@ -79,10 +79,10 @@ class Promiscuous::CLI
     case options[:publisher_bootstrap]
     when 'on'
       Promiscuous::Publisher::Bootstrap.enable
-      puts "Bootstrap mode enabled"
+      print_status "Bootstrap mode enabled"
     when 'off'
       Promiscuous::Publisher::Bootstrap.disable
-      puts "Bootstrap mode disabled"
+      print_status "Bootstrap mode disabled"
     else raise "Bootstrap mode must be on or off"
     end
   end
@@ -99,7 +99,7 @@ class Promiscuous::CLI
       end
     end
 
-    puts "Replayed #{@num_msg} messages"
+    print_status "Replayed #{@num_msg} messages"
   end
 
   def subscribe

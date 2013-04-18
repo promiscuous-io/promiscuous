@@ -3,11 +3,11 @@ module Promiscuous::Publisher::Bootstrap
   autoload :Base, :Version, :Data
 
   def self.enable
-    Promiscuous::Redis.master.nodes.each { |node| node.set(KEY, 1) }
+    Promiscuous::Redis.master.nodes.each { |node| node.set(bootstrap_mode_key, 1) }
   end
 
   def self.disable
-    Promiscuous::Redis.master.nodes.each { |node| node.del(KEY, 1) }
+    Promiscuous::Redis.master.nodes.each { |node| node.del(bootstrap_mode_key, 1) }
   end
 
   def self.bootstrap_mode_key
