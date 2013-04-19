@@ -164,7 +164,7 @@ if ORM.has(:mongoid)
             @num_deps.times.map { |i| PublisherModel.where(:field_2 => i.to_s).count }
             pub.update_attributes(:field_1 => '1')
           end
-          sleep 1
+          sleep 2
           Promiscuous::Subscriber::Operation.any_instance.unstub(:after_secondary_update_hook)
 
           Promiscuous.context { pub.update_attributes(:field_1 => '2') }
@@ -191,7 +191,7 @@ if ORM.has(:mongoid)
             @num_deps.times.map { |i| PublisherModel.where(:field_2 => i.to_s).count }
             pub.update_attributes(:field_1 => '1')
           end
-          sleep 1
+          sleep 5
           Promiscuous::Subscriber::Operation.any_instance.unstub(:update_dependencies_single)
 
           Promiscuous.context { pub.update_attributes(:field_1 => '2') }

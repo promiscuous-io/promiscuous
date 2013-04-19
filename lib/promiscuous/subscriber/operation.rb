@@ -230,9 +230,9 @@ class Promiscuous::Subscriber::Operation
   # XXX Bootstrapping is a WIP. Here's what's left to do:
   # - Promiscuous::Subscriber::Operation#bootstrap_missing_data is not implemented
   #   properly (see comment in code)
+  # - Implementing pass3 to avoid upserts
   # - Automatic switching from pass1, pass2, pass3, live
   # - Unbinding the bootstrap exchange when going live, and reset prefetch
-  # - The publisher should upgrade its read dependencies into write dependencies
   #   during the version bootstrap phase.
   # - CLI interface and progress bars
 
@@ -289,8 +289,7 @@ class Promiscuous::Subscriber::Operation
     when :pass3
       # Finally, we create the rows that we've skipped, we postpone them to make
       # our lives easier. We'll detect the message as duplicates when re-processed.
-      on_bootstrap_operation(:update, :always_postpone => true) { bootstrap_missing_data if model }
-
+      # on_bootstrap_operation(:update, :always_postpone => true) { bootstrap_missing_data if model }
       # TODO unbind the bootstrap exchange
     else
       synchronize_and_update_dependencies do
