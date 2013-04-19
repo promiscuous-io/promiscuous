@@ -262,7 +262,7 @@ class Promiscuous::Publisher::Operation::Base
       # The index of the first write is then used to pass to redis along with the
       # dependencies. This is done because arguments to redis LUA scripts cannot
       # accept complex data types.
-      argv << (deps.index { |i| i.type == :read } || deps.length + 1)
+      argv << (deps.index(&:read?) || deps.length)
 
       # Each shard have their own recovery payload. The master recovery node
       # has the full operation recovery, and the others just have their versions.
@@ -284,7 +284,7 @@ class Promiscuous::Publisher::Operation::Base
       @@increment_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
         local prefix = ARGV[1] .. ':'
         local operation_recovery_key = prefix .. ARGV[2] .. ':operation_recovery'
-        local deps_read_index = ARGV[3] + 0
+        local deps_read_index = tonumber(ARGV[3]) + 1
         local operation_recovery_payload = ARGV[4]
         local deps = KEYS
 
@@ -314,7 +314,7 @@ class Promiscuous::Publisher::Operation::Base
         for i, dep in ipairs(deps) do
           local key = prefix .. dep
           local rw_version = redis.call('incr', key .. ':rw')
-          if i <= deps_read_index then
+          if i < deps_read_index then
             redis.call('set', key .. ':w', rw_version)
             versions[i] = rw_version
           else
