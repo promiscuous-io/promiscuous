@@ -270,7 +270,7 @@ class Promiscuous::Publisher::Operation::Base
         argv << MultiJson.dump([@instance.class.promiscuous_collection_name,
                                 @instance.id, operation, document, r, w])
       else
-        argv << nil
+        argv << ""
       end
 
       # We sort dependencies by reads first then writes. The index of
