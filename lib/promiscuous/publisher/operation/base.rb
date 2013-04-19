@@ -257,7 +257,7 @@ class Promiscuous::Publisher::Operation::Base
 
       argv = []
       argv << Promiscuous::Key.new(:pub) # key prefixes
-      argv << operation_recovery_key.as_json
+      argv << operation_recovery_key
 
       # The index of the first write is then used to pass to redis along with the
       # dependencies. This is done because arguments to redis LUA scripts cannot
