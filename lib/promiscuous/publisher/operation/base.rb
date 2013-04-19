@@ -257,30 +257,24 @@ class Promiscuous::Publisher::Operation::Base
 
       argv = []
       argv << Promiscuous::Key.new(:pub) # key prefixes
+      argv << operation_recovery_key.as_json
+
+      # The index of the first write is then used to pass to redis along with the
+      # dependencies. This is done because arguments to redis LUA scripts cannot
+      # accept complex data types.
+      argv << (deps.index { |i| i.type == :read } || deps.length + 1)
 
       # Each shard have their own recovery payload. The master recovery node
       # has the full operation recovery, and the others just have their versions.
       # Note that the operation_recovery_key on the secondaries have the current
       # version of the instance appended to them. It's easier to cleanup when
       # locks get lost.
-      argv << operation_recovery_key.as_json
       if node == master_node
         # We are on the master node, which holds the recovery payload
         document = serialize_document_for_create_recovery if operation == :create
         argv << MultiJson.dump([@instance.class.promiscuous_collection_name,
                                 @instance.id, operation, document, r, w])
-      else
-        argv << ""
       end
-
-      # We sort dependencies by reads first then writes. The index of
-      # the first write is then used to pass to redis along with the
-      # dependencies. This is done because arguments to redis LUA scripts cannot
-      # accept complex data types.
-      deps.sort! { |a,b| a.type == :read ? -1 : 1 }
-      argv << (deps.index { |i| i.type == :write } || deps.length + 1)
-      argv << deps
-      argv.flatten!
 
       # FIXME If the lock is lost, we need to backoff
 
@@ -290,17 +284,17 @@ class Promiscuous::Publisher::Operation::Base
       @@increment_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
         local prefix = ARGV[1] .. ':'
         local operation_recovery_key = prefix .. ARGV[2] .. ':operation_recovery'
-        local operation_recovery_payload = ARGV[3]
-        local deps_write_index = ARGV[4] + 0
-        local deps = {}
-        for i = 1, #ARGV-3 do
-          deps[i] = ARGV[i+4]
-        end
+        local deps_read_index = ARGV[3] + 0
+        local operation_recovery_payload = ARGV[4]
+        local deps = KEYS
 
         local versions = {}
 
         if redis.call('exists', operation_recovery_key) == 1 then
-          deps_write_index = redis.call('hget', operation_recovery_key, 'write_index')
+          deps_read_index = redis.call('hget', operation_recovery_key, 'read_index')
+          if not deps_read_index then
+            return redis.error_reply('Failed to read dependency index during recovery')
+          end
 
           for i, dep in ipairs(deps) do
             versions[i] = redis.call('hget', operation_recovery_key, dep)
@@ -309,40 +303,40 @@ class Promiscuous::Publisher::Operation::Base
             end
           end
 
-          return { deps_write_index, versions }
+          return { deps_read_index, versions }
         end
 
-        if redis.call('exists', '#{Promiscuous::Publisher::Bootstrap.bootstrap_mode_key}') == 1 then
-          deps_write_index = 1
+        if redis.call('exists', prefix .. 'bootstrap') == 1 then
+          deps_read_index = #deps + 1
         end
-        redis.call('hset', operation_recovery_key, 'write_index', deps_write_index)
+        redis.call('hset', operation_recovery_key, 'read_index', deps_read_index)
 
         for i, dep in ipairs(deps) do
           local key = prefix .. dep
           local rw_version = redis.call('incr', key .. ':rw')
-          if i >= deps_write_index then
+          if i <= deps_read_index then
             redis.call('set', key .. ':w', rw_version)
             versions[i] = rw_version
           else
-            versions[i] = redis.call('get', key .. ':w')
+            versions[i] = redis.call('get', key .. ':w') or 0
           end
-          redis.call('hset', operation_recovery_key, dep, versions[i] or 0)
+          redis.call('hset', operation_recovery_key, dep, versions[i])
         end
 
         if operation_recovery_payload then
           redis.call('hset', operation_recovery_key, 'payload', operation_recovery_payload)
         end
 
-        return { deps_write_index, versions }
+        return { deps_read_index, versions }
       SCRIPT
 
-      deps_write_index, versions = @@increment_script.eval(node, :argv => argv)
-      deps_write_index = deps_write_index.to_i
+      deps_read_index, versions = @@increment_script.eval(node, :argv => argv, :keys => deps)
+      deps_read_index = deps_read_index.to_i
 
       deps.zip(versions).each  { |dep, version| dep.version = version.to_i }
 
-      @committed_read_deps  += deps[0...deps_write_index-1]
-      @committed_write_deps += deps[deps_write_index-1..-1]
+      @committed_write_deps += deps[0...deps_read_index-1]
+      @committed_read_deps  += deps[deps_read_index-1..-1]
     end
 
     @instance_version = w.first.version

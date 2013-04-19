@@ -11,6 +11,8 @@ module Promiscuous::Publisher::Bootstrap
   end
 
   def self.bootstrap_mode_key
+    # XXX You must change the LUA script in promiscuous/publisher/operation/base.rb
+    # if you change this value
     Promiscuous::Key.new(:pub).join('bootstrap')
   end
 end
