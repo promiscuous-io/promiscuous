@@ -291,13 +291,13 @@ class Promiscuous::Publisher::Operation::Base
         local versions = {}
 
         if redis.call('exists', operation_recovery_key) == 1 then
-          first_read_index = redis.call('hget', operation_recovery_key, 'read_index')
+          first_read_index = tonumber(redis.call('hget', operation_recovery_key, 'read_index'))
           if not first_read_index then
             return redis.error_reply('Failed to read dependency index during recovery')
           end
 
           for i, dep in ipairs(deps) do
-            versions[i] = redis.call('hget', operation_recovery_key, dep)
+            versions[i] = tonumber(redis.call('hget', operation_recovery_key, dep))
             if not versions[i] then
               return redis.error_reply('Failed to read dependency ' .. dep .. ' during recovery')
             end
@@ -318,7 +318,7 @@ class Promiscuous::Publisher::Operation::Base
             redis.call('set', key .. ':w', rw_version)
             versions[i] = rw_version
           else
-            versions[i] = redis.call('get', key .. ':w') or 0
+            versions[i] = tonumber(redis.call('get', key .. ':w')) or 0
           end
           redis.call('hset', operation_recovery_key, dep, versions[i])
         end
@@ -331,9 +331,8 @@ class Promiscuous::Publisher::Operation::Base
       SCRIPT
 
       first_read_index, versions = @@increment_script.eval(node, :argv => argv, :keys => deps)
-      first_read_index = first_read_index.to_i
 
-      deps.zip(versions).each  { |dep, version| dep.version = version.to_i }
+      deps.zip(versions).each  { |dep, version| dep.version = version }
 
       @committed_write_deps += deps[0...first_read_index]
       @committed_read_deps  += deps[first_read_index..-1]
