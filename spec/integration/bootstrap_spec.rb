@@ -56,18 +56,20 @@ describe Promiscuous, 'bootstrapping replication' do
 
   context 'when there are no races with publishers' do
     it 'bootstraps' do
+      Promiscuous::Publisher::Bootstrap.enable
       Promiscuous.context { 10.times { PublisherModel.create } }
 
-      switch_bootstrap_mode(:pass1)
+      switch_subscriber_mode(:pass1)
       Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
       sleep 1
+      Promiscuous::Publisher::Bootstrap.disable
 
-      switch_bootstrap_mode(:pass2)
+      switch_subscriber_mode(:pass2)
       Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
 
       eventually { SubscriberModel.count.should == PublisherModel.count }
 
-      switch_bootstrap_mode(false)
+      switch_subscriber_mode(false)
       PublisherModel.all.each { |pub| Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') } }
       eventually { SubscriberModel.each { |sub| sub.field_1.should == 'ohai' } }
     end
@@ -75,24 +77,28 @@ describe Promiscuous, 'bootstrapping replication' do
 
   context 'when updates happens after the version bootstrap, but before the document is replicated' do
     it 'bootstraps' do
+      Promiscuous::Publisher::Bootstrap.enable
       Promiscuous.context { 10.times { PublisherModel.create } }
 
-      switch_bootstrap_mode(:pass1)
+      switch_subscriber_mode(:pass1)
+
       Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
       sleep 1
+      Promiscuous::Publisher::Bootstrap.disable
 
       Promiscuous.context { PublisherModel.first.update_attributes(:field_2 => 'hello') }
 
-      switch_bootstrap_mode(:pass2)
+      switch_subscriber_mode(:pass2)
       Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
       eventually { SubscriberModel.count.should == PublisherModel.count - 1 }
 
       SubscriberModel.first.field_2.should == nil
 
-      switch_bootstrap_mode(:pass3)
-      eventually { SubscriberModel.first.field_2.should == 'hello' }
+      # TODO implement bootstrap pass3
+      # switch_subscriber_mode(:pass3)
+      # eventually { SubscriberModel.first.field_2.should == 'hello' }
 
-      switch_bootstrap_mode(false)
+      switch_subscriber_mode(false)
       eventually { SubscriberModel.first.field_2.should == 'hello' }
       PublisherModel.all.each { |pub| Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') } }
       eventually { SubscriberModel.each { |sub| sub.field_1.should == 'ohai' } }
@@ -100,7 +106,7 @@ describe Promiscuous, 'bootstrapping replication' do
   end
 end
 
-def switch_bootstrap_mode(bootstrap_mode)
+def switch_subscriber_mode(bootstrap_mode)
   Promiscuous::Config.configure { |config| config.bootstrap = bootstrap_mode }
   if @worker
     @worker.pump.recover # send the nacked message again
