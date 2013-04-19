@@ -284,15 +284,15 @@ class Promiscuous::Publisher::Operation::Base
       @@increment_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
         local prefix = ARGV[1] .. ':'
         local operation_recovery_key = prefix .. ARGV[2] .. ':operation_recovery'
-        local deps_read_index = tonumber(ARGV[3]) + 1
+        local first_read_index = tonumber(ARGV[3]) + 1
         local operation_recovery_payload = ARGV[4]
         local deps = KEYS
 
         local versions = {}
 
         if redis.call('exists', operation_recovery_key) == 1 then
-          deps_read_index = redis.call('hget', operation_recovery_key, 'read_index')
-          if not deps_read_index then
+          first_read_index = redis.call('hget', operation_recovery_key, 'read_index')
+          if not first_read_index then
             return redis.error_reply('Failed to read dependency index during recovery')
           end
 
@@ -303,18 +303,18 @@ class Promiscuous::Publisher::Operation::Base
             end
           end
 
-          return { deps_read_index, versions }
+          return { first_read_index-1, versions }
         end
 
         if redis.call('exists', prefix .. 'bootstrap') == 1 then
-          deps_read_index = #deps + 1
+          first_read_index = #deps + 1
         end
-        redis.call('hset', operation_recovery_key, 'read_index', deps_read_index)
+        redis.call('hset', operation_recovery_key, 'read_index', first_read_index)
 
         for i, dep in ipairs(deps) do
           local key = prefix .. dep
           local rw_version = redis.call('incr', key .. ':rw')
-          if i < deps_read_index then
+          if i < first_read_index then
             redis.call('set', key .. ':w', rw_version)
             versions[i] = rw_version
           else
@@ -327,16 +327,16 @@ class Promiscuous::Publisher::Operation::Base
           redis.call('hset', operation_recovery_key, 'payload', operation_recovery_payload)
         end
 
-        return { deps_read_index, versions }
+        return { first_read_index-1, versions }
       SCRIPT
 
-      deps_read_index, versions = @@increment_script.eval(node, :argv => argv, :keys => deps)
-      deps_read_index = deps_read_index.to_i
+      first_read_index, versions = @@increment_script.eval(node, :argv => argv, :keys => deps)
+      first_read_index = first_read_index.to_i
 
       deps.zip(versions).each  { |dep, version| dep.version = version.to_i }
 
-      @committed_write_deps += deps[0...deps_read_index-1]
-      @committed_read_deps  += deps[deps_read_index-1..-1]
+      @committed_write_deps += deps[0...first_read_index]
+      @committed_read_deps  += deps[first_read_index..-1]
     end
 
     @instance_version = w.first.version

@@ -60,9 +60,9 @@ describe Promiscuous do
 
       payload = Promiscuous::AMQP::Fake.get_next_payload
       dep = payload['dependencies']
-      dep['read'].should  == hashed[*@num_deps.times.map { |i| "publisher_models/field_2/#{i}:0" }]
-      dep['write'].should == hashed["publisher_models/id/#{pub.id}:2",
-                                    "publisher_models/field_2/hello:2"]
+      dep['read'].sort.should  == hashed[*@num_deps.times.map { |i| "publisher_models/field_2/#{i}:0" }].sort
+      dep['write'].sort.should == hashed["publisher_models/id/#{pub.id}:2",
+                                    "publisher_models/field_2/hello:2"].sort
       payload['id'].should == pub.id.to_s
       payload['operation'].should == 'dummy'
       payload['payload'].should == nil
@@ -88,9 +88,9 @@ describe Promiscuous do
 
       payload = Promiscuous::AMQP::Fake.get_next_payload
       dep = payload['dependencies']
-      dep['read'].should  == hashed[*NUM_DEPS.times.map { |i| "publisher_models/field_2/#{i}:0" }]
-      dep['write'].should == hashed["publisher_models/id/#{pub.id}:2",
-                                    "publisher_models/field_2/hello:2"]
+      dep['read'].sort.should  == hashed[*NUM_DEPS.times.map { |i| "publisher_models/field_2/#{i}:0" }].sort
+      dep['write'].sort.should == hashed["publisher_models/id/#{pub.id}:2",
+                                    "publisher_models/field_2/hello:2"].sort
       payload['id'].should == pub.id.to_s
       payload['operation'].should == 'dummy'
       payload['payload'].should == nil
