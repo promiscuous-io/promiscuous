@@ -17,7 +17,10 @@ class Promiscuous::Publisher::Bootstrap::Data < Promiscuous::Publisher::Bootstra
 
   def _bootstrap
     @models.each do |model|
-      model.all.each do |instance|
+      # XXX Running without_promiscuous to ensure we are not running within a
+      # context. Running within a context causes a memory leak when iterating
+      # though the entire collection.
+      model.all.without_promiscuous.each do |instance|
         dep = instance.promiscuous.tracked_dependencies.first
         # TODO Abstract DB operation (is [] Mongoid only?)
         dep.version = instance[Promiscuous::Publisher::Operation::Base::VERSION_FIELD].to_i
