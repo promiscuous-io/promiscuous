@@ -5,6 +5,10 @@ describe Promiscuous, 'bootstrapping dependencies' do
   before { load_models }
   before { run_subscriber_worker! }
 
+  #
+  # TODO Test that the bootstrap exchange is used for both Data and Version
+  #
+  
   context 'when in publisher is in bootstrapping mode' do
     before { Promiscuous::Publisher::Bootstrap.enable }
 

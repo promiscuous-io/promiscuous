@@ -15,7 +15,7 @@ class Promiscuous::Publisher::Bootstrap::Data < Promiscuous::Publisher::Bootstra
     }
   end
 
-  def bootstrap
+  def _bootstrap
     @models.each do |model|
       model.all.each do |instance|
         dep = instance.promiscuous.tracked_dependencies.first
