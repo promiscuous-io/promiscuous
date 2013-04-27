@@ -17,6 +17,7 @@ class Promiscuous::Railtie < Rails::Railtie
     end
   end
 
+  # XXX Only Rails 3.x support
   console do
     class << IRB
       alias_method :start_without_promiscuous, :start
@@ -24,6 +25,18 @@ class Promiscuous::Railtie < Rails::Railtie
       def start
         ::Promiscuous::Middleware.with_context 'rails/console' do
           start_without_promiscuous
+        end
+      end
+    end
+
+    if defined?(Pry)
+      class << Pry
+        alias_method :start_without_promiscuous, :start
+
+        def start
+          ::Promiscuous::Middleware.with_context 'rails/console' do
+            start_without_promiscuous
+          end
         end
       end
     end
