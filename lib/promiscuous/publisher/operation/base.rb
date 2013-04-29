@@ -1,6 +1,6 @@
 class Promiscuous::Publisher::Operation::Base
   class TryAgain < RuntimeError; end
-  VERSION_FIELD = '_pv'
+  VERSION_FIELD = '__pv'
 
   attr_accessor :operation, :operation_ext, :instance, :selector_keys
 
