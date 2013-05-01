@@ -87,13 +87,17 @@ class Promiscuous::Publisher::Operation::Base
         node.zadd(rabbitmq_staging_set_key, Time.now.to_i, key)
         payload = node.get(key)
 
-        Promiscuous.info "[payload recovery] #{payload}"
-        new.instance_eval do
-          @payload_recovery_node = node
-          @payload_recovery_key = key
-          @amqp_key = MultiJson.load(payload)['__amqp__']
-          @payload = payload
-          publish_payload_in_rabbitmq_async
+        # It's possible that the payload is nil as the message could be
+        # recovered by another worker
+        if payload
+          Promiscuous.info "[payload recovery] #{payload}"
+          new.instance_eval do
+            @payload_recovery_node = node
+            @payload_recovery_key = key
+            @amqp_key = MultiJson.load(payload)['__amqp__']
+            @payload = payload
+            publish_payload_in_rabbitmq_async
+          end
         end
       end
     end
