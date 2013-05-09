@@ -100,7 +100,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def yield_and_catch_already_processsed
-    yield
+    Promiscuous.context { yield }
   rescue Promiscuous::Error::AlreadyProcessed => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
     Promiscuous.debug "[receive] #{payload} #{e}\n#{e.backtrace.join("\n")}"

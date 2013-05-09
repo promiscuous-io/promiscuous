@@ -13,6 +13,17 @@ describe Promiscuous do
         pub = Promiscuous.context { PublisherModel.create }
         eventually { SubscriberModel.callbacks(:id => pub.id).should == [:create, :save] }
       end
+
+      it 'runs callbacks in a promiscuous context' do
+        SubscriberModel.class_eval do
+          after_create do
+            @@promiscuous_context = Promiscuous::Publisher::Context.current
+          end
+        end
+        pub = Promiscuous.context { PublisherModel.create }
+
+        eventually { @@promiscuous_context.should_not == nil }
+      end
     end
 
     context 'when updating' do
