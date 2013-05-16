@@ -27,6 +27,7 @@ module Promiscuous::Publisher::Model::Base
       msg[:__amqp__]  = @instance.class.publish_to
       msg[:type]      = @instance.class.publish_as # for backward compatibility
       msg[:ancestors] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+      msg[:from_host] = Socket.gethostname
       msg[:id]        = @instance.id.to_s
       unless options[:with_attributes] == false
         # promiscuous_payload is useful to implement relays
