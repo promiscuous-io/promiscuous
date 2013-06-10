@@ -185,7 +185,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       # TODO maybe we should cache these things
       # TODO discover field dependencies automatically (hard)
       aliases = Hash[model.aliased_fields.map { |k,v| [v,k] }]
-      attributes = fields_in_query(@change).map { |f| (aliases[f.to_s] || f).to_sym }
+      attributes = fields_in_query(@change).map { |f| [aliases[f.to_s], f] }.flatten.compact.map(&:to_sym)
       (attributes & model.published_db_fields).present?
     end
 

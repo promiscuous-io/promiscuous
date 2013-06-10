@@ -99,6 +99,15 @@ module ModelsHelper
     define_constant :'Scoped::ScopedPublisherModel', PublisherModel do
     end
 
+    define_constant :PublisherModelBelongsTo do
+      include Mongoid::Document
+      include Promiscuous::Publisher
+
+      publish do
+        belongs_to :publisher_model
+      end
+    end
+
     define_constant :PublisherDslModel do
       include Mongoid::Document
 
@@ -202,6 +211,16 @@ module ModelsHelper
     end
 
     define_constant('Scoped::ScopedSubscriberModel', SubscriberModel) do
+    end
+
+    define_constant :SubscriberModelBelongsTo do
+      include Mongoid::Document
+      include Promiscuous::Subscriber
+
+      belongs_to :publisher_model
+
+      subscribe :from =>'publisher_model_belongs_to'
+      subscribe :publisher_model_id
     end
 
     define_constant('SubscriberDslModel') do

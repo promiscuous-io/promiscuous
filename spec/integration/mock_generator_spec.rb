@@ -98,6 +98,16 @@ if ORM.has(:mongoid)
           publish :field_3
           publish :models_embedded
         end
+
+        # ------------------------------------------------------------------
+
+        class PublisherModelBelongsTo
+          include Promiscuous::Publisher::Model::Mock
+          publish :to => 'test/publisher_model_belongs_to'
+          mock    :id => :bson
+
+          publish :publisher_model_id
+        end
       end
       MOCKS
     end
