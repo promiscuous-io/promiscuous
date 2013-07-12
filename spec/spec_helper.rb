@@ -8,7 +8,13 @@ MONGOID_PORT = ENV['MONGOID_SPEC_PORT'] || '27017'
 DATABASE = 'promiscuous_test'
 
 gemfile = File.basename(File.realpath(Bundler.default_gemfile), '.gemfile')
-ENV['TEST_ENV'] = gemfile == 'Gemfile' ? 'mongoid3' : gemfile
+
+case gemfile
+when 'Gemfile'   then ENV['TEST_ENV'] = 'mongoid3'
+when 'mongoid31' then ENV['TEST_ENV'] = 'mongoid3'
+else
+  ENV['TEST_ENV'] = gemfile
+end
 load "./spec/spec_helper/#{ENV['TEST_ENV']}.rb"
 
 Dir["./spec/support/**/*.rb"].each {|f| require f}

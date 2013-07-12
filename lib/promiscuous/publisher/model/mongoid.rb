@@ -32,8 +32,8 @@ module Promiscuous::Publisher::Model::Mongoid
       if value.is_a?(Array) &&
          value.respond_to?(:ancestors) &&
          value.ancestors.any? { |a| a == Promiscuous::Publisher::Model::Mongoid }
-         value = {:__amqp__ => '__promiscuous__/embedded_many',
-                  :payload  => value.map(&:promiscuous).map(&:payload)}
+        value = {:__amqp__ => '__promiscuous__/embedded_many',
+                 :payload  => value.map(&:promiscuous).map(&:payload)}
       end
       value
     end

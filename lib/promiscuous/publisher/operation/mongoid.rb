@@ -117,7 +117,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def use_id_selector(options={})
-      selector = {'_id' => @instance.id}
+      selector = {'_id' => @instance.id}.merge(@query.selector.select { |k,v| k.to_s.include?("_id") })
 
       if options[:use_atomic_version_selector]
         version = @instance[VERSION_FIELD]

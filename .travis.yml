@@ -8,6 +8,7 @@ rvm:
   - jruby-head
 gemfile:
   - gemfiles/mongoid3.gemfile
+  - gemfiles/mongoid31.gemfile
   # - gemfiles/active_record.gemfile
 services:
   - mongodb

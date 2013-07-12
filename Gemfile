@@ -1,1 +1,1 @@
-gemfiles/mongoid3.gemfile
+gemfiles/mongoid31.gemfile
