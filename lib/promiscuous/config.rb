@@ -54,7 +54,7 @@ module Promiscuous::Config
     self.no_deps              ||= false
     self.hash_size            ||= 2**20 # one million keys ~ 200Mb.
     self.recovery             ||= false
-    self.prefetch             ||= 1000
+    self.prefetch             ||= self.bootstrap ? 10000000 : 1000
     self.recovery_timeout     ||= 10
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10

@@ -153,14 +153,12 @@ class Promiscuous::AMQP::Bunny
     end
 
     def postpone_message
-      # Not using nacks, because the message gets sent back right away, so we'll
-      # increase the prefetch window
-      return unless @prefetch
+      # Not using nacks, because the message gets sent back right away so this
+      # is a no-op.
 
-      @lock.synchronize do
-        @prefetch += 1
-        @channel.basic_qos(@prefetch)
-      end
+      # TODO: Even though the prefetch window is set to 10mil we should still
+      # check that the unacked messages doesn't exceed this limit and increase
+      # the prefetch window.
     end
 
     def recover

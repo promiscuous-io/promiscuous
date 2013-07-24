@@ -29,7 +29,11 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       redis.nodes.each { |node| @node_synchronizers[node] = NodeSynchronizer.new(self, node) }
       @redis = redis
     end
-    @root.pump.recover
+    # Do not recover messages while bootstrapping as there are a very large
+    # number of messages that remain un-acked. If bootstrap messages are missed
+    # these will be caught in the final phase of bootstrapping (see
+    # Promiscuous::Subscriber::Operation).
+    @root.pump.recover unless Promiscuous::Config.bootstrap
   end
 
   def disconnect

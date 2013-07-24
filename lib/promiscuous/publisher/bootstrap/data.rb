@@ -1,3 +1,5 @@
+require 'ruby-progressbar'
+
 class Promiscuous::Publisher::Bootstrap::Data < Promiscuous::Publisher::Bootstrap::Base
   def initialize(options={})
     @models = options[:models]
@@ -20,6 +22,7 @@ class Promiscuous::Publisher::Bootstrap::Data < Promiscuous::Publisher::Bootstra
       # XXX Running without_promiscuous to ensure we are not running within a
       # context. Running within a context causes a memory leak when iterating
       # though the entire collection.
+      bar = ProgressBar.create(:format => '%t |%b>%i| %c/%C %e', :title => "Bootstrapping #{model}", :total => model.count)
       model.all.without_promiscuous.each do |instance|
         dep = instance.promiscuous.tracked_dependencies.first
         # TODO Abstract DB operation (is [] Mongoid only?)
@@ -28,6 +31,7 @@ class Promiscuous::Publisher::Bootstrap::Data < Promiscuous::Publisher::Bootstra
         payload[:operation] = :bootstrap_data
         payload[:dependencies] = {:write => [dep]}
         self.publish(:key => payload[:__amqp__], :payload => MultiJson.dump(payload))
+        bar.increment
       end
     end
   end
