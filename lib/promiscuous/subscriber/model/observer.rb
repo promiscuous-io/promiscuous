@@ -5,12 +5,26 @@ module Promiscuous::Subscriber::Model::Observer
   included do
     extend ActiveModel::Callbacks
     attr_accessor :id
-    define_model_callbacks :create, :update, :destroy, :only => :after
+    define_model_callbacks :save, :create, :update, :destroy, :only => :after
   end
 
   def __promiscuous_update(payload, options={})
     super
-    run_callbacks payload.operation
+    case payload.operation
+    when :create
+      run_callbacks :create
+      run_callbacks :save
+    when :update
+      run_callbacks :update
+      run_callbacks :save
+    when :destroy
+      run_callbacks :destroy
+    when :bootstrap_data
+      run_callbacks :create
+      run_callbacks :save
+    else
+      raise "Unknown operation #{payload.operation}"
+    end
   end
 
   def destroy

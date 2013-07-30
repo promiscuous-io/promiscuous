@@ -108,6 +108,33 @@ describe Promiscuous, 'bootstrapping replication' do
       eventually { SubscriberModel.each { |sub| sub.field_1.should == 'ohai' } }
     end
   end
+
+  context 'when bootstrapping an observer' do
+    before { load_observers }
+    before do
+      ModelObserver.class_eval do
+        cattr_accessor :saved, :created
+
+        after_save   { self.saved = true }
+        after_create { self.created = true }
+      end
+    end
+
+    it 'calls the create and save observers' do
+      Promiscuous::Publisher::Bootstrap.enable
+      Promiscuous.context { PublisherModel.create }
+
+      switch_subscriber_mode(:pass1)
+      Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
+      switch_subscriber_mode(:pass2)
+      Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
+
+      eventually do
+        ModelObserver.saved.should == true
+        ModelObserver.created.should == true
+      end
+    end
+  end
 end
 
 def switch_subscriber_mode(bootstrap_mode)
