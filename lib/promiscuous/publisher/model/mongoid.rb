@@ -11,9 +11,8 @@ module Promiscuous::Publisher::Model::Mongoid
     # Important for the query hooks (see ../operation/mongoid.rb)
     # We want the root class when we do a collection name lookup
 
-    root_class = self.collection.name.singularize.camelize.constantize
-    unless self == root_class
-      raise "Please include Promiscuous::Publisher in #{root_class} first (the root class)"
+    if self.superclass.include?(Mongoid::Document)
+      raise "Please include Promiscuous::Publisher in the root class of #{self}"
     end
 
     Promiscuous::Publisher::Model::Mongoid.collection_mapping[self.collection.name] = self
