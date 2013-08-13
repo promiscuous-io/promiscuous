@@ -68,7 +68,7 @@ class Promiscuous::Subscriber::Worker::Message
   def ack
     time = Time.now
     Promiscuous.debug "[receive] #{payload}"
-    @metadata.ack
+    @metadata.try(:ack)
     @root_worker.stats.notify_processed_message(self, time) if @root_worker
   rescue Exception => e
     # We don't care if we fail, the message will be redelivered at some point
