@@ -1,28 +1,22 @@
 class Promiscuous::Publisher::Context
   # XXX Context are not sharable among threads
 
-  def self.open(*args, &block)
-    old_disabled, Promiscuous.disabled = Promiscuous.disabled, false
-    old_current, self.current = self.current, new(*args)
-
-    begin
-      self.current.alt_trace ">>> open >>>", :backtrace => :none if ENV['TRACE']
-      yield
-    ensure
-      self.current.alt_trace "<<< close <<<", :backtrace => :none if ENV['TRACE']
-
-      self.current.close
-      self.current = old_current
-      Promiscuous.disabled = old_disabled
-    end
+  def self.stack
+    Thread.current[:promiscuous_context] ||= []
   end
 
   def self.current
-    Thread.current[:promiscuous_context]
+    self.stack.last
   end
 
-  def self.current=(value)
-    Thread.current[:promiscuous_context] = value
+  def self.run(*args, &block)
+    stack.push(new(*args))
+
+    begin
+      yield
+    ensure
+      self.stack.pop.close
+    end
   end
 
   attr_accessor :name, :operations, :nesting_level, :last_write_dependency
@@ -40,9 +34,13 @@ class Promiscuous::Publisher::Context
 
     Promiscuous::AMQP.ensure_connected
     Mongoid::IdentityMap.clear if defined?(Mongoid::IdentityMap)
+
+    self.alt_trace ">>> open >>>", :backtrace => :none if ENV['TRACE']
   end
 
   def close
+    self.alt_trace "<<< close <<<", :backtrace => :none if ENV['TRACE']
+
     @parent.try(:close_child, self)
   end
 

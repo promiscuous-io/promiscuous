@@ -3,7 +3,7 @@ module Promiscuous::Convenience
 
   def without_promiscuous
     raise "No block given" unless block_given?
-    old_disabled, Promiscuous.disabled = Promiscuous.disabled, true
+    old_disabled, Promiscuous.disabled = Promiscuous.disabled?, true
     yield
   ensure
     Promiscuous.disabled = old_disabled

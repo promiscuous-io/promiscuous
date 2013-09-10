@@ -15,11 +15,16 @@ class Promiscuous::Middleware
   end
 
   def self.with_context(*args, &block)
+    # XXX We turn off the disabled flag when entering a middleware.
+    # It has priority because it's much simpler to use for testing.
+    old_disabled, Promiscuous.disabled = Promiscuous.disabled?, false
     Promiscuous.context(*args, &block)
   rescue Exception => e
     $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
     pretty_print_exception(e)
     raise e
+  ensure
+    Promiscuous.disabled = old_disabled
   end
 
   def self.without_context
@@ -27,15 +32,16 @@ class Promiscuous::Middleware
     # That's used for render() and things that are *not* supposed to write.
     # We actually force promiscuous to instrument queries, and make sure that
     # we don't do any write we shouldn't.
-    old_context, Context.current = Context.current, nil
-    old_disabled, Promiscuous.disabled = Promiscuous.disabled, true
+    old_disabled, Promiscuous.disabled = Promiscuous.disabled?, false
+
+    Context.stack << nil
     yield
   rescue Exception => e
     $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
     pretty_print_exception(e)
     raise e
   ensure
-    Context.current = old_context
+    Context.stack.pop
     Promiscuous.disabled = old_disabled
   end
 

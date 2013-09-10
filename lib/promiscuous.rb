@@ -60,17 +60,16 @@ module Promiscuous
       true
     end
 
-    def disabled
-      return $promiscuous_disabled if Thread.current[:promiscuous_disabled].nil?
-      Thread.current[:promiscuous_disabled]
-    end
-
     def disabled=(value)
       Thread.current[:promiscuous_disabled] = value
     end
 
+    def disabled?
+      !!Thread.current[:promiscuous_disabled]
+    end
+
     def context(*args, &block)
-      Publisher::Context.open(*args, &block)
+      Publisher::Context.run(*args, &block)
     end
   end
 

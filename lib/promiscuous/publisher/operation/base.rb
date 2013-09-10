@@ -671,7 +671,7 @@ class Promiscuous::Publisher::Operation::Base
   def execute(&db_operation)
     # execute returns the result of the db_operation to perform
     db_operation ||= proc {}
-    return db_operation.call if Promiscuous.disabled
+    return db_operation.call if Promiscuous.disabled?
 
     unless current_context
       raise Promiscuous::Error::MissingContext if write?
