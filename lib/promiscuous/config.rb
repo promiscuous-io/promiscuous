@@ -83,6 +83,8 @@ module Promiscuous::Config
       alias_method :fork_without_promiscuous, :fork
 
       def fork(&block)
+        return fork_without_promiscuous(&block) unless Promiscuous.should_be_connected?
+
         Promiscuous.disconnect
         pid = if block
           fork_without_promiscuous do

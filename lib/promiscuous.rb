@@ -38,11 +38,17 @@ module Promiscuous
     def connect
       AMQP.connect
       Redis.connect
+      @should_be_connected = true
     end
 
     def disconnect
       AMQP.disconnect
       Redis.disconnect
+      @should_be_connected = false
+    end
+
+    def should_be_connected?
+      !!@should_be_connected
     end
 
     def healthy?
