@@ -1,16 +1,14 @@
-class Promiscuous::Middleware
-  Context = Promiscuous::Publisher::Context
-
+class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Context::Base
   module Controller
     extend ActiveSupport::Concern
 
     def process_action(*args)
       full_name = "#{self.class.controller_path}/#{self.action_name}"
-      Promiscuous::Middleware.with_context(full_name) { super }
+      Promiscuous::Publisher::Context::Middleware.with_context(full_name) { super }
     end
 
     def render(*args)
-      Promiscuous::Middleware.without_context { super }
+      Promiscuous::Publisher::Context::Middleware.without_context { super }
     end
   end
 
@@ -18,7 +16,7 @@ class Promiscuous::Middleware
     # XXX We turn off the disabled flag when entering a middleware.
     # It has priority because it's much simpler to use for testing.
     old_disabled, Promiscuous.disabled = Promiscuous.disabled?, false
-    Promiscuous.context(*args, &block)
+    super
   rescue Exception => e
     $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
     pretty_print_exception(e)
@@ -31,17 +29,16 @@ class Promiscuous::Middleware
     # This is different from the method without_promiscuous in convenience.rb
     # That's used for render() and things that are *not* supposed to write.
     # We actually force promiscuous to instrument queries, and make sure that
-    # we don't do any write we shouldn't.
+    # we don't do any writes we shouldn't.
     old_disabled, Promiscuous.disabled = Promiscuous.disabled?, false
-
-    Context.stack << nil
+    old_current, self.current = self.current, nil
     yield
   rescue Exception => e
     $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
     pretty_print_exception(e)
     raise e
   ensure
-    Context.stack.pop
+    self.current = old_current
     Promiscuous.disabled = old_disabled
   end
 
@@ -114,5 +111,4 @@ class Promiscuous::Middleware
     STDERR.puts
     $promiscuous_pretty_print_exception_once = :disable if $promiscuous_pretty_print_exception_once
   end
-
 end

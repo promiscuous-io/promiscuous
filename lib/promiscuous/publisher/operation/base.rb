@@ -42,6 +42,16 @@ class Promiscuous::Publisher::Operation::Base
     @current_context ||= Promiscuous::Publisher::Context.current
   end
 
+  def trace_operation
+    msg = Promiscuous::Error::Dependency.explain_operation(operation, 70)
+    current_context.trace(msg, :color => self.read? ? '0;32' : '1;31')
+  end
+
+  def add_operation_in_current_context
+    trace_operation if ENV['TRACE']
+    current_context.operations << self
+  end
+
   def record_timestamp
     # Records the number of milliseconds since epoch, which we use send sending
     # the payload over. It's good for latency measurements.
@@ -167,8 +177,8 @@ class Promiscuous::Publisher::Operation::Base
     payload[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
     payload[:dependencies][:write] = @committed_write_deps
 
-    current_context.last_write_dependency = @committed_write_deps.first
     current_context.operations.clear
+    current_context.extra_dependencies = [@committed_write_deps.first]
 
     @amqp_key = payload[:__amqp__]
     @payload = MultiJson.dump(payload)
@@ -206,6 +216,7 @@ class Promiscuous::Publisher::Operation::Base
     op = op_klass.recover_operation(model, instance_id, document)
     op.operation = operation
 
+    # XXX FIXME TODO Use a different db connection (We might be in a transaction)
     Promiscuous.context :operation_recovery, :detached_from_parent => true do
       op.instance_eval do
         @read_dependencies  = read_dependencies
@@ -448,9 +459,9 @@ class Promiscuous::Publisher::Operation::Base
                              .map(&:instance_dependencies).flatten
 
     # We implicitly have a read dependency on the latest write.
-    if current_context.last_write_dependency
-      current_context.last_write_dependency.version = nil
-      read_dependencies << current_context.last_write_dependency
+    current_context.extra_dependencies.each do |dep|
+      dep.version = nil
+      read_dependencies << dep
     end
 
     @read_dependencies = read_dependencies.uniq
@@ -477,7 +488,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def lock_instance_for_execute_persistent
-    current_context.add_operation(self)
+    self.add_operation_in_current_context
 
     # Note: At first, @instance can be a representation of a selector, to
     # become a real model instance once we get to fetch it from the db with
@@ -665,7 +676,7 @@ class Promiscuous::Publisher::Operation::Base
     # If the db_operation raises, we don't consider this failed operation when
     # committing the next persistent write by omitting the operation in the
     # context.
-    current_context.add_operation(self) unless failed?
+    self.add_operation_in_current_context unless failed?
   end
 
   def execute(&db_operation)

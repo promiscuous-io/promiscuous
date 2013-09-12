@@ -18,7 +18,10 @@ module Promiscuous
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
            :CLI, :Error, :Loader, :AMQP, :Redis, :ZK, :Config, :DSL, :Key,
-           :Convenience, :Dependency, :Middleware, :Timer
+           :Convenience, :Dependency, :Timer
+
+  # Shortcut for the middleware, TODO make load on demand
+  Middleware = Publisher::Context::Middleware
 
   extend Promiscuous::DSL
 
@@ -69,7 +72,7 @@ module Promiscuous
     end
 
     def context(*args, &block)
-      Publisher::Context.run(*args, &block)
+      Publisher::Context::Base.with_context(*args, &block)
     end
   end
 
