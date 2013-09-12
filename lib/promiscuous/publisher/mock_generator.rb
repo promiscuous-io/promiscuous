@@ -17,15 +17,14 @@ module Promiscuous::Publisher::MockGenerator
       <% end -%>
 
       <% publishers.each do |publisher| -%>
-        <% next unless publisher.publish_to -%>
         <% %>
         # ------------------------------------------------------------------
 
         class <%= publisher.publish_as %>
           include Promiscuous::Publisher::Model::Mock
-          publish :to => '<%= publisher.publish_to %>'
+          mock :from => '<%= Promiscuous::Config.app %>'
           <% if defined?(Mongoid::Document) && publisher.include?(Mongoid::Document) -%>
-          mock    :id => :bson
+          mock :id => :bson
           <% end -%>
           <% %>
           <% attributes_for(publisher).each do |attr| -%>
@@ -64,10 +63,10 @@ module Promiscuous::Publisher::MockGenerator
   def self.publishers
     Promiscuous::Publisher::Model.publishers.values
       .reject { |publisher| publisher.ancestors.include?(Promiscuous::Publisher::Model::Mock) }
-      .reject { |publisher| publisher.publish_to =~ /^__promiscuous__\// }
+      .reject { |publisher| publisher.publish_as =~ /^Promiscuous::/ }
       .map    { |publisher| [publisher, publisher.descendants] }
       .flatten
-      .reject { |publisher| publisher.superclass.respond_to?(:publish_to) &&
-                            publisher.superclass.publish_to }
+      .reject { |publisher| publisher.superclass.respond_to?(:publish_as) &&
+                            publisher.superclass.publish_as }
   end
 end

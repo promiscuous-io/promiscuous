@@ -18,7 +18,7 @@ class Promiscuous::Publisher::Bootstrap::Base
   end
 
   def publish(options={})
-    options[:key]      ||= "#{Promiscuous::Config.app}/__bootstrap__"
+    options[:key]      ||= Promiscuous::Config.app
     options[:exchange] ||= @exchange
     Promiscuous::AMQP.publish(options)
   end

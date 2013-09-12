@@ -20,6 +20,7 @@ class Promiscuous::AMQP::Fake
   end
 
   def publish(options={})
+    Promiscuous.debug "[publish (fake)] #{options[:exchange].try(:name) || "default"}/#{options[:key]} #{options[:payload]}"
     @messages << options
     options[:on_confirm].try(:call)
   end
@@ -33,7 +34,8 @@ class Promiscuous::AMQP::Fake
   end
 
   def get_next_payload
-    JSON.parse(get_next_message[:payload])
+    msg = get_next_message
+    msg && JSON.parse(msg[:payload])
   end
 
   def open_queue(options={}, &block)

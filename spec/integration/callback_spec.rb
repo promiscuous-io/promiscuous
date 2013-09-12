@@ -17,12 +17,12 @@ describe Promiscuous do
       it 'runs callbacks in a promiscuous context' do
         SubscriberModel.class_eval do
           after_create do
-            @@promiscuous_context = Promiscuous::Publisher::Context.current
+            $test_promiscuous_context = Promiscuous::Publisher::Context.current
           end
         end
         pub = Promiscuous.context { PublisherModel.create }
 
-        eventually { @@promiscuous_context.should_not == nil }
+        eventually { $test_promiscuous_context.should_not == nil }
       end
     end
 

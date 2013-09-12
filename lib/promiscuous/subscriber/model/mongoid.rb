@@ -40,10 +40,10 @@ module Promiscuous::Subscriber::Model::Mongoid
     end
   end
 
-  class EmbeddedMany
+  class EmbeddedDocs
     include Promiscuous::Subscriber::Model::Base
 
-    subscribe :from => '__promiscuous__/embedded_many'
+    subscribe :as => 'Promiscuous::EmbeddedDocs'
 
     def __promiscuous_update(payload, options={})
       old_embeddeds = options[:old_value]
@@ -58,7 +58,7 @@ module Promiscuous::Subscriber::Model::Mongoid
           new_e['existed'] = true
           old_e.instance_variable_set(:@keep, true)
 
-          payload = Promiscuous::Subscriber::Payload.new(new_e)
+          payload = Promiscuous::Subscriber::Operation.new(new_e)
           old_e.__promiscuous_update(payload, :old_value => old_e)
         end
       end
@@ -70,7 +70,7 @@ module Promiscuous::Subscriber::Model::Mongoid
 
       # create all the new ones
       new_embeddeds.reject { |new_e| new_e['existed'] }.each do |new_e|
-        payload = Promiscuous::Subscriber::Payload.new(new_e)
+        payload = Promiscuous::Subscriber::Operation.new(new_e)
         new_e_instance = payload.model. __promiscuous_fetch_new(payload.id)
         new_e_instance.__promiscuous_update(payload)
         options[:parent].__send__(old_embeddeds.metadata[:name]) << new_e_instance

@@ -7,6 +7,7 @@ class Promiscuous::Dependency
     options = args.extract_options!
     @type = options[:type]
     @owner = options[:owner]
+    @dont_hash = options[:dont_hash]
 
     @internal_key = args.join('/')
 
@@ -20,8 +21,8 @@ class Promiscuous::Dependency
         # We hash dependencies to have a O(1) memory footprint in Redis.
         # The hashing needs to be deterministic across instances in order to
         # function properly.
-        @internal_key = @hash % Promiscuous::Config.hash_size.to_i
-        @hash = @internal_key
+        @hash = @hash % Promiscuous::Config.hash_size.to_i
+        @internal_key = @hash unless @dont_hash
       end
     end
 

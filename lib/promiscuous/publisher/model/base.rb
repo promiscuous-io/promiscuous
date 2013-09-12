@@ -2,7 +2,7 @@ module Promiscuous::Publisher::Model::Base
   extend ActiveSupport::Concern
 
   included do
-    class_attribute :publish_to, :published_attrs, :tracked_attrs
+    class_attribute :published_attrs, :tracked_attrs
     cattr_accessor  :published_db_fields # There is one on each root class, none on the subclasses
     self.published_attrs = []
     self.tracked_attrs = []
@@ -16,23 +16,14 @@ module Promiscuous::Publisher::Model::Base
       @instance = instance
     end
 
-    def sync(options={}, &block)
-      options = {:instance => @instance, :operation => :update}.merge(options)
-      Promiscuous::Publisher::Operation::Base.new(options).execute(&block)
-    end
-
     def payload(options={})
-      # TODO migrate this format to something that makes more sense once crowdstore is out
       msg = {}
-      msg[:__amqp__]  = @instance.class.publish_to
-      msg[:type]      = @instance.class.publish_as # for backward compatibility
-      msg[:ancestors] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
-      msg[:from_host] = Socket.gethostname
-      msg[:id]        = @instance.id.to_s
+      msg[:types] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+      msg[:id]    = @instance.id.to_s
       unless options[:with_attributes] == false
         # promiscuous_payload is useful to implement relays
-        msg[:payload] = @instance.respond_to?(:promiscuous_payload) ? @instance.promiscuous_payload :
-                                                                      self.attributes
+        msg[:attributes] = @instance.respond_to?(:promiscuous_payload) ? @instance.promiscuous_payload :
+                                                                         self.attributes
       end
       msg
     end
@@ -53,14 +44,20 @@ module Promiscuous::Publisher::Model::Base
       Promiscuous::Dependency.new(@collection, attr, value)
     end
 
-    def tracked_dependencies
+    def tracked_dependencies(options={})
       # FIXME This is not sufficient, we need to consider the previous and next
       # values in case of an update.
       # Note that the caller expect the id dependency to come first
-      @instance.class.tracked_attrs
-        .map { |attr| [attr, @instance.__send__(attr)] }
-        .map { |attr, value| get_dependency(attr, value) }
-        .compact
+      @instance.class.tracked_attrs.map do |attr|
+        begin
+          [attr, @instance.__send__(attr)]
+        rescue Exception => e
+          # Don't care about missing attributes for read dependencies.
+          raise e unless options[:allow_missing_attributes] && e.is_a?(ActiveModel::MissingAttributeError)
+        end
+      end
+      .map { |attr, value| get_dependency(attr, value) }
+      .compact
     end
   end
 
@@ -88,14 +85,6 @@ module Promiscuous::Publisher::Model::Base
 
       # TODO reject invalid options
 
-      if attributes.present? && self.publish_to && options[:to] && self.publish_to != "#{Promiscuous::Config.app}/#{options[:to]}"
-        raise 'versioned publishing is not supported yet'
-      end
-      self.publish_to ||= begin
-                            to = options[:to] || self.name.underscore
-                            "#{Promiscuous::Config.app}/#{to}"
-                          end
-
       @publish_as = options[:as].to_s if options[:as]
 
       ([self] + descendants).each do |klass|
@@ -107,6 +96,18 @@ module Promiscuous::Publisher::Model::Base
         klass.published_db_fields |= attributes # aliased fields are resolved later
         klass.published_attrs     |= attributes
       end
+
+
+      begin
+        @in_publish_block = @in_publish_block.to_i + 1
+        block.call if block
+      ensure
+        @in_publish_block -= 1
+      end
+    end
+
+    def in_publish_block?
+      @in_publish_block.to_i > 0
     end
 
     def track_dependencies_of(*attributes)

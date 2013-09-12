@@ -1,6 +1,5 @@
 require 'spec_helper'
 
-if ORM.has(:mongoid)
   describe Promiscuous do
     before { use_fake_backend }
     before { load_models }
@@ -35,40 +34,9 @@ if ORM.has(:mongoid)
 
     context 'when using only reads' do
       it 'publishes proper dependencies' do
-        pub = without_promiscuous { PublisherModel.create }
-        Promiscuous.context do
-          PublisherModel.first
-        end
-
+        without_promiscuous { PublisherModel.create }
+        Promiscuous.context { PublisherModel.first }
         Promiscuous::AMQP::Fake.get_next_message.should == nil
-      end
-    end
-
-    context 'when using nested context' do
-      it 'publishes proper dependencies' do
-        pub1 = pub2 = nil
-        Promiscuous.context do
-          pub1 = PublisherModel.create(:field_1 => '1')
-          pub2 = Promiscuous.context { PublisherModel.create }
-          pub1.update_attributes(:field_1 => '2')
-          pub1.update_attributes(:field_1 => '3')
-        end
-
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:1"]
-
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models/id/#{pub1.id}:1"]
-        dep['write'].should == hashed["publisher_models/id/#{pub2.id}:1"]
-
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models/id/#{pub2.id}:1"]
-        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:3"]
-
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:4"]
       end
     end
 
@@ -85,7 +53,13 @@ if ORM.has(:mongoid)
     context 'when using only writes that misses' do
       it 'publishes proper dependencies' do
         Promiscuous.context do
-          PublisherModel.where(:id => 123).update(:field_1 => '1')
+          if ORM.has(:transaction)
+            PublisherModel.transaction do
+              PublisherModel.where(:id => 123).update_all(:field_1 => '1')
+            end
+          else
+            PublisherModel.where(:id => 123).update(:field_1 => '1')
+          end
         end
 
         Promiscuous::AMQP::Fake.get_next_message.should == nil
@@ -93,42 +67,42 @@ if ORM.has(:mongoid)
     end
 
     context 'when using multi reads/writes on tracked attributes' do
-      it 'publishes proper dependencies' do
+      it 'publishes proper dependencies', :pending => ORM.has(:active_record) && 'FIXMES' do
         PublisherModel.track_dependencies_of :field_1
         PublisherModel.track_dependencies_of :field_2
 
         pub = nil
         Promiscuous.context do
-          pub = PublisherModel.create(:field_1 => 123, :field_2 => 456)
-          PublisherModel.where(:field_1 => 123).count
+          pub = PublisherModel.create(:field_1 => '123', :field_2 => '456')
+          PublisherModel.where(:field_1 => '123').count
           PublisherModel.where(:field_1 => 'blah').count
-          PublisherModel.where(:field_1 => 123, :field_2 => 456).count
-          PublisherModel.where(:field_1 => 'blah', :field_2 => 456).count
-          PublisherModel.where(:field_2 => 456).count
+          PublisherModel.where(:field_1 => '123', :field_2 => '456').count
+          PublisherModel.where(:field_1 => 'blah', :field_2 => '456').count
+          PublisherModel.where(:field_2 => '456').count
           PublisherModel.where(:field_2 => 'blah').count
-          PublisherModel.where(:field_2 => 456).first
+          PublisherModel.where(:field_2 => '456').first
           pub.update_attributes(:field_1 => 'blah')
-          PublisherModel.where(:field_1 => 123).first
+          PublisherModel.where(:field_1 => '123').first
           pub.update_attributes(:field_2 => 'blah')
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models/id/#{pub.id}:1",
+        dep['write'].should =~ hashed["publisher_models/id/#{pub.id}:1",
                                       "publisher_models/field_1/123:1",
                                       "publisher_models/field_2/456:1"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models/field_1/blah:0",
+        dep['read'].should  =~ hashed["publisher_models/field_1/blah:0",
                                       "publisher_models/field_2/blah:0"]
-        dep['write'].should == hashed["publisher_models/id/#{pub.id}:2",
+        dep['write'].should =~ hashed["publisher_models/id/#{pub.id}:2",
                                       "publisher_models/field_1/123:2",
                                       # FIXME "publisher_models/field_1/blah:3",
                                       "publisher_models/field_2/456:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
-        dep['write'].should == hashed["publisher_models/id/#{pub.id}:3",
+        dep['write'].should =~ hashed["publisher_models/id/#{pub.id}:3",
                                       "publisher_models/field_1/blah:2",
                                       "publisher_models/field_2/456:3"]
                                       # FIXME "publisher_models/field_2/blah:1",
@@ -141,10 +115,10 @@ if ORM.has(:mongoid)
 
         pub1 = pub2 = nil
         Promiscuous.context do
-          pub1 = PublisherModel.create(:field_1 => 123)
-          pub2 = PublisherModel.create(:field_1 => 123)
-          PublisherModel.where(:field_1 => 123).each.to_a
-          pub1.update_attributes(:field_2 => 456)
+          pub1 = PublisherModel.create(:field_1 => '123')
+          pub2 = PublisherModel.create(:field_1 => '123')
+          PublisherModel.where(:field_1 => '123').each.to_a
+          pub1.update_attributes(:field_2 => '456')
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
@@ -170,7 +144,7 @@ if ORM.has(:mongoid)
 
         pub = nil
         Promiscuous.context do
-          pub = PublisherModel.create(:field => 123)
+          pub = PublisherModel.create(:field_1 => '123')
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
@@ -183,12 +157,12 @@ if ORM.has(:mongoid)
       it 'skips the query' do
         pub1 = pub2 = nil
         Promiscuous.context do
-          pub1 = PublisherModel.create(:field_1 => 123)
-          PublisherModel.all.limit(1).each do |pub|
+          pub1 = PublisherModel.create(:field_1 => '123')
+          PublisherModel.where({}).limit(1).each do |pub|
             pub.id.should      == pub1.id
             pub.field_1.should == pub1.field_1
           end
-          pub2 = PublisherModel.create(:field_1 => 123)
+          pub2 = PublisherModel.create(:field_1 => '123')
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
@@ -203,12 +177,10 @@ if ORM.has(:mongoid)
 
     context 'when updating a field that is not published' do
       it "doesn't track the write" do
-        PublisherModel.field :not_published
-
         pub = nil
         Promiscuous.context do
           pub = PublisherModel.create
-          pub.update_attributes(:not_published => 'hello')
+          pub.update_attributes(:publisher_id => 123)
           pub.update_attributes(:field_1 => 'ohai')
         end
 
@@ -224,16 +196,17 @@ if ORM.has(:mongoid)
       end
     end
 
-    context 'when using map reduce' do
+    context 'when using sum' do
       it 'track the read' do
         PublisherModel.track_dependencies_of :field_1
         without_promiscuous do
-          PublisherModel.create(:field_1 => 123)
-          PublisherModel.create(:field_1 => 123)
+          PublisherModel.create(:field_1 => '123')
+          PublisherModel.create(:field_1 => '123')
         end
         pub = nil
         Promiscuous.context do
-          PublisherModel.where(:field_1 => 123).sum(:field_2)
+          # sum on publisher_id, too lazy to change field_1 type to numeric
+          PublisherModel.where(:field_1 => '123').sum(:publisher_id)
           pub = PublisherModel.create(:field_1 => '456')
         end
 
@@ -244,20 +217,20 @@ if ORM.has(:mongoid)
       end
     end
 
-    context 'when using without_promiscuous.each' do
+    context 'when using without_promiscuous.each', :pending => "Should be done by default" do
       it 'track the reads one by one' do
         pub1 = pub2 = pub3 = nil
         without_promiscuous do
-          pub1 = PublisherModel.create(:field_1 => 123)
-          pub2 = PublisherModel.create(:field_1 => 123)
+          pub1 = PublisherModel.create(:field_1 => '123')
+          pub2 = PublisherModel.create(:field_1 => '123')
         end
         Promiscuous.context do
           expect do
-            PublisherModel.all.without_promiscuous.where(:field_1 => 123).each do |p|
+            PublisherModel.all.without_promiscuous.where(:field_1 => '123').each do |p|
               p.reload
             end
           end.to_not raise_error
-          pub3 = PublisherModel.create(:field_1 => 456)
+          pub3 = PublisherModel.create(:field_1 => '456')
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
@@ -269,20 +242,18 @@ if ORM.has(:mongoid)
 
     context 'when not in strict mode for multi reads' do
       before { Promiscuous::Config.strict_multi_read = false }
-      after  { Promiscuous::Config.strict_multi_read = true }
 
       it "doesn't raise when a multi read cannot be tracked" do
         pub1 = pub2 = nil
         without_promiscuous do
-          pub1 = PublisherModel.create(:field_1 => 123)
-          pub2 = PublisherModel.create(:field_1 => 123)
+          pub1 = PublisherModel.create(:field_1 => '123')
+          pub2 = PublisherModel.create(:field_1 => '123')
         end
 
         Promiscuous.context do
           expect do
-            PublisherModel.all.where(:field_1 => 123).each do |p|
-              p.update_attributes(:field_1 => 321)
-            end
+            PublisherModel.where(:field_1 => '123').count
+            pub1.update_attributes(:field_1 => '321')
           end.to_not raise_error
         end
       end
@@ -290,38 +261,35 @@ if ORM.has(:mongoid)
 
     context 'when in strict mode for multi reads' do
       before { Promiscuous::Config.strict_multi_read = true }
-      after  { Promiscuous::Config.strict_multi_read = false }
 
-      it "doesn't raise when a multi read cannot be tracked" do
+      it "raises when a multi read cannot be tracked" do
         pub1 = pub2 = nil
         without_promiscuous do
-          pub1 = PublisherModel.create(:field_1 => 123)
-          pub2 = PublisherModel.create(:field_1 => 123)
+          pub1 = PublisherModel.create(:field_1 => '123')
+          pub2 = PublisherModel.create(:field_1 => '123')
         end
 
         Promiscuous.context do
           expect do
-            PublisherModel.all.where(:field_1 => 123).each do |p|
-              p.update_attributes(:field_1 => 321)
-            end
+            PublisherModel.where(:field_1 => '123').count
+            pub1.update_attributes(:field_1 => '321')
           end.to raise_error
         end
       end
     end
 
     context 'when using hashing' do
-      before { PublisherModel.track_dependencies_of :field_1 }
       before { Promiscuous::Config.hash_size = 1 }
-      after  { Promiscuous::Config.hash_size = 2**20 }
+      before { PublisherModel.track_dependencies_of :field_1 }
 
       it 'collides properly' do
         pub1 = pub2 = pub3 = nil
         Promiscuous.context do
-          pub1 = PublisherModel.create(:field_1 => 123)
-          pub2 = PublisherModel.create(:field_1 => 456)
+          pub1 = PublisherModel.create(:field_1 => '123')
+          pub2 = PublisherModel.create(:field_1 => '456')
           PublisherModel.first
-          PublisherModel.where(:field_1 => 456).count
-          pub3 = PublisherModel.create(:field_1 => 456)
+          PublisherModel.where(:field_1 => '456').count
+          pub3 = PublisherModel.create(:field_1 => '456')
         end
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
@@ -338,4 +306,3 @@ if ORM.has(:mongoid)
       end
     end
   end
-end

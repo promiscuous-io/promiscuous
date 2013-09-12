@@ -45,13 +45,13 @@ describe Promiscuous do
   context "single attributes definition" do
     before do
       Promiscuous.define do
-        publish :publisher_dsl_models, :to => 'publisher_dsl_model' do
+        publish :publisher_dsl_models, :as => 'PublisherModel' do
           attributes :field_1, :field_2
         end
       end
 
       Promiscuous.define do
-        subscribe :subscriber_dsl_models, :from => 'publisher_dsl_model' do
+        subscribe :subscriber_dsl_models, :as => 'PublisherModel' do
           attributes :field_1, :field_2
         end
       end
@@ -63,14 +63,14 @@ describe Promiscuous do
   context "multiple attributes definitions" do
     before do
       Promiscuous.define do
-        publish :publisher_dsl_models, :to => 'publisher_dsl_model' do
+        publish :publisher_dsl_models, :as => 'PublisherModel' do
           attribute  :field_1
           attributes :field_2
         end
       end
 
       Promiscuous.define do
-        subscribe :subscriber_dsl_models, :from => 'publisher_dsl_model' do
+        subscribe :subscriber_dsl_models, :as => 'PublisherModel' do
           attributes :field_1
           attributes :field_2
         end
@@ -83,14 +83,14 @@ describe Promiscuous do
   context "with foreign key mapping" do
     before do
       Promiscuous.define do
-        publish :publisher_dsl_models, :to => 'publisher_dsl_model'  do
+        publish :publisher_dsl_models, :as => 'PublisherModel'  do
           attributes :field_1
           attributes :field_2
         end
       end
 
       Promiscuous.define do
-        subscribe :subscriber_dsl_models, :from => 'publisher_dsl_model', :foreign_key => :publisher_id do
+        subscribe :subscriber_dsl_models, :as => 'PublisherModel', :foreign_key => :publisher_id do
           attributes :field_1
           attributes :field_2
         end

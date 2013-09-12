@@ -4,7 +4,7 @@ raise "moped > 1.3.2 please"    unless Gem.loaded_specs['moped'].version   >= Ge
 require 'yaml'
 
 class Moped::PromiscuousCollectionWrapper < Moped::Collection
-  class PromiscuousCollectionOperation < Promiscuous::Publisher::Operation::Base
+  class PromiscuousCollectionOperation < Promiscuous::Publisher::Operation::Atomic
     def initialize(options={})
       super
       @operation = :create
@@ -21,16 +21,16 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
     rescue NameError
     end
 
-    def serialize_document_for_create_recovery
-      # TODO the serialization/deserialization is not very nice, but we need
-      # the bson types.
-      @document.to_yaml
+    def recovery_payload
+      # We use yaml because we need the BSON types.
+      [@instance.class.promiscuous_collection_name, @instance.id, @document.to_yaml]
     end
 
-    def self.recover_operation(model, instance_id, document)
+    def self.recover_operation(collection, instance_id, document)
+      model = Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection]
       document = YAML.load(document)
       instance = Mongoid::Factory.from_db(model, document)
-      new(:collection => model.collection, :document => document, :instance => instance)
+      new(:collection => model.collection, :document => document, :instance => instance, :state => :recovering)
     end
 
     def recover_db_operation
@@ -74,7 +74,7 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
 end
 
 class Moped::PromiscuousQueryWrapper < Moped::Query
-  class PromiscuousQueryOperation < Promiscuous::Publisher::Operation::Base
+  class PromiscuousQueryOperation < Promiscuous::Publisher::Operation::Atomic
     attr_accessor :raw_instance, :new_raw_instance, :change
 
     def initialize(options={})
@@ -91,11 +91,16 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       @model ||= Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection_name]
     end
 
-    def self.recover_operation(model, instance_id, document)
-      # TODO We need to use the primary database. We cannot read from a
-      # secondary.
+    def recovery_payload
+      [@instance.class.promiscuous_collection_name, @instance.id]
+    end
+
+    def self.recover_operation(collection, instance_id)
+      # TODO We need to use the primary database. We cannot read from a secondary.
+      model = Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection]
       query = model.unscoped.where(:id => instance_id).query
-      op = new(:query => query, :change => {})
+      op = new(:query => query, :change => {}, :state => :recovering)
+
       # TODO refactor this not so pretty instance_eval
       op.instance_eval do
         reload_instance
@@ -199,6 +204,10 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
         raise Promiscuous::Error::Dependency.new(:operation => self)
       end
       super
+    end
+
+    def nop?
+      @instance.nil?
     end
   end
 

@@ -5,7 +5,8 @@ module ORM
 
   def self.has(feature)
     {
-      :active_record           => [:active_record],
+      :active_record           => [:active_record32],
+      :transaction             => [:active_record32],
       :mongoid                 => [:mongoid3],
       :polymorphic             => [:mongoid3],
       :embedded_documents      => [:mongoid3],

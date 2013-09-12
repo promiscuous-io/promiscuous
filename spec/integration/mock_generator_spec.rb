@@ -21,8 +21,8 @@ if ORM.has(:mongoid)
 
         class PublisherModel
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'test/publisher_model'
-          mock    :id => :bson
+          mock :from => 'test_publisher'
+          mock :id => :bson
 
           publish :field_1
           publish :field_2
@@ -48,8 +48,8 @@ if ORM.has(:mongoid)
 
         class PublisherModelOther
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'test/publisher_model_other'
-          mock    :id => :bson
+          mock :from => 'test_publisher'
+          mock :id => :bson
 
           publish :field_1
           publish :field_2
@@ -60,8 +60,8 @@ if ORM.has(:mongoid)
 
         class PublisherModelEmbedded
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'test/publisher_model_embedded'
-          mock    :id => :bson
+          mock :from => 'test_publisher'
+          mock :id => :bson
 
           publish :embedded_field_1
           publish :embedded_field_2
@@ -77,8 +77,8 @@ if ORM.has(:mongoid)
 
         class PublisherModelEmbed
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'test/publisher_model_embed'
-          mock    :id => :bson
+          mock :from => 'test_publisher'
+          mock :id => :bson
 
           publish :field_1
           publish :field_2
@@ -90,8 +90,8 @@ if ORM.has(:mongoid)
 
         class PublisherModelEmbedMany
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'test/publisher_model_embed_many'
-          mock    :id => :bson
+          mock :from => 'test_publisher'
+          mock :id => :bson
 
           publish :field_1
           publish :field_2
@@ -103,8 +103,8 @@ if ORM.has(:mongoid)
 
         class PublisherModelBelongsTo
           include Promiscuous::Publisher::Model::Mock
-          publish :to => 'test/publisher_model_belongs_to'
-          mock    :id => :bson
+          mock :from => 'test_publisher'
+          mock :id => :bson
 
           publish :publisher_model_id
         end

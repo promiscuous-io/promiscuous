@@ -57,7 +57,7 @@ class Promiscuous::Subscriber::Worker::Runner
           STDERR.puts
           STDERR.puts backtrace.map { |line| "  \e[1;30m#{line}\e[0m\n" }
           STDERR.puts
-          STDERR.puts "Look at the stack trace, I'm busy."
+          STDERR.puts "I'm a little busy, check out my stack trace."
           STDERR.puts "Be patient (or kill me with -9, but that wouldn't be very nice of you)."
         else
           STDERR.puts "Just a second..."

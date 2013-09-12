@@ -19,6 +19,8 @@ class Promiscuous::Publisher::Context::Base
     ensure
       self.current.trace "<<< close <<<", :level => 1
       self.current = nil
+
+      ActiveRecord::Base.clear_active_connections! if defined?(ActiveRecord::Base)
     end
   end
 
@@ -31,7 +33,34 @@ class Promiscuous::Publisher::Context::Base
     @transaction_indexes = {}
 
     Promiscuous::AMQP.ensure_connected
+
     Mongoid::IdentityMap.clear if defined?(Mongoid::IdentityMap)
+    ActiveRecord::IdentityMap.clear if defined?(ActiveRecord::IdentityMap)
+  end
+
+  def start_transaction(driver)
+    # The indexes are stored in a queue so we know which operation to mark as
+    # failed.
+    @transaction_indexes[driver] ||= []
+    @transaction_indexes[driver] << @operations.size
+  end
+
+  def transaction_operations(driver)
+    transaction_index = @transaction_indexes[driver].last
+    @operations[transaction_index..-1].select { |op| op.transaction_context == driver }
+  end
+
+  def rollback_transaction(driver)
+    transaction_operations(driver).each(&:fail!)
+    @transaction_indexes[driver].pop
+  end
+
+  def commit_transaction(driver)
+    @transaction_indexes[driver].pop
+  end
+
+  def in_transaction?(driver)
+    !(@transaction_indexes[driver] || []).empty?
   end
 
   def trace_operation(operation, options={})
@@ -47,8 +76,7 @@ class Promiscuous::Publisher::Context::Base
     alt_fmt = options[:alt_fmt]
     color = options[:color] || "1;36"
 
-    name = "(#{self.name})#{' ' * ([0, 25 - self.name.size].max)}"
-    name = '  ' * @nesting_level + name
+    name = "  (#{self.name})#{' ' * ([0, 25 - self.name.size].max)}"
     STDERR.puts "\e[#{color}m#{name}#{alt_fmt ? '':'  '} #{msg}\e[0m"
 
     if level > 1 && defined?(Rails) && backtrace != :none

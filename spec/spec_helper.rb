@@ -45,3 +45,9 @@ end
 
 Promiscuous::CLI.new.trap_debug_signals
 load './debug.rb' if File.exists?('./debug.rb')
+
+module Promiscous
+  def self.testing?
+    true
+  end
+end

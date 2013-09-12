@@ -2,7 +2,10 @@ module Promiscuous::Publisher::Model::Mock
   extend ActiveSupport::Concern
   include Promiscuous::Publisher::Model::Ephemeral
 
-  included { class_attribute :mock_options }
+  included do
+    class_attribute :mock_options
+    self.mock_options = {}
+  end
 
   def initialize(attrs={})
     self.id = __get_new_id
@@ -10,7 +13,7 @@ module Promiscuous::Publisher::Model::Mock
   end
 
   def __get_new_id
-    if self.class.mock_options.try(:[], :id) == :bson
+    if self.class.mock_options[:id] == :bson
       BSON::ObjectId.new
     else
       # XXX Not thread safe
@@ -24,8 +27,8 @@ module Promiscuous::Publisher::Model::Mock
     include Promiscuous::Publisher::Model::Ephemeral::PromiscuousMethodsEphemeral
 
     def sync(options={}, &block)
-      payload = self.payload
-      payload[:operation] = options[:operation] || :update
+      payload[:operations] = [self.payload.merge(:operation => options[:operation] || :update)]
+      payload[:app] = self.class.mock_options[:from]
       Promiscuous::Subscriber::Worker::Message.new(MultiJson.dump(payload)).process
     end
   end
@@ -37,7 +40,8 @@ module Promiscuous::Publisher::Model::Mock
     end
 
     def mock(options={})
-      self.mock_options = options
+      # careful, all subclasses will be touched
+      self.mock_options.merge!(options)
     end
 
     def publish(*args, &block)

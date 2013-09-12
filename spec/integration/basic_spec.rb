@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'pry'
 
 describe Promiscuous do
   before { use_real_backend }

@@ -96,12 +96,19 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
       if operation.operation == :update && operation.respond_to?(:change) && operation.change
         msg += "(#{get_selector(operation.change, limit)})"
       end
+
+      if operation.operation == :commit
+        msg = "Transaction commit"
+      end
+
       msg
     end
   end
 
   def self.get_selector(attributes, limit=100)
+    # TODO ActiveRecord?
     attributes = attributes['$set'] if attributes.count == 1 && attributes['$set']
+    attributes.reject! { |k,v| v.nil? }
     selector = attributes.map { |k,v| ":#{k} => #{v}" }.join(", ")
     selector = "#{selector[0...(limit-3)]}..." if selector.size > limit
     selector

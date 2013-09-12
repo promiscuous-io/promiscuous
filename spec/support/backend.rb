@@ -1,12 +1,13 @@
 module BackendHelper
   NUM_SHARDS = 8
-  HASH_SIZE = 2**30
+  #HASH_SIZE = 2**30
+  HASH_SIZE = 0
 
   def reconfigure_backend(&block)
     Promiscuous.configure do |config|
       config.reset
       config.redis_urls = NUM_SHARDS.times.map { |i| "redis://localhost/#{i}" }
-      config.app = 'test_subscriber'
+      config.app = 'test_app'
       config.queue_options = {:auto_delete => true}
       config.hash_size = HASH_SIZE
       config.logger = Logger.new(STDERR)

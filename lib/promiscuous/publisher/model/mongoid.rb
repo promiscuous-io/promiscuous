@@ -31,8 +31,8 @@ module Promiscuous::Publisher::Model::Mongoid
       if value.is_a?(Array) &&
          value.respond_to?(:ancestors) &&
          value.ancestors.any? { |a| a == Promiscuous::Publisher::Model::Mongoid }
-        value = {:__amqp__ => '__promiscuous__/embedded_many',
-                 :payload  => value.map(&:promiscuous).map(&:payload)}
+        value = {:types => ['Promiscuous::EmbeddedDocs'],
+                 :attributes => value.map(&:promiscuous).map(&:payload)}
       end
       value
     end
@@ -40,22 +40,10 @@ module Promiscuous::Publisher::Model::Mongoid
 
   module ClassMethods
     # TODO DRY this up with the publisher side
-    def publish(*args, &block)
-      super
-      return unless block
-
-      begin
-        @in_publish_block = true
-        block.call
-      ensure
-        @in_publish_block = false
-      end
-    end
-
     def self.publish_on(method, options={})
       define_method(method) do |name, *args, &block|
         super(name, *args, &block)
-        if @in_publish_block
+        if self.in_publish_block?
           name = args.last[:as] if args.last.is_a?(Hash) && args.last[:as]
           publish(name)
         end

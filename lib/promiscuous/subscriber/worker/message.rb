@@ -11,16 +11,12 @@ class Promiscuous::Subscriber::Worker::Message
     @parsed_payload ||= MultiJson.load(payload)
   end
 
-  def endpoint
-    parsed_payload['__amqp__']
+  def context
+    parsed_payload['context']
   end
 
-  def owner
-    if endpoint =~ /^([^\/]+)\//
-      $1
-    else
-      raise "Invalid endpoint: #{endpoint}"
-    end
+  def app
+    parsed_payload['app']
   end
 
   def timestamp
@@ -30,8 +26,8 @@ class Promiscuous::Subscriber::Worker::Message
   def dependencies
     @dependencies ||= begin
       dependencies = parsed_payload['dependencies'] || {}
-      deps = dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read, :owner => owner) } +
-             dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write, :owner => owner) }
+      deps = dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read, :owner => app) } +
+             dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write, :owner => app) }
 
       deps
     end
@@ -62,7 +58,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def to_s
-    "#{endpoint} -> #{happens_before_dependencies.join(', ')}"
+    "#{app}/#{context} -> #{happens_before_dependencies.join(', ')}"
   end
 
   def ack
@@ -107,9 +103,8 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def process
-    unit_of_work(endpoint) do
-      payload = Promiscuous::Subscriber::Payload.new(parsed_payload, self)
-      Promiscuous::Subscriber::Operation.new(payload).commit
+    unit_of_work(context) do
+      Promiscuous::Subscriber::MessageProcessor.process(self)
     end
   rescue Exception => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)

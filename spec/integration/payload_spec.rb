@@ -10,6 +10,6 @@ describe Promiscuous do
 
     Promiscuous.context { PublisherModel.create(:field_1 => '1') }
 
-    Promiscuous::AMQP::Fake.get_next_payload['from_host'].should == 'example.com'
+    Promiscuous::AMQP::Fake.get_next_payload['host'].should == 'example.com'
   end
 end

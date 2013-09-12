@@ -1,12 +1,14 @@
-source :rubygems
+source 'https://rubygems.org'
 gemspec
 
 gem 'rake'
 gem 'rspec'
 gem 'mocha', :require => false
 
-gem 'activerecord'
+gem 'activerecord', '~> 3.2'
 gem 'database_cleaner'
+gem 'simplecov',   :require => false
+gem 'coveralls',   :require => false
 
 platforms :ruby do
   gem 'pg'

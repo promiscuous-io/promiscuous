@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Promiscuous, 'bootstrapping dependencies' do
+describe Promiscuous, 'bootstrapping dependencies', :pending => 'todo' do
   before { use_fake_backend }
   before { load_models }
   before { run_subscriber_worker! }
@@ -52,7 +52,7 @@ describe Promiscuous, 'bootstrapping dependencies' do
   end
 end
 
-describe Promiscuous, 'bootstrapping replication' do
+describe Promiscuous, 'bootstrapping replication', :pending => 'todo' do
   before { use_real_backend }
   before { Promiscuous::Config.hash_size = 10 }
   before { load_models }

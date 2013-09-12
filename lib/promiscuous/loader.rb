@@ -14,6 +14,6 @@ module Promiscuous::Loader
   def self.cleanup
     Promiscuous::Publisher::Model.publishers.clear
     Promiscuous::Publisher::Model::Mongoid.collection_mapping.clear if defined?(Mongoid)
-    Promiscuous::Subscriber::Model.mapping.select! { |k| k.to_s =~ /__promiscuous__/ }
+    Promiscuous::Subscriber::Model.mapping.values.reject! { |as| as =~ /^Promiscuous::/ }
   end
 end

@@ -9,8 +9,8 @@ module Promiscuous::Publisher::Model::Ephemeral
       value = super
       if value.is_a?(Array) &&
          value.first.is_a?(Promiscuous::Publisher::Model::Ephemeral)
-         value = {:__amqp__ => '__promiscuous__/embedded_many',
-                  :payload  => value.map(&:promiscuous).map(&:payload)}
+        value = {:types => ['Promiscuous::EmbeddedDocs'],
+                 :attributes => value.map(&:promiscuous).map(&:payload)}
       end
       value
     end
@@ -32,7 +32,9 @@ module Promiscuous::Publisher::Model::Ephemeral
     operation = :create
     operation = :update  unless self.new_record
     operation = :destroy if     self.destroyed
-    promiscuous.sync(:operation => operation)
+
+    Promiscuous::Publisher::Operation::Atomic.new(:instance => self, :operation => operation).execute
+
     self.new_record = false
     true
   end

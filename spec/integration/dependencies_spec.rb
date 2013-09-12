@@ -55,7 +55,7 @@ if ORM.has(:mongoid)
         define_constant :Subscriber do
           include Mongoid::Document
           include Promiscuous::Subscriber
-          subscribe(:from => '*/publisher') { field :field }
+          subscribe(:as => :Publisher) { field :field }
           field :inc_by_one
           before_update { inc(:inc_by_one, 1) if field == field_was + 1 }
         end
@@ -138,7 +138,7 @@ if ORM.has(:mongoid)
           expect do
             PublisherModel.create({:id => pub1.id, :field_1 => '2'}, :without_protection => true)
           end.to raise_error
-          pub3 = PublisherModel.create(:field_1 => '3')
+          PublisherModel.create(:field_1 => '3')
         end
 
         eventually do

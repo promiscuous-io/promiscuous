@@ -10,14 +10,14 @@ module Promiscuous::Subscriber::Model::Base
       value = payload.attributes[attr]
       update = true
 
-      attr_payload = Promiscuous::Subscriber::Payload.new(value)
+      attr_payload = Promiscuous::Subscriber::Operation.new(value)
       if model = attr_payload.model
         # Nested subscriber
         old_value =  __send__(attr)
         instance = old_value || model.__promiscuous_fetch_new(attr_payload.id)
 
         if instance.class != model
-          # Because of the nasty trick with '__promiscuous__/embedded_many'
+          # Because of the nasty trick with 'promiscuous_embedded_many'
           instance = model.__promiscuous_fetch_new(attr_payload.id)
         end
 
@@ -46,33 +46,31 @@ module Promiscuous::Subscriber::Model::Base
 
       # TODO reject invalid options
 
-      if attributes.present? && self.subscribe_from && options[:from] && self.subscribe_from.scan(/[^\/]+$/).first != options[:from]
+      self.subscribe_foreign_key = options[:foreign_key] if options[:foreign_key]
+
+      ([self] + descendants).each { |klass| klass.subscribed_attrs |= attributes }
+
+      if self.subscribe_from && options[:from] && self.subscribe_from != options[:from]
         raise 'Subscribing from different publishers is not supported yet'
       end
 
-      unless self.subscribe_from
-        from = options[:from] || self.name.underscore
-        unless from =~ /^__promiscuous__/
-          from = ".*/#{from}"
-        end
-        self.subscribe_from = from
-        from_regexp = Regexp.new("^#{self.subscribe_from}$")
-        Promiscuous::Subscriber::Model.mapping[from_regexp] = self
-      end
+      self.subscribe_from ||= options[:from].try(:to_s) || "*"
 
-      self.subscribe_foreign_key = options[:foreign_key] if options[:foreign_key]
-      @subscribe_as = options[:as].to_s if options[:as]
-
-      ([self] + descendants).each { |klass| klass.subscribed_attrs |= attributes }
+      self.register_klass(options)
     end
 
-    def subscribe_as
-      @subscribe_as || name
+    def register_klass(options={})
+      subscribe_as = options[:as].try(:to_s) || self.name
+      return unless subscribe_as
+
+      Promiscuous::Subscriber::Model.mapping[self.subscribe_from] ||= {}
+      Promiscuous::Subscriber::Model.mapping[self.subscribe_from][subscribe_as] = self
     end
 
     def inherited(subclass)
       super
       subclass.subscribed_attrs = self.subscribed_attrs.dup
+      subclass.register_klass
     end
 
     class None; end

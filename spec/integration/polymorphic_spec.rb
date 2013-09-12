@@ -112,7 +112,7 @@ if ORM.has(:polymorphic)
           include Mongoid::Document
           include Promiscuous::Publisher
           field :field_1
-          publish :field_1, :to => 'crowdtap/publisher'
+          publish :field_1
         end
 
         define_constant :Publisher2, Publisher1 do
@@ -129,7 +129,7 @@ if ORM.has(:polymorphic)
           include Mongoid::Document
           include Promiscuous::Subscriber
           field :field_1
-          subscribe :as => :Publisher1, :from => 'crowdtap/publisher'
+          subscribe :as => :Publisher1
           subscribe :field_1
         end
 
@@ -177,13 +177,13 @@ if ORM.has(:polymorphic)
         define_constant :PublisherModelChildRoot, PublisherModelHidden do
           include Promiscuous::Publisher
           field :child_field_1
-          publish :field_1, :child_field_1, :to => 'crowdtap/publisher_child_model'
+          publish :field_1, :child_field_1
         end
 
         define_constant :PublisherModelAnotherChildRoot, PublisherModelHidden do
           include Promiscuous::Publisher
           field :another_child_field_1
-          publish :field_1, :another_child_field_1, :to => 'crowdtap/publisher_another_child_model'
+          publish :field_1, :another_child_field_1
         end
 
         define_constant :SubscriberModelHidden do
@@ -194,7 +194,6 @@ if ORM.has(:polymorphic)
         define_constant :SubscriberModelChildRoot, SubscriberModelHidden do
           include Promiscuous::Subscriber
           field :child_field_1
-          subscribe :from => 'crowdtap/publisher_child_model'
           subscribe :as   =>  :PublisherModelChildRoot
           subscribe :field_1, :child_field_1
         end
@@ -202,7 +201,6 @@ if ORM.has(:polymorphic)
         define_constant :SubscriberModelAnotherChildRoot, SubscriberModelHidden do
           include Promiscuous::Subscriber
           field :another_child_field_1
-          subscribe :from => 'crowdtap/publisher_another_child_model'
           subscribe :as   =>  :PublisherModelAnotherChildRoot
           subscribe :field_1, :another_child_field_1
         end
