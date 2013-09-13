@@ -154,6 +154,10 @@ class Promiscuous::CLI
         Promiscuous::Config.recovery = true
       end
 
+      opts.on "-a", "--relaxed-schema", "Only warn if message does not match schema on subscriber" do
+        Promiscuous::Config.relaxed_schema = true
+      end
+
       opts.on "-p", "--prefetch [NUM]", "Number of messages to prefetch" do |prefetch|
         exit 1 if prefetch.to_i == 0
         Promiscuous::Config.prefetch = prefetch.to_i
