@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency "activesupport",       ">= 3"
   s.add_dependency "activemodel",         ">= 3"
-  s.add_dependency "bunny",               ">= 1.0.0.pre6"
+  s.add_dependency "bunny",               ">= 0.10.7"
   s.add_dependency "ruby-progressbar",    "~> 1.2.0"
   s.add_dependency "redis",               "~> 3.0.2"
   s.add_dependency "algorithms",          "~> 0.6.1"
