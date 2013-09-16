@@ -66,15 +66,13 @@ module Promiscuous::Config
   end
 
   def self.configure(&block)
-    Promiscuous.disconnect
-
-    self._configure(&block)
-
-    unless self.app
-      raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
+    if Promiscuous.should_be_connected?
+      Promiscuous.disconnect
+      reconfigure(&block)
+      Promiscuous.connect
+    else
+      reconfigure(&block)
     end
-
-    Promiscuous.connect
 
     hook_fork
   end
@@ -113,5 +111,15 @@ module Promiscuous::Config
 
   def self.configured?
     self.app != nil
+  end
+
+  private
+
+  def self.reconfigure(&block)
+    self._configure(&block)
+
+    unless self.app
+      raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
+    end
   end
 end
