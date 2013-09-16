@@ -5,7 +5,8 @@ module Promiscuous::Config
                  :redis_urls, :redis_stats_url, :stats_interval,
                  :socket_timeout, :heartbeat, :no_deps, :hash_size, :recovery,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
-                 :error_notifier, :strict_multi_read, :relaxed_schema
+                 :error_notifier, :strict_multi_read, :relaxed_schema,
+                 :recovery_on_boot
 
   def self.backend=(value)
     @@backend = value
@@ -61,6 +62,7 @@ module Promiscuous::Config
     self.error_notifier       ||= proc {}
     self.strict_multi_read    = true if self.strict_multi_read.nil?
     self.relaxed_schema       ||= false
+    self.recovery_on_boot     ||= true
   end
 
   def self.configure(&block)

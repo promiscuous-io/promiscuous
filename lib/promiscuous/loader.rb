@@ -8,7 +8,9 @@ module Promiscuous::Loader
     end
 
     # A one shot recovery on boot
-    Promiscuous::Publisher::Worker.new.try_recover
+    if Promiscuous::Config.recovery_on_boot
+      Promiscuous::Publisher::Worker.new.try_recover
+    end
   end
 
   def self.cleanup
