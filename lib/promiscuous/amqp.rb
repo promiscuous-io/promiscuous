@@ -19,6 +19,8 @@ module Promiscuous::AMQP
     end
 
     def ensure_connected
+      connect unless Promiscuous.should_be_connected?
+
       raise lost_connection_exception unless connected?
     end
 

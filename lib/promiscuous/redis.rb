@@ -55,6 +55,8 @@ module Promiscuous::Redis
   end
 
   def self.ensure_connected
+    connect unless Promiscuous.should_be_connected?
+
     Promiscuous::Redis.master.nodes.each do |node|
       begin
         node.ping
