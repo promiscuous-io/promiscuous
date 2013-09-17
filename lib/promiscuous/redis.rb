@@ -3,11 +3,19 @@ require 'redis/distributed'
 require 'digest/sha1'
 
 module Promiscuous::Redis
-  mattr_accessor :master, :slave
-
   def self.connect
     disconnect
-    self.master = new_connection
+    @master = new_connection
+  end
+
+  def self.master
+    ensure_connected
+    @master
+  end
+
+  def self.slave
+    ensure_connected
+    @slave
   end
 
   def self.ensure_slave
@@ -18,10 +26,10 @@ module Promiscuous::Redis
   end
 
   def self.disconnect
-    self.master.quit if self.master
-    self.slave.quit  if self.slave
-    self.master = nil
-    self.slave  = nil
+    @master.quit if @master
+    @slave.quit  if @slave
+    @master = nil
+    @slave  = nil
   end
 
   def self.new_connection(url=nil)
@@ -55,9 +63,9 @@ module Promiscuous::Redis
   end
 
   def self.ensure_connected
-    connect unless Promiscuous.should_be_connected?
+    Promiscuous.ensure_connected
 
-    Promiscuous::Redis.master.nodes.each do |node|
+    @master.nodes.each do |node|
       begin
         node.ping
       rescue Exception => e
