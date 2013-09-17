@@ -62,7 +62,7 @@ module Promiscuous::Config
     self.error_notifier       ||= proc {}
     self.strict_multi_read    = true if self.strict_multi_read.nil?
     self.relaxed_schema       ||= false
-    self.recovery_on_boot     ||= true
+    self.recovery_on_boot     = true if self.recovery_on_boot.nil?
   end
 
   def self.configure(&block)
