@@ -247,24 +247,7 @@ class Promiscuous::CLI
   end
 
   def daemonize
-    return unless options[:daemonize]
-
-    files_to_reopen = []
-    ObjectSpace.each_object(File) do |file|
-      files_to_reopen << file unless file.closed?
-    end
-
-    Process.daemon(true, true)
-
-    files_to_reopen.each do |file|
-      begin
-        file.reopen file.path, "a+"
-        file.sync = true
-      rescue ::Exception
-      end
-    end
-
-    $stdin.reopen('/dev/null')
+    Process.daemon(true, true) if options[:daemonize]
   end
 
   def write_pid
@@ -290,6 +273,6 @@ class Promiscuous::CLI
 
   def print_status(msg)
     Promiscuous.info msg
-    STDERR.puts msg
+    STDERR.puts msg unless options[:daemonize]
   end
 end
