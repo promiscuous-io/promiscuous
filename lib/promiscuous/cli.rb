@@ -181,6 +181,14 @@ class Promiscuous::CLI
         Promiscuous::Config.subscriber_threads = threads.to_i
       end
 
+      opts.on "-D", "--daemonize", "Daemonize process" do
+        options[:daemonize] = true
+      end
+
+      opts.on "-P", "--pid-file [pid_file]", "Set a pid-file" do |pid_file|
+        options[:pid_file] = pid_file
+      end
+
       opts.on("-V", "--version", "Show version") do
         puts "Promiscuous #{Promiscuous::VERSION}"
         puts "License MIT"
@@ -232,8 +240,22 @@ class Promiscuous::CLI
 
   def boot
     self.options = parse_args(ARGV)
+    daemonize
+    write_pid
     load_app
     run
+  end
+
+  def daemonize
+    Process.daemon(true, true) if options[:daemonize]
+  end
+
+  def write_pid
+    return unless options[:pid_file]
+
+    File.open(options[:pid_file], 'w') do |f|
+      f.puts Process.pid
+    end
   end
 
   def run
@@ -251,6 +273,6 @@ class Promiscuous::CLI
 
   def print_status(msg)
     Promiscuous.info msg
-    STDERR.puts msg
+    STDERR.puts msg unless options[:daemonize]
   end
 end
