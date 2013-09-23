@@ -135,6 +135,46 @@ describe Promiscuous, 'bootstrapping replication' do
       end
     end
   end
+
+  context 'bootstrapping concurrently' do
+    shared_examples 'boostrapping concurrently' do
+      before do
+        $counter = 0
+        SubscriberModel.class_eval do
+          after_save { $counter += 1 }
+        end
+      end
+      before { Promiscuous::Publisher::Bootstrap.enable }
+      before { Promiscuous.context { number_of_docs.times { |i| model = PublisherModel.new; model.id = Moped::BSON::ObjectId.from_time(Time.now + i.seconds); model.save } } }
+
+      it "bootstraps" do
+        switch_subscriber_mode(:pass1)
+        Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
+        sleep 1
+        Promiscuous::Publisher::Bootstrap.disable
+
+        switch_subscriber_mode(:pass2)
+        Promiscuous::Publisher::Bootstrap::Data.new(:concurrency => concurrency).bootstrap
+
+        eventually { SubscriberModel.count.should == PublisherModel.count }
+        $counter.should == SubscriberModel.count
+      end
+    end
+
+    context "the number of docs isn't divisable by the level of concurrency" do
+      let(:number_of_docs) { 13 }
+      let(:concurrency)    { 4 }
+
+      it_behaves_like "boostrapping concurrently"
+    end
+
+    context "the number of docs is divisable by the level of concurrency" do
+      let(:number_of_docs) { 12 }
+      let(:concurrency)    { 4 }
+
+      it_behaves_like "boostrapping concurrently"
+    end
+  end
 end
 
 def switch_subscriber_mode(bootstrap_mode)
