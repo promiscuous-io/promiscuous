@@ -7,4 +7,14 @@ module Promiscuous::Publisher::Bootstrap
     Version.bootstrap
     Data.setup
   end
+
+  def self.start
+    raise "Setup must be run before starting to bootstrap" unless Mode.enabled?
+    Data.start
+  end
+
+  def self.finalize
+    raise "Setup must be run before disabling" unless Mode.enabled?
+    Mode.disable
+  end
 end

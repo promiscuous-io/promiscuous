@@ -26,9 +26,9 @@ class Promiscuous::Publisher::Bootstrap::Data
             start    = Time.parse(redis.hget(key, 'start'))
             finish   = Time.parse(redis.hget(key, 'finish'))
 
-            range_selector(klass, selector, options, start, finish).each do |instance|
+            range_selector(klass, selector, options, start, finish).each_with_index do |instance, i|
               publish_data(connection, instance)
-              # TODO lock.extend
+              lock.extend if i % 10 == 0
             end
             redis.hset(key, 'completed', true)
             lock.unlock

@@ -75,18 +75,6 @@ class Promiscuous::CLI
     end
   end
 
-  def set_publisher_bootstrap
-    case options[:publisher_bootstrap]
-    when 'on'
-      Promiscuous::Publisher::Bootstrap.enable
-      print_status "Bootstrap mode enabled"
-    when 'off'
-      Promiscuous::Publisher::Bootstrap.disable
-      print_status "Bootstrap mode disabled"
-    else raise "Bootstrap mode must be on or off"
-    end
-  end
-
   def replay
     require 'json'
     @num_msg = 0
@@ -100,6 +88,12 @@ class Promiscuous::CLI
     end
 
     print_status "Replayed #{@num_msg} messages"
+  end
+
+  def bootstrap
+    phase = options[:criterias][0].to_sym
+    raise "Subscriber bootstrap must be one of [setup|start|finalize]" unless [:setup, :start, :finalize].include?(phase)
+    Promiscuous::Publisher::Bootstrap.__send__(phase)
   end
 
   def subscribe
@@ -135,7 +129,7 @@ class Promiscuous::CLI
       opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" [Model2 Model3...]"
       opts.separator "    promiscuous publisher_recovery"
       opts.separator "    promiscuous subscribe"
-      opts.separator "    promiscuous publisher_bootstrap [on|off]"
+      opts.separator "    promiscuous bootstrap phase"
       opts.separator "    promiscuous mocks"
       opts.separator "    promiscuous record logfile"
       opts.separator "    promiscuous replay logfile"
@@ -171,12 +165,6 @@ class Promiscuous::CLI
         Promiscuous::Config.stats_interval = duration.to_f
       end
 
-      opts.on "-b", "--bootstrap [pass1|pass2]", "Run subscriber in bootstrap mode" do |mode|
-        mode = mode.to_sym
-        raise "Subscriber bootstrap must be run in pass1 or pass2 mode" unless [:pass1, :pass2].include?(mode)
-        Promiscuous::Config.bootstrap = mode.to_sym
-      end
-
       opts.on "-t", "--threads [NUM]", "Number of subscriber worker threads to run. Defaults to 10." do |threads|
         Promiscuous::Config.subscriber_threads = threads.to_i
       end
@@ -207,9 +195,9 @@ class Promiscuous::CLI
     case options[:action]
     when :publish             then raise "Please specify one or more criterias" unless options[:criterias].present?
     when :subscribe           then raise "Why are you specifying a criteria?"   if     options[:criterias].present?
+    when :bootstrap           then raise "You must specify one of [setup|start|finalize]"   unless options[:criterias].present?
     when :record              then raise "Please specify a log file to record"  unless options[:log_file].present?
     when :replay              then raise "Please specify a log file to replay"  unless options[:log_file].present?
-    when :publisher_bootstrap then raise "Please specify 'on' or 'off'" unless options[:publisher_bootstrap].present?
     when :publisher_recovery
     when :mocks
     else puts parser; exit 1
@@ -263,6 +251,7 @@ class Promiscuous::CLI
     case options[:action]
     when :publish   then publish
     when :subscribe then subscribe
+    when :bootstrap then bootstrap
     when :record    then record
     when :replay    then replay
     when :mocks     then generate_mocks

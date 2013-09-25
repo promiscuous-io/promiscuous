@@ -7,6 +7,10 @@ module Promiscuous::Publisher::Bootstrap::Mode
     Promiscuous::Redis.master.nodes.each { |node| node.del(key) }
   end
 
+  def self.enabled?
+    Promiscuous::Redis.master.nodes.all? { |node| node.get(key) }
+  end
+
   def self.key
     # XXX You must change the LUA script in promiscuous/publisher/operation/base.rb
     # if you change this value

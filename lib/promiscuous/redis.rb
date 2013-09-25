@@ -158,6 +158,11 @@ module Promiscuous::Redis
       !!result
     end
 
+    def extend
+      @expires_at = @expires_at + @expire
+      @node.set(@key, "#{@expires_at}:#{@token}")
+    end
+
     def unlock
       # Since it's possible that the operations in the critical section took a long time,
       # we can't just simply release the lock. The unlock method checks if @expires_at
