@@ -159,7 +159,7 @@ module Promiscuous::Redis
     end
 
     def extend
-      @expires_at = @expires_at + @expire
+      @expires_at = Time.now + @expire + 1
       @node.set(@key, "#{@expires_at}:#{@token}")
     end
 
