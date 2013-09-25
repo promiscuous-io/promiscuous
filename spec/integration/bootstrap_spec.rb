@@ -10,7 +10,7 @@ describe Promiscuous, 'bootstrapping dependencies' do
   #
   
   context 'when in publisher is in bootstrapping mode' do
-    before { Promiscuous::Publisher::Bootstrap.enable }
+    before { Promiscuous::Publisher::Bootstrap::Mode.enable }
 
     it 'read dependencies are upgraded to write dependencies' do
       pub1 = pub2 = nil
@@ -31,7 +31,7 @@ describe Promiscuous, 'bootstrapping dependencies' do
   end
 
   context 'when publisher is not in bootstrapping mode' do
-    before { Promiscuous::Publisher::Bootstrap.disable }
+    before { Promiscuous::Publisher::Bootstrap::Mode.disable }
 
     it 'read dependencies are not upgraded to write dependencies' do
       pub1 = pub2 = nil
@@ -60,16 +60,17 @@ describe Promiscuous, 'bootstrapping replication' do
 
   context 'when there are no races with publishers' do
     it 'bootstraps' do
-      Promiscuous::Publisher::Bootstrap.enable
+      Promiscuous::Publisher::Bootstrap::Mode.enable
       Promiscuous.context { 10.times { PublisherModel.create } }
 
       switch_subscriber_mode(:pass1)
-      Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
+      Promiscuous::Publisher::Bootstrap::Version.bootstrap
       sleep 1
-      Promiscuous::Publisher::Bootstrap.disable
+      Promiscuous::Publisher::Bootstrap::Mode.disable
 
       switch_subscriber_mode(:pass2)
-      Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
+      Promiscuous::Publisher::Bootstrap::Data.setup
+      Promiscuous::Publisher::Bootstrap::Data.start
 
       eventually { SubscriberModel.count.should == PublisherModel.count }
 
