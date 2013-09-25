@@ -3,7 +3,7 @@ require 'ruby-progressbar'
 class Promiscuous::Publisher::Bootstrap::Data
   class << self
     def setup(options={})
-      range_redis_keys.each { |key| Promiscuous::Redis.master.del(key) }
+      range_redis_keys.each { |key| redis.del(key) }
 
       models    = options[:models]
       models   ||= Promiscuous::Publisher::Model.publishers.values
@@ -14,26 +14,26 @@ class Promiscuous::Publisher::Bootstrap::Data
     end
 
     def start
-      max_attempts = 10
       connection   = Promiscuous::Publisher::Bootstrap::Connection.new
-      tries        = 0
 
-      loop do
-        range_redis_keys.each do |key|
-          if lock = Promiscuous::Redis::Mutex.new(key, lock_options).try_lock
-            start  = Promiscuous::Redis.master.hget(key, 'start')
-            finish = Promiscuous::Redis.master.hget(key, 'finish')
+      range_redis_keys.each do |key|
+        lock = Promiscuous::Redis::Mutex.new(key, lock_options)
+        if lock.try_lock
+          unless redis.hget(key, 'completed') == "true"
+            selector = JSON.parse(redis.hget(key, 'selector'))
+            options  = JSON.parse(redis.hget(key, 'options'))
+            klass    = redis.hget(key, 'class').constantize
+            start    = Time.parse(redis.hget(key, 'start'))
+            finish   = Time.parse(redis.hget(key, 'finish'))
 
-            range_selector(start, finish).each do |instance|
+            range_selector(klass, selector, options, start, finish).each do |instance|
               publish_data(connection, instance)
-              # lock.extend
+              # TODO lock.extend
             end
-            Promiscuous::Redis.master.hset(key,'completed', true)
+            redis.hset(key, 'completed', true)
             lock.unlock
+            break
           end
-          break if tries > max_attempts
-          tries += 1
-          sleep 1
         end
       end
     end
@@ -57,17 +57,26 @@ class Promiscuous::Publisher::Bootstrap::Data
           range_start  = range_start + increment * i
           range_finish = range_start + increment
 
-          key = "#{range_redis_key}_#{i}"
-          Promiscuous::Redis.master.hset(key, 'start', range_start)
-          Promiscuous::Redis.master.hset(key, 'finish', range_finish)
-          Promiscuous::Redis.master.hset(key, 'completed', false)
+          redis.multi do
+            key = range_redis_key.join(i)
+            redis.hset(key, 'selector', model.all.selector.to_json)
+            redis.hset(key, 'options', model.all.options.to_json)
+            redis.hset(key, 'class', model.all.klass.to_s)
+            redis.hset(key, 'start', range_start)
+            redis.hset(key, 'finish', range_finish)
+            redis.hset(key, 'completed', 'false')
+          end
         end
       end
     end
 
-    def range_selector(model, start_time, end_time)
-      model.order_by("$natural" =>  1).where(:_id.gte => Moped::BSON::ObjectId.from_time(start_time),
-                                             :_id.lt => Moped::BSON::ObjectId.from_time(end_time))
+    def range_selector(klass, selector, options, start_time, finish_time)
+      criteria = Mongoid::Criteria.new(klass)
+      criteria.selector = selector
+      criteria.options = options
+
+      criteria.order_by("$natural" =>  1).where(:_id.gte => Moped::BSON::ObjectId.from_time(start_time),
+                                             :_id.lt =>  Moped::BSON::ObjectId.from_time(finish_time))
     end
 
     def range_redis_key
@@ -75,7 +84,7 @@ class Promiscuous::Publisher::Bootstrap::Data
     end
 
     def range_redis_keys
-      Promiscuous::Redis.master.keys("#{range_redis_key}*")
+      redis.keys("#{range_redis_key}*").reject { |k| k =~ /lock$/ }
     end
 
     def lock_options
@@ -84,7 +93,7 @@ class Promiscuous::Publisher::Bootstrap::Data
         :sleep    => 0.01.seconds,
         :expire   => 5.minutes,
         :lock_set => Promiscuous::Key.new(:pub).join('bootstrap_lock_set').to_s,
-        :node     => Promiscuous::Redis.master
+        :node     => redis
       }
     end
 
@@ -101,6 +110,10 @@ class Promiscuous::Publisher::Bootstrap::Data
 
     def id_time(model, sort_order)
       model.order_by("$natural" =>  sort_order).only(:id).limit(1).first.id.generation_time
+    end
+
+    def redis
+      Promiscuous::Redis.master.nodes.first
     end
   end
 end
