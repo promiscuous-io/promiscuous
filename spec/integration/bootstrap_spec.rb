@@ -8,7 +8,7 @@ describe Promiscuous, 'bootstrapping dependencies' do
   #
   # TODO Test that the bootstrap exchange is used for both Data and Version
   #
-  
+
   context 'when in publisher is in bootstrapping mode' do
     before { Promiscuous::Publisher::Bootstrap::Mode.enable }
 
@@ -82,19 +82,20 @@ describe Promiscuous, 'bootstrapping replication' do
 
   context 'when updates happens after the version bootstrap, but before the document is replicated' do
     it 'bootstraps' do
-      Promiscuous::Publisher::Bootstrap.enable
+      Promiscuous::Publisher::Bootstrap::Mode.enable
       Promiscuous.context { 10.times { PublisherModel.create } }
 
       switch_subscriber_mode(:pass1)
 
-      Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
+      Promiscuous::Publisher::Bootstrap::Version.bootstrap
       sleep 1
-      Promiscuous::Publisher::Bootstrap.disable
+      Promiscuous::Publisher::Bootstrap::Mode.disable
 
       Promiscuous.context { PublisherModel.first.update_attributes(:field_2 => 'hello') }
 
       switch_subscriber_mode(:pass2)
-      Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
+      Promiscuous::Publisher::Bootstrap::Data.setup
+      Promiscuous::Publisher::Bootstrap::Data.start
       eventually { SubscriberModel.count.should == PublisherModel.count - 1 }
 
       SubscriberModel.first.field_2.should == nil
@@ -122,13 +123,14 @@ describe Promiscuous, 'bootstrapping replication' do
     end
 
     it 'calls the create and save observers' do
-      Promiscuous::Publisher::Bootstrap.enable
+      Promiscuous::Publisher::Bootstrap::Mode.enable
       Promiscuous.context { PublisherModel.create }
 
       switch_subscriber_mode(:pass1)
-      Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
+      Promiscuous::Publisher::Bootstrap::Version.bootstrap
       switch_subscriber_mode(:pass2)
-      Promiscuous::Publisher::Bootstrap::Data.new.bootstrap
+      Promiscuous::Publisher::Bootstrap::Data.setup
+      Promiscuous::Publisher::Bootstrap::Data.start
 
       eventually do
         ModelObserver.saved.should == true
@@ -137,43 +139,30 @@ describe Promiscuous, 'bootstrapping replication' do
     end
   end
 
-  context 'bootstrapping concurrently' do
-    shared_examples 'boostrapping concurrently' do
-      before do
-        $counter = 0
-        SubscriberModel.class_eval do
-          after_save { $counter += 1 }
-        end
-      end
-      before { Promiscuous::Publisher::Bootstrap.enable }
-      before { Promiscuous.context { number_of_docs.times { |i| model = PublisherModel.new; model.id = Moped::BSON::ObjectId.from_time(Time.now + i.seconds); model.save } } }
-
-      it "bootstraps" do
-        switch_subscriber_mode(:pass1)
-        Promiscuous::Publisher::Bootstrap::Version.new.bootstrap
-        sleep 1
-        Promiscuous::Publisher::Bootstrap.disable
-
-        switch_subscriber_mode(:pass2)
-        Promiscuous::Publisher::Bootstrap::Data.new(:concurrency => concurrency).bootstrap
-
-        eventually { SubscriberModel.count.should == PublisherModel.count }
-        $counter.should == SubscriberModel.count
+  describe 'bootstrapping large number of docs split over ranges' do
+    let(:number_of_docs) { 101 }
+    let(:range_size)     { 9 }
+    before do
+      $counter = 0
+      SubscriberModel.class_eval do
+        after_save { $counter += 1 }
       end
     end
+    before { Promiscuous::Publisher::Bootstrap::Mode.enable }
+    before { Promiscuous.context { number_of_docs.times { |i| model = PublisherModel.new; model.id = Moped::BSON::ObjectId.from_time(Time.now + i.seconds); model.save } } }
 
-    context "the number of docs isn't divisable by the level of concurrency" do
-      let(:number_of_docs) { 13 }
-      let(:concurrency)    { 4 }
+    it "bootstraps" do
+      switch_subscriber_mode(:pass1)
+      Promiscuous::Publisher::Bootstrap::Version.bootstrap
+      sleep 1
+      Promiscuous::Publisher::Bootstrap::Mode.disable
 
-      it_behaves_like "boostrapping concurrently"
-    end
+      switch_subscriber_mode(:pass2)
+      Promiscuous::Publisher::Bootstrap::Data.setup(:range_size => range_size)
+      Promiscuous::Publisher::Bootstrap::Data.start
 
-    context "the number of docs is divisable by the level of concurrency" do
-      let(:number_of_docs) { 12 }
-      let(:concurrency)    { 4 }
-
-      it_behaves_like "boostrapping concurrently"
+      eventually { SubscriberModel.count.should == PublisherModel.count }
+      $counter.should == SubscriberModel.count
     end
   end
 end

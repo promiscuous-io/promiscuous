@@ -14,7 +14,7 @@ class Promiscuous::Publisher::Bootstrap::Data
     end
 
     def start
-      connection   = Promiscuous::Publisher::Bootstrap::Connection.new
+      connection = Promiscuous::Publisher::Bootstrap::Connection.new
 
       range_redis_keys.each do |key|
         lock = Promiscuous::Redis::Mutex.new(key, lock_options)
@@ -32,7 +32,6 @@ class Promiscuous::Publisher::Bootstrap::Data
             end
             redis.hset(key, 'completed', true)
             lock.unlock
-            break
           end
         end
       end
@@ -52,10 +51,9 @@ class Promiscuous::Publisher::Bootstrap::Data
         last       = id_time(model, -1) + 2.seconds
         increment  = ((last - first)/num_ranges).ceil
 
-        range_start = first
         num_ranges.times do |i|
-          range_start  = range_start + increment * i
-          range_finish = range_start + increment
+          range_start  = first + (increment * i).seconds
+          range_finish = range_start + increment.seconds
 
           redis.multi do
             key = range_redis_key.join(i)
@@ -75,8 +73,8 @@ class Promiscuous::Publisher::Bootstrap::Data
       criteria.selector = selector
       criteria.options = options
 
-      criteria.order_by("$natural" =>  1).where(:_id.gte => Moped::BSON::ObjectId.from_time(start_time),
-                                             :_id.lt =>  Moped::BSON::ObjectId.from_time(finish_time))
+      criteria.order_by("$natural" =>  1).where(:_id => { '$gte' =>  Moped::BSON::ObjectId.from_time(start_time),
+                                                          '$lt'  =>  Moped::BSON::ObjectId.from_time(finish_time) })
     end
 
     def range_redis_key
@@ -84,7 +82,7 @@ class Promiscuous::Publisher::Bootstrap::Data
     end
 
     def range_redis_keys
-      redis.keys("#{range_redis_key}*").reject { |k| k =~ /lock$/ }
+      redis.keys("#{range_redis_key}*").reject { |k| k =~ /lock$/ }.sort
     end
 
     def lock_options
