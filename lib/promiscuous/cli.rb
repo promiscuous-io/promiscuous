@@ -165,6 +165,12 @@ class Promiscuous::CLI
         Promiscuous::Config.stats_interval = duration.to_f
       end
 
+      opts.on "-b", "--bootstrap [pass1|pass2]", "Run subscriber in bootstrap mode" do |mode|
+        mode = mode.to_sym
+        raise "Subscriber bootstrap must be run in pass1 or pass2 mode" unless [:pass1, :pass2].include?(mode)
+        Promiscuous::Config.bootstrap = mode.to_sym
+      end
+
       opts.on "-t", "--threads [NUM]", "Number of subscriber worker threads to run. Defaults to 10." do |threads|
         Promiscuous::Config.subscriber_threads = threads.to_i
       end
@@ -198,6 +204,7 @@ class Promiscuous::CLI
     when :bootstrap           then raise "You must specify one of [setup|start|finalize]"   unless options[:criterias].present?
     when :record              then raise "Please specify a log file to record"  unless options[:log_file].present?
     when :replay              then raise "Please specify a log file to replay"  unless options[:log_file].present?
+    when :publisher_bootstrap then raise "Please specify 'on' or 'off'" unless options[:publisher_bootstrap].present?
     when :publisher_recovery
     when :mocks
     else puts parser; exit 1
