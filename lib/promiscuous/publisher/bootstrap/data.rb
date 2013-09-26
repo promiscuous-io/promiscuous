@@ -13,11 +13,11 @@ class Promiscuous::Publisher::Bootstrap::Data
       models.each { |model| create_range(model, options) }
     end
 
-    def start
+    def start(options={})
       connection = Promiscuous::Publisher::Bootstrap::Connection.new
 
       range_redis_keys.each do |key|
-        lock = Promiscuous::Redis::Mutex.new(key, lock_options)
+        lock = Promiscuous::Redis::Mutex.new(key, lock_options(options[:lock]))
         if lock.try_lock
           unless redis.hget(key, 'completed') == "true"
             selector = JSON.parse(redis.hget(key, 'selector'))
@@ -26,9 +26,12 @@ class Promiscuous::Publisher::Bootstrap::Data
             start    = Time.parse(redis.hget(key, 'start'))
             finish   = Time.parse(redis.hget(key, 'finish'))
 
+            lock_extended_at = Time.now
             range_selector(klass, selector, options, start, finish).each_with_index do |instance, i|
               publish_data(connection, instance)
-              lock.extend if i % 10 == 0
+              if (Time.now - lock_extended_at) > lock_options[:expire]/5
+                raise "Another worker stole your work!" unless lock.extend
+              end
             end
             redis.hset(key, 'completed', true)
             lock.unlock
@@ -48,7 +51,7 @@ class Promiscuous::Publisher::Bootstrap::Data
 
         num_ranges = (count/range_size.to_f).ceil
         first      = id_time(model, 1)
-        last       = id_time(model, -1) + 2.seconds
+        last       = id_time(model, -1) + 1
         increment  = ((last - first)/num_ranges).ceil
 
         num_ranges.times do |i|
@@ -85,14 +88,14 @@ class Promiscuous::Publisher::Bootstrap::Data
       redis.keys("#{range_redis_key}*").reject { |k| k =~ /lock$/ }.sort
     end
 
-    def lock_options
+    def lock_options(options=nil)
+      options ||= {}
       @@lock_options ||= {
         :timeout  => 10.seconds,
         :sleep    => 0.01.seconds,
         :expire   => 5.minutes,
-        :lock_set => Promiscuous::Key.new(:pub).join('bootstrap_lock_set').to_s,
         :node     => redis
-      }
+      }.merge(options)
     end
 
     def publish_data(connection, instance)

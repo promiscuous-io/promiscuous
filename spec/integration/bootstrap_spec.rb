@@ -159,10 +159,12 @@ describe Promiscuous, 'bootstrapping replication' do
 
       switch_subscriber_mode(:pass2)
       Promiscuous::Publisher::Bootstrap::Data.setup(:range_size => range_size)
-      Promiscuous::Publisher::Bootstrap::Data.start
+      Promiscuous::Publisher::Bootstrap::Data.start(:lock => { :expire => 2.seconds }) # Ensure that we extend the lock
 
-      eventually { SubscriberModel.count.should == PublisherModel.count }
-      $counter.should == SubscriberModel.count
+      eventually do
+        SubscriberModel.count.should == PublisherModel.count
+        $counter.should == SubscriberModel.count
+      end
     end
   end
 end

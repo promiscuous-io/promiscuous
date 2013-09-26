@@ -8,7 +8,7 @@ module Promiscuous::Publisher::Bootstrap::Mode
   end
 
   def self.enabled?
-    Promiscuous::Redis.master.nodes.all? { |node| node.get(key) }
+    !!Promiscuous::Redis.master.nodes.first.get(key)
   end
 
   def self.key
