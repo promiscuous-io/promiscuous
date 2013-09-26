@@ -19,12 +19,13 @@ class Promiscuous::Publisher::Bootstrap::Data
       range_redis_keys.each do |key|
         lock = Promiscuous::Redis::Mutex.new(key, lock_options(options[:lock]))
         if lock.try_lock
-          unless redis.hget(key, 'completed') == "true"
-            selector = JSON.parse(redis.hget(key, 'selector'))
-            options  = JSON.parse(redis.hget(key, 'options'))
-            klass    = redis.hget(key, 'class').constantize
-            start    = Time.parse(redis.hget(key, 'start'))
-            finish   = Time.parse(redis.hget(key, 'finish'))
+          if range = redis.get(key)
+            range = MultiJson.load(range)
+            selector = range['selector']
+            options  = range['options']
+            klass    = range['class'].constantize
+            start    = Time.parse(range['start'])
+            finish   = Time.parse(range['finish'])
 
             lock_extended_at = Time.now
             range_selector(klass, selector, options, start, finish).each_with_index do |instance, i|
@@ -33,7 +34,7 @@ class Promiscuous::Publisher::Bootstrap::Data
                 raise "Another worker stole your work!" unless lock.extend
               end
             end
-            redis.hset(key, 'completed', true)
+            redis.del(key)
             lock.unlock
           end
         end
@@ -58,15 +59,13 @@ class Promiscuous::Publisher::Bootstrap::Data
           range_start  = first + (increment * i).seconds
           range_finish = range_start + increment.seconds
 
-          redis.multi do
-            key = range_redis_key.join(i)
-            redis.hset(key, 'selector', model.all.selector.to_json)
-            redis.hset(key, 'options', model.all.options.to_json)
-            redis.hset(key, 'class', model.all.klass.to_s)
-            redis.hset(key, 'start', range_start)
-            redis.hset(key, 'finish', range_finish)
-            redis.hset(key, 'completed', 'false')
-          end
+          key = range_redis_key.join(i)
+          value = MultiJson.dump(:selector => model.all.selector,
+                                 :options  => model.all.options,
+                                 :class    => model.all.klass.to_s,
+                                 :start    => range_start,
+                                 :finish   => range_finish)
+          redis.set(key, value)
         end
       end
     end
