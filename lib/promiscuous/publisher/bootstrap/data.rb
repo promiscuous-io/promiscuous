@@ -10,7 +10,7 @@ class Promiscuous::Publisher::Bootstrap::Data
       .reject { |publisher| publisher.include? Promiscuous::Publisher::Model::Ephemeral }
       .reject { |publisher| publisher.publish_to =~ /^__promiscuous__\// }
 
-      models.each { |model| create_range(model, options) }
+      models.each_with_index { |model, i| create_range(i, model, options) }
     end
 
     def start(options={})
@@ -43,7 +43,7 @@ class Promiscuous::Publisher::Bootstrap::Data
 
     private
 
-    def create_range(model, options)
+    def create_range(namespace, model, options)
       range_size = options[:range_size] || 1000
 
       without_promiscuous do
@@ -52,14 +52,14 @@ class Promiscuous::Publisher::Bootstrap::Data
 
         num_ranges = (count/range_size.to_f).ceil
         first      = id_time(model, 1)
-        last       = id_time(model, -1) + 1
+        last       = id_time(model, -1) + 2 # Ensure we capture all docs as $gte -> $lt is used
         increment  = ((last - first)/num_ranges).ceil
 
         num_ranges.times do |i|
           range_start  = first + (increment * i).seconds
           range_finish = range_start + increment.seconds
 
-          key = range_redis_key.join(i)
+          key = range_redis_key.join(namespace).join(i)
           value = MultiJson.dump(:selector => model.all.selector,
                                  :options  => model.all.options,
                                  :class    => model.all.klass.to_s,

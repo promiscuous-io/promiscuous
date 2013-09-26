@@ -139,17 +139,22 @@ describe Promiscuous, 'bootstrapping replication' do
     end
   end
 
-  describe 'bootstrapping large number of docs split over ranges' do
-    let(:number_of_docs) { 101 }
+  describe 'bootstrapping large number of docs split over ranges of multiple models' do
+    let(:number_of_docs) { 51 }
     let(:range_size)     { 9 }
     before do
       $counter = 0
       SubscriberModel.class_eval do
         after_save { $counter += 1 }
       end
+      $other_counter = 0
+      SubscriberModelOther.class_eval do
+        after_save { $other_counter += 1 }
+      end
     end
     before { Promiscuous::Publisher::Bootstrap::Mode.enable }
     before { Promiscuous.context { number_of_docs.times { |i| model = PublisherModel.new; model.id = Moped::BSON::ObjectId.from_time(Time.now + i.seconds); model.save } } }
+    before { Promiscuous.context { number_of_docs.times { |i| model = PublisherModelOther.new; model.id = Moped::BSON::ObjectId.from_time(Time.now + i.seconds); model.save } } }
 
     it "bootstraps" do
       switch_subscriber_mode(:pass1)
@@ -163,7 +168,9 @@ describe Promiscuous, 'bootstrapping replication' do
 
       eventually do
         SubscriberModel.count.should == PublisherModel.count
+        SubscriberModelOther.count.should == PublisherModelOther.count
         $counter.should == SubscriberModel.count
+        $other_counter.should == SubscriberModelOther.count
       end
     end
   end
