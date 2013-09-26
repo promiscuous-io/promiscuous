@@ -92,7 +92,7 @@ class Promiscuous::CLI
 
   def bootstrap
     phase = options[:criterias][0].to_sym
-    raise "Subscriber bootstrap must be one of [setup|run|finalize]" unless [:setup, :run, :finalize].include?(phase)
+    raise "Subscriber bootstrap must be one of [setup|run|finalize|status]" unless [:setup, :run, :finalize, :status].include?(phase)
     Promiscuous::Publisher::Bootstrap.__send__(phase)
   end
 

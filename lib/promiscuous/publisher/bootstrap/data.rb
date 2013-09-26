@@ -1,8 +1,7 @@
-require 'ruby-progressbar'
-
 class Promiscuous::Publisher::Bootstrap::Data
   class << self
     def setup(options={})
+      Promiscuous::Publisher::Bootstrap::Status.reset
       range_redis_keys.each { |key| redis.del(key) }
 
       models    = options[:models]
@@ -10,7 +9,10 @@ class Promiscuous::Publisher::Bootstrap::Data
       .reject { |publisher| publisher.include? Promiscuous::Publisher::Model::Ephemeral }
       .reject { |publisher| publisher.publish_to =~ /^__promiscuous__\// }
 
-      models.each_with_index { |model, i| create_range(i, model, options) }
+      models.each_with_index do |model, i|
+        create_range(i, model, options)
+        Promiscuous::Publisher::Bootstrap::Status.total(model.count)
+      end
     end
 
     def run(options={})
@@ -30,9 +32,12 @@ class Promiscuous::Publisher::Bootstrap::Data
             lock_extended_at = Time.now
             range_selector(klass, selector, options, start, finish).each_with_index do |instance, i|
               publish_data(connection, instance)
+
               if (Time.now - lock_extended_at) > lock_options[:expire]/5
                 raise "Another worker stole your work!" unless lock.extend
+                lock_extended_at = Time.now
               end
+              Promiscuous::Publisher::Bootstrap::Status.inc
             end
             redis.del(key)
             lock.unlock
@@ -84,7 +89,7 @@ class Promiscuous::Publisher::Bootstrap::Data
     end
 
     def range_redis_keys
-      redis.keys("#{range_redis_key}*").reject { |k| k =~ /lock$/ }.sort
+      redis.keys("#{range_redis_key}*").reject { |k| k =~ /:lock$/ }.sort
     end
 
     def lock_options(options=nil)
