@@ -26,8 +26,8 @@ class Promiscuous::Publisher::Bootstrap::Data
             selector = range['selector']
             options  = range['options']
             klass    = range['class'].constantize
-            start    = Time.parse(range['start'])
-            finish   = Time.parse(range['finish'])
+            start    = range['start'].to_i
+            finish   = range['finish'].to_i
 
             lock_extended_at = Time.now
             range_selector(klass, selector, options, start, finish).each_with_index do |instance, i|
@@ -56,32 +56,32 @@ class Promiscuous::Publisher::Bootstrap::Data
         return if count == 0
 
         num_ranges = (count/range_size.to_f).ceil
-        first      = id_time(model, 1)
-        last       = id_time(model, -1) + 2 # Ensure we capture all docs as $gte -> $lt is used
+        first, last = min_max(model).map { |id| id.to_s.to_i(16) }
+        last += 10 # Ensure that we capture the last ID based on BSON encoding
         increment  = ((last - first)/num_ranges).ceil
 
         num_ranges.times do |i|
-          range_start  = first + (increment * i).seconds
-          range_finish = range_start + increment.seconds
+          range_start  = first + (increment * i)
+          range_finish = range_start + increment
 
           key = range_redis_key.join(namespace).join(i)
           value = MultiJson.dump(:selector => model.all.selector,
                                  :options  => model.all.options,
                                  :class    => model.all.klass.to_s,
-                                 :start    => range_start,
-                                 :finish   => range_finish)
+                                 :start    => range_start.to_s,
+                                 :finish   => range_finish.to_s)
           redis.set(key, value)
         end
       end
     end
 
-    def range_selector(klass, selector, options, start_time, finish_time)
+    def range_selector(klass, selector, options, start, finish)
       criteria = Mongoid::Criteria.new(klass)
       criteria.selector = selector
       criteria.options = options
 
-      criteria.order_by("$natural" =>  1).where(:_id => { '$gte' =>  Moped::BSON::ObjectId.from_time(start_time),
-                                                          '$lt'  =>  Moped::BSON::ObjectId.from_time(finish_time) })
+      criteria.order_by("$natural" =>  1).where(:_id => { '$gte' =>  BSON::ObjectId.from_string(start.to_s(16)),
+                                                          '$lt'  =>  BSON::ObjectId.from_string(finish.to_s(16)) })
     end
 
     def range_redis_key
@@ -113,8 +113,9 @@ class Promiscuous::Publisher::Bootstrap::Data
       connection.publish(:key => payload[:__amqp__], :payload => MultiJson.dump(payload))
     end
 
-    def id_time(model, sort_order)
-      model.order_by("$natural" =>  sort_order).only(:id).limit(1).first.id.generation_time
+    def min_max(model)
+      query = proc { |sort_order| model.order_by("$natural" =>  sort_order).only(:id).limit(1).first.id }
+      [query.call(1), query.call(-1)]
     end
 
     def redis
