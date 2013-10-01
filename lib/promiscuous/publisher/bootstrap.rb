@@ -2,10 +2,10 @@ module Promiscuous::Publisher::Bootstrap
   extend Promiscuous::Autoload
   autoload :Connection, :Version, :Data, :Mode, :Status
 
-  def self.setup
+  def self.setup(options={})
     Mode.enable
     Version.bootstrap
-    Data.setup
+    Data.setup(options)
   end
 
   def self.run

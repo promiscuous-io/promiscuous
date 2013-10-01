@@ -16,13 +16,15 @@ module Promiscuous::Publisher::Bootstrap::Status
   def self.monitor
     total ||= redis.hget(key, 'total').to_i
     processed = 0
+    exit_now = false
 
-    %w(SIGTERM SIGINT).each { |signal| Signal.trap(signal) { exit } }
+    %w(SIGTERM SIGINT).each { |signal| Signal.trap(signal) { exit_now = true  } }
     bar = ProgressBar.create(:format => '%t |%b>%i| %c/%C %e', :title => "Bootstrapping", :total => total)
     while processed < total
       processed = redis.hget(key, 'processed').to_i
       bar.progress = processed
       sleep 1
+      break if exit_now
     end
   end
 

@@ -93,7 +93,11 @@ class Promiscuous::CLI
   def bootstrap
     phase = options[:criterias][0].to_sym
     raise "Subscriber bootstrap must be one of [setup|run|finalize|status]" unless [:setup, :run, :finalize, :status].include?(phase)
-    Promiscuous::Publisher::Bootstrap.__send__(phase)
+    if phase == :setup && criteria = options[:bootstrap_criteria]
+      Promiscuous::Publisher::Bootstrap.setup(:models => eval(criteria).to_a)
+    else
+      Promiscuous::Publisher::Bootstrap.__send__(phase)
+    end
   end
 
   def subscribe
@@ -173,6 +177,10 @@ class Promiscuous::CLI
 
       opts.on "-t", "--threads [NUM]", "Number of subscriber worker threads to run. Defaults to 10." do |threads|
         Promiscuous::Config.subscriber_threads = threads.to_i
+      end
+
+      opts.on "-c", "--criteria FILE", "Criteria to bootstrap a subset of data" do |criteria|
+        options[:bootstrap_criteria] = criteria
       end
 
       opts.on "-D", "--daemonize", "Daemonize process" do
