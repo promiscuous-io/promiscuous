@@ -76,9 +76,10 @@ class Promiscuous::Publisher::Bootstrap::Data
     end
 
     def range_selector(klass, selector, options, start, finish)
+      option ||= {}
       criteria = Mongoid::Criteria.new(klass)
       criteria.selector = selector
-      criteria.options = options
+      criteria.options = options.merge(:timeout => false)
 
       criteria.order_by("$natural" =>  1).where(:_id => { '$gte' =>  BSON::ObjectId.from_string(start.to_s(16)),
                                                           '$lt'  =>  BSON::ObjectId.from_string(finish.to_s(16)) })
@@ -114,7 +115,7 @@ class Promiscuous::Publisher::Bootstrap::Data
     end
 
     def min_max(model)
-      query = proc { |sort_order| model.order_by("$natural" =>  sort_order).only(:id).limit(1).first.id }
+      query = proc { |sort_order| model.order_by("_id" =>  sort_order).only(:id).limit(1).first.id }
       [query.call(1), query.call(-1)]
     end
 
