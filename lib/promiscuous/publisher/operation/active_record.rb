@@ -23,9 +23,10 @@ class ActiveRecord::Base
     included do
       # We want to make sure that we never block the database by having
       # uncommitted transactions.
-      Promiscuous::Publisher::Operation::Base.register_recovery_hook do
-        connection = ActiveRecord::Base.connection # XXX Is this good?
-        db_name = ActiveRecord::Base.connection.current_database
+      Promiscuous::Publisher::Operation::Base.register_recovery_mechanism do
+        connection = ActiveRecord::Base.connection
+        db_name = connection.current_database
+
         # We wait twice the time of expiration, to allow a better recovery scenario.
         expire_duration = 2 * Promiscuous::Publisher::Operation::Base.lock_options[:expire]
 

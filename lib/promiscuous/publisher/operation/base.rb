@@ -1,4 +1,15 @@
 class Promiscuous::Publisher::Operation::Base
+  mattr_accessor :recovery_mechanisms
+  self.recovery_mechanisms = []
+
+  def self.register_recovery_mechanism(method_name=nil, &block)
+    self.recovery_mechanisms << (block || method(method_name))
+  end
+
+  def self.run_recovery_mechanisms
+    self.recovery_mechanisms.each(&:call)
+  end
+
   attr_accessor :operation, :state
 
   def initialize(options={})
@@ -7,7 +18,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def read?
-    operation == :read
+    @operation == :read
   end
 
   def write?
@@ -39,17 +50,6 @@ class Promiscuous::Publisher::Operation::Base
       msg = Promiscuous::Error::Dependency.explain_operation(self, 70)
       current_context.trace(msg, :color => self.read? ? '0;32' : '1;31')
     end
-  end
-
-  mattr_accessor :recovery_hooks
-  self.recovery_hooks = []
-
-  def self.register_recovery_hook(&block)
-    self.recovery_hooks << block
-  end
-
-  def self.run_recovery_hooks
-    self.recovery_hooks.each(&:call)
   end
 
   def record_timestamp
@@ -112,7 +112,7 @@ class Promiscuous::Publisher::Operation::Base
       end
     end
   end
-  register_recovery_hook(&method(:recover_payloads_for_rabbitmq))
+  register_recovery_mechanism :recover_payloads_for_rabbitmq
 
   def publish_payload_in_redis
     # TODO Optimize and DRY this up
@@ -417,7 +417,7 @@ class Promiscuous::Publisher::Operation::Base
       end
     end
   end
-  register_recovery_hook(&method(:recover_locks))
+  register_recovery_mechanism :recover_locks
 
   def dependencies_for(instance)
     return [] if instance.nil?

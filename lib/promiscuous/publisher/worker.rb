@@ -12,7 +12,7 @@ class Promiscuous::Publisher::Worker
   end
 
   def try_recover
-    Promiscuous::Publisher::Operation::Base.run_recovery_hooks
+    Promiscuous::Publisher::Operation::Base.run_recovery_mechanisms
   rescue Exception => e
     Promiscuous.warn "[recovery] #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.call(e)
