@@ -261,7 +261,6 @@ class ActiveRecord::Base
     def initialize(arel, name, binds, options={})
       super
       @operation = :read
-      @multi = @arel.ast.limit.try(:value) != 1
       @result = []
     end
 

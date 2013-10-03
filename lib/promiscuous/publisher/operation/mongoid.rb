@@ -40,8 +40,8 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
       end
     end
 
-    def stash_version_in_write_query
-      @document[VERSION_FIELD] = @instance_version
+    def stash_version_in_write_query(version)
+      @document[Promiscuous::Config.version_field] = version
     end
 
     def execute_persistent(&db_operation)
@@ -125,16 +125,16 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       selector = {'_id' => @instance.id}.merge(@query.selector.select { |k,v| k.to_s.include?("_id") })
 
       if options[:use_atomic_version_selector]
-        version = @instance[VERSION_FIELD]
-        selector.merge!(VERSION_FIELD => version) if version
+        version = @instance[Promiscuous::Config.version_field]
+        selector.merge!(Promiscuous::Config.version_field => version)
       end
 
       @query.selector = selector
     end
 
-    def stash_version_in_write_query
+    def stash_version_in_write_query(version)
       @change['$set'] ||= {}
-      @change['$set'][VERSION_FIELD] = @instance_version
+      @change['$set'][Promiscuous::Config.version_field] = version
     end
 
     def get_selector_instance
@@ -165,11 +165,8 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def execute_non_persistent(&db_operation)
-      if multi?
-        @instance = get_selector_instance
-        @selector_keys = @selector.keys
-      end
       super
+      @instance ||= get_selector_instance
     end
 
     def fields_in_query(change)
@@ -195,14 +192,9 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def execute(&db_operation)
-      return db_operation.call if @query.without_promiscuous?
       return db_operation.call unless model
       return db_operation.call unless any_published_field_changed?
 
-      # We cannot do multi update/destroy
-      if (operation == :update || operation == :destroy) && multi?
-        raise Promiscuous::Error::Dependency.new(:operation => self)
-      end
       super
     end
 
@@ -220,22 +212,14 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     @operation.selector = value
   end
 
-  def without_promiscuous!
-    @without_promiscuous = true
-  end
-
-  def without_promiscuous?
-    !!@without_promiscuous
-  end
-
   # Moped::Query
 
   def count(*args)
-    promiscuous_operation(:read, :multi => true, :operation_ext => :count).execute { super }.to_i
+    promiscuous_operation(:read, :operation_ext => :count).execute { super }.to_i
   end
 
   def distinct(key)
-    promiscuous_operation(:read, :multi => true).execute { super }
+    promiscuous_operation(:read, :operation_ext => :distinct).execute { super }
   end
 
   def each
@@ -249,23 +233,21 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   alias :cursor :each
 
   def first
-    # TODO If the the user is using something like .only(), we need to make
-    # sure that we add the id, otherwise we may not be able to perform the
-    # dependency optimization by resolving the selector to an id.
-    promiscuous_operation(:read).execute do |operation|
-      operation ? operation.raw_instance : super
-    end
+    # FIXME If the the user is using something like .only(), we need to make
+    # sure that we add the id, otherwise we are screwed.
+    promiscuous_operation(:read).execute { super }
   end
   alias :one :first
 
   def update(change, flags=nil)
-    multi = flags && flags.include?(:multi)
-    raise "No upsert support yet" if flags && flags.include?(:upsert)
+    if flags
+      raise "You cannot do a multi update. Instead, update each document separately." if flags.include?(:multi)
+      raise "No upsert support yet" if flags.include?(:upsert)
+    end
 
-    promiscuous_operation(:update, :change => change, :multi => multi).execute do |operation|
+    promiscuous_operation(:update, :change => change).execute do |operation|
       if operation
         operation.new_raw_instance = without_promiscuous { modify(change, :new => true) }
-        # FIXME raise when recovery raced
         {'updatedExisting' => true, 'n' => 1, 'err' => nil, 'ok' => 1.0}
       else
         super
@@ -275,42 +257,33 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
   def modify(change, options={})
     promiscuous_operation(:update, :change => change).execute { super }
-    # FIXME raise when recovery raced
   end
 
   def remove
     promiscuous_operation(:destroy).execute { super }
-    # FIXME raise when recovery raced
   end
 
   def remove_all
-    promiscuous_operation(:destroy, :multi => true).execute { super }
+    raise "Instead of doing a multi delete, delete each document separatly.\n" +
+          "Declare your has_many relationships with :dependent => :destroy instead of :delete"
   end
 end
 
 class Moped::PromiscuousCursorWrapper < Moped::Cursor
   def promiscuous_operation(op, options={})
     Moped::PromiscuousQueryWrapper::PromiscuousQueryOperation.new(
-      options.merge(:query => @query, :operation => op))
+      options.merge(:query => @query, :operation => op, :operation_ext => :each))
   end
 
   # Moped::Cursor
 
-  def fake_single_read(operation)
-    @cursor_id = 0
-    [operation.raw_instance].compact
-  end
-
   def load_docs
-    should_fake_single_read = @limit == 1
-    promiscuous_operation(:read, :multi => !should_fake_single_read).execute do |operation|
-      operation && should_fake_single_read ? fake_single_read(operation) : super
-    end.to_a
+    promiscuous_operation(:read).execute { super }.to_a
   end
 
   def get_more
     # TODO support batch_size
-    promiscuous_operation(:read, :multi => true).execute { super }
+    promiscuous_operation(:read).execute { super }
   end
 
   def initialize(session, query_operation)
@@ -333,25 +306,10 @@ class Moped::PromiscuousDatabase < Moped::Database
     if command[:mapreduce]
       query = Moped::Query.new(self[command[:mapreduce]], command[:query])
       promiscuous_operation(:read, :query => query,
-                            :operation_ext => :mapreduce, :multi => true).execute { super }
+                            :operation_ext => :mapreduce).execute { super }
     else
       super
     end
-  end
-end
-
-class Mongoid::Contextual::Mongo
-  alias_method :each_hijacked, :each
-
-  def each(&block)
-    query.without_promiscuous! if criteria.options[:without_promiscuous]
-    each_hijacked(&block)
-  end
-end
-
-module Origin::Optional
-  def without_promiscuous
-    clone.tap { |criteria| criteria.options.store(:without_promiscuous, true) }
   end
 end
 
@@ -363,7 +321,8 @@ class Mongoid::Validations::UniquenessValidator
 end
 
 class Moped::BSON::ObjectId
-  # No {"$oid": "123"}, it's horrible
+  # No {"$oid": "123"}, it's horrible.
+  # TODO Document this shit.
   def to_json(*args)
     "\"#{to_s}\""
   end

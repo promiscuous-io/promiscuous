@@ -6,7 +6,7 @@ describe Promiscuous do
   before { run_subscriber_worker! }
 
   context 'when creating' do
-    it 'replicates', :pending => 'FIX FIRST FOR MONGOID' do
+    it 'replicates' do
       pub = nil
       pub_id = ORM.generate_id
       SubscriberModel.new.tap { |sub| sub.id = pub_id }.save

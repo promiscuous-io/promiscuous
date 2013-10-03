@@ -1,16 +1,9 @@
 class Promiscuous::Publisher::Operation::Base
-  VERSION_FIELD = '__pv'
-
-  attr_accessor :operation, :operation_ext, :instance, :selector_keys, :state
+  attr_accessor :operation, :state
 
   def initialize(options={})
-    # XXX instance is not always an instance, it can be a selector
-    # representation.
-    @instance      = options[:instance]
-    @operation     = options[:operation]
-    @operation_ext = options[:operation_ext]
-    @multi         = options[:multi]
-    @state         = options[:state] || :pending
+    @operation = options[:operation]
+    @state     = options[:state] || :pending
   end
 
   def read?
@@ -19,14 +12,6 @@ class Promiscuous::Publisher::Operation::Base
 
   def write?
     !read?
-  end
-
-  def multi?
-    !!@multi
-  end
-
-  def single?
-    !@multi
   end
 
   def in_transaction?
@@ -193,17 +178,10 @@ class Promiscuous::Publisher::Operation::Base
       .each   { |node| node.del(versions_recovery_key) }
   end
 
-  def operation_payloads
-    op = self.failed? ? :dummy : self.operation
-    instance_payload = @instance.promiscuous.payload(:with_attributes => op.in?([:create, :update]))
-    instance_payload[:operation] = op
-    [instance_payload]
-  end
-
   def generate_payload
     payload = {}
     payload[:operations] = operation_payloads
-    payload[:context] = current_context.name if current_context
+    payload[:context] = current_context.name
     payload[:app] = Promiscuous::Config.app
     payload[:timestamp] = @timestamp
     payload[:host] = Socket.gethostname
@@ -387,13 +365,12 @@ class Promiscuous::Publisher::Operation::Base
       @committed_read_deps  += deps[first_read_index..-1]
     end
 
-    # The instance version is assumed to be the first in the list (a bit ugly)
-    instance_dep_index = @committed_write_deps.index(w.first)
+    # The instance version must to be the first in the list to allow atomic
+    # subscribers to do their magic.
+    # TODO What happens with transactions with multiple operations?
+    instance_dep_index = @committed_write_deps.index(write_dependencies.first)
     @committed_write_deps[0], @committed_write_deps[instance_dep_index] =
       @committed_write_deps[instance_dep_index], @committed_write_deps[0]
-
-    # TODO XXX @instance_version doesn't make sense for transaction
-    @instance_version = w.first.version
   end
 
   def self.lock_options
@@ -407,7 +384,7 @@ class Promiscuous::Publisher::Operation::Base
   delegate :lock_options, :to => self
 
   def dependency_for_op_lock
-    write_dependencies.first
+    query_dependencies.first
   end
 
   def get_new_op_lock
@@ -428,7 +405,10 @@ class Promiscuous::Publisher::Operation::Base
 
   def acquire_op_lock
     @op_lock = get_new_op_lock
-    self.class._acquire_lock(@op_lock)
+
+    unless self.class._acquire_lock(@op_lock)
+      raise Promiscuous::Error::LockUnavailable.new(@op_lock.key)
+    end
   end
 
   def release_op_lock
@@ -484,27 +464,12 @@ class Promiscuous::Publisher::Operation::Base
     end
   end
 
-  def instance_dependencies
-    @instance_dependencies ||= dependencies_for(@instance)
-  end
-
-  def reload_instance_dependencies
-    # Returns true when the dependencies changed, false otherwise
-    @write_dependencies = nil
-    old, @instance_dependencies = @instance_dependencies, nil
-    old != instance_dependencies
-  end
-
-  def previous_successful_operations
-    current_context.operations.reject(&:failed?)
-  end
-
   def read_dependencies
     # We memoize the read dependencies not just for performance, but also
     # because we store the versions once incremented in these.
     return @read_dependencies if @read_dependencies
-    read_dependencies = previous_successful_operations.select(&:read?)
-                             .map(&:instance_dependencies).flatten
+    read_dependencies = current_context.operations.select(&:read?)
+                             .map(&:query_dependencies).flatten
 
     # We add extra_dependencies, which can contain the latest write, or user
     # context, etc.
@@ -518,12 +483,7 @@ class Promiscuous::Publisher::Operation::Base
   alias generate_read_dependencies read_dependencies
 
   def write_dependencies
-    # The cache is cleared when we call reload_instance_dependencies
-    @write_dependencies ||= self.instance_dependencies.uniq.each { |d| d.type = :write }
-  end
-
-  def reload_instance
-    @instance = without_promiscuous { fetch_instance }
+    @write_dependencies ||= self.query_dependencies.uniq.each { |d| d.type = :write }
   end
 
   def perform_db_operation_with_no_exceptions(&db_operation)
@@ -533,30 +493,11 @@ class Promiscuous::Publisher::Operation::Base
     @state = :failed
   end
 
-  def acquire_and_validate_op_lock
-    unless dependency_for_op_lock
-      reload_instance
-      reload_instance_dependencies
-    end
-
-    loop do
-      unless acquire_op_lock
-        raise Promiscuous::Error::LockUnavailable.new(@op_lock.key)
-      end
-
-      # XXX What should we do if we are going in a live lock?
-      # Sleep with some jitter?
-      return if validate_acquired_op_lock
-
-      release_op_lock
-    end
-  end
-
   def execute_persistent(&db_operation)
     # generate_read_dependencies will throw if there are issues with previous
     # operations. It's better to fail now than with locks held.
     generate_read_dependencies
-    acquire_and_validate_op_lock
+    acquire_op_lock
 
     return db_operation.call if nop?
 
@@ -565,18 +506,18 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def execute_non_persistent(&db_operation)
-    # We don't do any reload_instance_dependencies at this point (and thus we
+    # We don't do any reload_query_dependencies at this point (and thus we
     # won't raise an exception on a multi read that we cannot track).
     # We'll wait until the commit, and hopefully with tainting, we'll be able to
     # tell if we should depend the multi read operation in question.
 
     perform_db_operation_with_no_exceptions(&db_operation)
+    # XXX The driver must populate its @instance to allow us to fetch
+    # dependencies.
     self.add_operation_in_current_context unless failed?
   end
 
   def execute(&db_operation)
-    # execute returns the result of the db_operation to perform
-    db_operation ||= proc {}
     return db_operation.call if Promiscuous.disabled?
 
     unless current_context
@@ -588,7 +529,6 @@ class Promiscuous::Publisher::Operation::Base
                      execute_non_persistent(&db_operation)
 
     @exception ? (raise @exception) : @result
-
   rescue
     @state = :failed
     raise
@@ -600,6 +540,13 @@ class Promiscuous::Publisher::Operation::Base
     false
   end
 
+  def query_dependencies
+    # Returns the list of dependencies that are involved in the database query.
+    # For an atomic write operation, the first one returned must be the one
+    # corresponding to the primary key.
+    raise
+  end
+
   def execute_persistent_locked(&db_operation)
     # Implemented by Atomic/Transaction.
     raise
@@ -608,12 +555,6 @@ class Promiscuous::Publisher::Operation::Base
   def validate_acquired_op_lock
     # That's for atomic operations.
     true
-  end
-
-  def fetch_instance
-    # This method is overridden to use the original query selector.
-    # Should return nil if the instance is not found.
-    @instance
   end
 
   def recovery_payload

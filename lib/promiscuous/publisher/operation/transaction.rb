@@ -31,12 +31,8 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
     Promiscuous::Dependency.new("__transactions__", self.transaction_id, :dont_hash => true)
   end
 
-  def instance_dependencies
-    @instance_dependencies ||= pending_writes.map(&:instance_dependencies).flatten
-  end
-
-  def reload_instance
-    pending_writes.each(&:reload_instance)
+  def query_dependencies
+    @query_dependencies ||= pending_writes.map(&:query_dependencies).flatten
   end
 
   def operation_payloads

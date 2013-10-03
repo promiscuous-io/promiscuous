@@ -33,7 +33,7 @@ module Promiscuous::Publisher::Model::Ephemeral
     operation = :update  unless self.new_record
     operation = :destroy if     self.destroyed
 
-    Promiscuous::Publisher::Operation::Atomic.new(:instance => self, :operation => operation).execute
+    Promiscuous::Publisher::Operation::Atomic.new(:instance => self, :operation => operation).execute {}
 
     self.new_record = false
     true

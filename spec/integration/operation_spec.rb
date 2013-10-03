@@ -101,7 +101,9 @@ require 'spec_helper'
                                       "publisher_models/field_2/456:2"]
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == nil
+        # We include the set dependency because we want to track the fact
+        # that that document was not there.
+        dep['read'].should  == hashed["publisher_models/field_1/123:2"]
         dep['write'].should =~ hashed["publisher_models/id/#{pub.id}:3",
                                       "publisher_models/field_1/blah:2",
                                       "publisher_models/field_2/456:3"]
@@ -123,6 +125,7 @@ require 'spec_helper'
 
         dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
         dep['read'].should  == nil
+
         dep['write'].should == hashed["publisher_models/id/#{pub1.id}:1",
                                       "publisher_models/field_1/123:1"]
 
@@ -217,19 +220,15 @@ require 'spec_helper'
       end
     end
 
-    context 'when using without_promiscuous.each', :pending => "Should be done by default" do
-      it 'track the reads one by one' do
+    context 'when using without_promiscuous.each' do
+      it 'track the reads one by one if the set is not tracked', :pending => true do
         pub1 = pub2 = pub3 = nil
         without_promiscuous do
           pub1 = PublisherModel.create(:field_1 => '123')
           pub2 = PublisherModel.create(:field_1 => '123')
         end
         Promiscuous.context do
-          expect do
-            PublisherModel.all.without_promiscuous.where(:field_1 => '123').each do |p|
-              p.reload
-            end
-          end.to_not raise_error
+          PublisherModel.where(:field_1 => '123').to_a
           pub3 = PublisherModel.create(:field_1 => '456')
         end
 

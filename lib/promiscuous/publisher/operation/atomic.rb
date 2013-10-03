@@ -1,51 +1,48 @@
 class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operation::Base
-  def validate_acquired_op_lock
-    return true if operation == :create
-    # We need to lock and update all the dependencies before any other
-    # readers can see our write through any one of our tracked attributes.
+  # XXX instance can be a selector representation.
+  attr_accessor :instance
 
-    # We want to reload the instance to make sure we have all the locked
-    # dependencies that we need on secondary attribues. Or maybe we locked
-    # an instance that no longer match our selector.
-    # If the selector doesn't fetch any instance, the query has no effect
-    # so we can bypass it as if nothing happened.  If reload_instance
-    # raises an exception, it's okay to let it bubble up since we haven't
-    # touch anything yet except for the locks (which will be unlocked on
-    # the way out)
-    #
-    # There is a bit of room for optimization if we know that we don't have
-    # any tracked attributes on the model and our selector is already an id.
-    return true unless reload_instance
-
-    # If reload_instance changed the current instance because the selector,
-    # we need to unlock the old instance, lock this new instance, and
-    # retry.
-    return !reload_instance_dependencies
+  def initialize(options={})
+    super
+    @instance = options[:instance]
   end
 
-  # XXX TODO DEAL WITH ARRAYS
-  # def execute_non_persistent(&db_operation
-    # # We are getting here in the following cases:
-    # # * read: we fetch the instance. It's the driver's job to cache the
-    # #       raw instance and return it during db_operation.
-    # # * multi read: nothing to do, we'll keep our current selector, sadly
-    # # TODO Get dependencies on the returned array instead of the selector set.
+  def operation_payloads
+    op = self.failed? ? :dummy : self.operation
+    instance_payload = @instance.promiscuous.payload(:with_attributes => op.in?([:create, :update]))
+    instance_payload[:operation] = op
+    [instance_payload]
+  end
 
-    # if read? && single?
-      # # If the query misses, we don't bother
-      # return nil unless reload_instance
-      # use_id_selector
-    # end
+  def acquire_op_lock
+    unless dependency_for_op_lock
+      return unless reload_instance
+    end
 
-    # super
-  # end
+    loop do
+      instance_dep = dependency_for_op_lock
+
+      super
+
+      return if operation == :create
+
+      # We need to make sure that the lock we acquired matches our selector.
+      # There is a bit of room for optimization if we know that we don't have
+      # any tracked attributes on the model and our selector is already an id.
+      return unless reload_instance
+
+      # If reload_instance changed the current instance because the selector,
+      # we need to unlock the old instance, lock this new instance, and
+      # retry.
+      return if instance_dep == dependency_for_op_lock
+
+      # XXX What should we do if we are going in a live lock?
+      # Sleep with some jitter?
+      release_op_lock
+    end
+  end
 
   def execute_persistent_locked(&db_operation)
-    # We are going to commit all the pending writes in the context if we are
-    # doing a transaction commit. We also commit the current write operation for
-    # atomic writes without transactions.  We enable the recovery mechanism by
-    # having someone expiring our lock if we die in the middle.
-
     # All the versions are updated and a marked as pending for publish in Redis
     # atomically in case we die before we could write the versions in the
     # database. Once incremented, concurrent queries that are reading our
@@ -74,9 +71,9 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
 
     case operation
     when :create
-      stash_version_in_write_query
+      stash_version_in_write_query(@committed_write_deps.first.version)
     when :update
-      stash_version_in_write_query
+      stash_version_in_write_query(@committed_write_deps.first.version)
       # We are now in the possession of an instance that matches the original
       # selector. We need to make sure the db_operation will operate on it,
       # instead of the original selector.
@@ -89,11 +86,9 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
       use_id_selector(:use_atomic_version_selector => true)
     end
 
-    # Perform the actual database query (single write or transaction commit).
+    # Perform the actual database query.
     # If successful, the result goes in @result, otherwise, @exception contains
     # the thrown exception.
-    # XXX TODO we need to interpret the exception, if it's a network issue, we
-    # should commit suicide.
     perform_db_operation_with_no_exceptions(&db_operation)
 
     # We take a timestamp right after the write is performed because latency
@@ -111,6 +106,9 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
       reload_instance
     end
 
+    # This make sure that if the db operation failed because of a network issue
+    # and we got recovered, we don't send anything as we could send a different
+    # message than the recovery mechanism.
     ensure_op_still_locked
 
     generate_payload
@@ -133,13 +131,28 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     publish_payload_in_rabbitmq_async
   end
 
-  def stash_version_in_write_query
-    # Overridden to update the query to set 'instance.VERSION_FIELD = @instance_version'
+  def query_dependencies
+    dependencies_for(@instance)
+  end
+
+  def fetch_instance
+    # This method is overridden to use the original query selector.
+    # Should return nil if the instance is not found.
+    @instance
+  end
+
+  def reload_instance
+    @instance = fetch_instance
+  end
+
+  def stash_version_in_write_query(version)
+    # Overridden to update the query to set the version field with:
+    # instance[Promiscuous::Config.version_field] = version
   end
 
   def use_id_selector(options={})
     # Overridden to use the {:id => @instance.id} selector.
-    # if use_atomic_version_selector is passed, the driver must
-    # add the VERSION_FIELD selector if present in original instance.
+    # if the option use_atomic_version_selector is passed, the driver must add
+    # the version_field selector.
   end
 end
