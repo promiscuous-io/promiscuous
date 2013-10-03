@@ -30,7 +30,7 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
       model = Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection]
       document = YAML.load(document)
       instance = Mongoid::Factory.from_db(model, document)
-      new(:collection => model.collection, :document => document, :instance => instance, :state => :recovering)
+      new(:collection => model.collection, :document => document, :instance => instance)
     end
 
     def recover_db_operation
@@ -99,7 +99,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       # TODO We need to use the primary database. We cannot read from a secondary.
       model = Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection]
       query = model.unscoped.where(:id => instance_id).query
-      op = new(:query => query, :change => {}, :state => :recovering)
+      op = new(:query => query, :change => {})
 
       # TODO refactor this not so pretty instance_eval
       op.instance_eval do

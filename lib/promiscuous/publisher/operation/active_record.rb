@@ -62,40 +62,45 @@ class ActiveRecord::Base
             alias_method :commit_db_transaction_without_promiscuous,   :commit_db_transaction
             alias_method :release_savepoint_without_promiscuous,       :release_savepoint
 
+            def with_promiscuous_transaction_context(&block)
+              ctx = Promiscuous::Publisher::Context.current
+              block.call(ctx.transaction_context_of(:active_record)) if ctx
+            end
+
             def begin_db_transaction
               @current_transaction_id = SecureRandom.uuid
               begin_db_transaction_without_promiscuous
-              Promiscuous::Publisher::Context.current.try(:start_transaction, :active_record)
+              with_promiscuous_transaction_context { |tx| tx.start }
             end
 
             def create_savepoint
               create_savepoint_without_promiscuous
-              Promiscuous::Publisher::Context.current.try(:start_transaction, :active_record)
+              with_promiscuous_transaction_context { |tx| tx.start }
             end
 
             def rollback_db_transaction
-              Promiscuous::Publisher::Context.current.try(:rollback_transaction, :active_record)
+              with_promiscuous_transaction_context { |tx| tx.rollback }
               rollback_db_transaction_without_promiscuous
               @current_transaction_id = nil
             end
 
             def rollback_to_savepoint
-              Promiscuous::Publisher::Context.current.try(:rollback_transaction, :active_record)
+              with_promiscuous_transaction_context { |tx| tx.rollback }
               rollback_to_savepoint_without_promiscuous
             end
 
             def commit_db_transaction
-              ops = Promiscuous::Publisher::Context.current.try(:transaction_operations, :active_record)
+              ops = with_promiscuous_transaction_context { |tx| tx.write_operations_to_commit }
               PromiscuousTransaction.new(:connection => self, :transaction_operations => ops).execute do
                 commit_db_transaction_without_promiscuous
               end
-              Promiscuous::Publisher::Context.current.try(:commit_transaction, :active_record)
+              with_promiscuous_transaction_context { |tx| tx.commit }
               @current_transaction_id = nil
             end
 
             def release_savepoint
               release_savepoint_without_promiscuous
-              Promiscuous::Publisher::Context.current.try(:commit_transaction, :active_record)
+              with_promiscuous_transaction_context { |tx| tx.commit }
             end
 
             alias_method :select_all_without_promiscuous, :select_all
@@ -149,7 +154,17 @@ class ActiveRecord::Base
     end
 
     def transaction_context
-      :active_record
+      current_context.transaction_context_of(:active_record)
+    end
+
+    def persists?
+      false
+    end
+
+    def ensure_transaction!
+      if current_context && write? && !transaction_context.in_transaction?
+        raise "You need to write to the database within an ActiveRecord transaction"
+      end
     end
 
     def model
@@ -161,9 +176,15 @@ class ActiveRecord::Base
     def execute(&db_operation)
       return db_operation.call unless model
       ensure_transaction!
-      super do
+      super do |op|
         db_operation_and_select.tap do
-          @state = :failed if @instance.nil?
+          if op
+            @state = :failed if @instance.nil?
+
+            if write? && !failed?
+              transaction_context.add_write_operation(self)
+            end
+          end
         end
       end
     end

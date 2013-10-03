@@ -24,13 +24,13 @@ class Promiscuous::Publisher::Context::Base
     end
   end
 
-  attr_accessor :name, :operations, :extra_dependencies
+  attr_accessor :name, :read_operations, :extra_dependencies
 
   def initialize(*args)
     @name = args.first.try(:to_s) || 'anonymous'
-    @operations = []
+    @read_operations = []
     @extra_dependencies = []
-    @transaction_indexes = {}
+    @transaction_managers = {}
 
     Promiscuous::AMQP.ensure_connected
 
@@ -38,29 +38,8 @@ class Promiscuous::Publisher::Context::Base
     ActiveRecord::IdentityMap.clear if defined?(ActiveRecord::IdentityMap)
   end
 
-  def start_transaction(driver)
-    # The indexes are stored in a queue so we know which operation to mark as
-    # failed.
-    @transaction_indexes[driver] ||= []
-    @transaction_indexes[driver] << @operations.size
-  end
-
-  def transaction_operations(driver)
-    transaction_index = @transaction_indexes[driver].last
-    @operations[transaction_index..-1].select { |op| op.transaction_context == driver }
-  end
-
-  def rollback_transaction(driver)
-    transaction_operations(driver).each(&:fail!)
-    @transaction_indexes[driver].pop
-  end
-
-  def commit_transaction(driver)
-    @transaction_indexes[driver].pop
-  end
-
-  def in_transaction?(driver)
-    !(@transaction_indexes[driver] || []).empty?
+  def transaction_context_of(driver)
+    @transaction_managers[driver] ||= Promiscuous::Publisher::Context::Transaction.new(driver)
   end
 
   def trace_operation(operation, options={})

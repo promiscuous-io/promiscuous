@@ -14,22 +14,8 @@ class Promiscuous::Publisher::Operation::Base
     !read?
   end
 
-  def in_transaction?
-    current_context.in_transaction?(transaction_context)
-  end
-
-  def ensure_transaction!
-    if current_context && write? && !self.in_transaction?
-      raise "You need to write within a SQL transaction"
-    end
-  end
-
   def persists?
-    write? && (@operation == :commit || !self.in_transaction?)
-  end
-
-  def fail!
-    @state = :fail
+    write?
   end
 
   def recovering?
@@ -44,22 +30,15 @@ class Promiscuous::Publisher::Operation::Base
     @state == :failed
   end
 
-  def recovery?
-    !!@recovery
-  end
-
   def current_context
     @current_context ||= Promiscuous::Publisher::Context.current
   end
 
   def trace_operation
-    msg = Promiscuous::Error::Dependency.explain_operation(self, 70)
-    current_context.trace(msg, :color => self.read? ? '0;32' : '1;31')
-  end
-
-  def add_operation_in_current_context
-    trace_operation if ENV['TRACE']
-    current_context.operations << self
+    if ENV['TRACE']
+      msg = Promiscuous::Error::Dependency.explain_operation(self, 70)
+      current_context.trace(msg, :color => self.read? ? '0;32' : '1;31')
+    end
   end
 
   mattr_accessor :recovery_hooks
@@ -192,8 +171,8 @@ class Promiscuous::Publisher::Operation::Base
     @payload = MultiJson.dump(payload)
   end
 
-  def clear_previous_operations
-    current_context.operations.clear
+  def clear_previous_dependencies
+    current_context.read_operations.clear
     current_context.extra_dependencies = [@committed_write_deps.first]
   end
 
@@ -221,7 +200,7 @@ class Promiscuous::Publisher::Operation::Base
     begin
       op = op_klass.constantize.recover_operation(*recovery_arguments)
     rescue NameError
-      raise "Cannot recover operation class: #{op_klass}"
+      raise "invalid recover operation class: #{op_klass}"
     end
 
     Thread.new do
@@ -236,7 +215,7 @@ class Promiscuous::Publisher::Operation::Base
           @read_dependencies  = read_dependencies
           @write_dependencies = write_dependencies
           @op_lock = lock
-          @recovery = true
+          @state = :recovering
           execute_persistent_locked { recover_db_operation }
           raise(@exception) if @exception
         end
@@ -468,8 +447,7 @@ class Promiscuous::Publisher::Operation::Base
     # We memoize the read dependencies not just for performance, but also
     # because we store the versions once incremented in these.
     return @read_dependencies if @read_dependencies
-    read_dependencies = current_context.operations.select(&:read?)
-                             .map(&:query_dependencies).flatten
+    read_dependencies = current_context.read_operations.map(&:query_dependencies).flatten
 
     # We add extra_dependencies, which can contain the latest write, or user
     # context, etc.
@@ -501,7 +479,6 @@ class Promiscuous::Publisher::Operation::Base
 
     return db_operation.call if nop?
 
-    self.add_operation_in_current_context
     execute_persistent_locked(&db_operation)
   end
 
@@ -512,9 +489,11 @@ class Promiscuous::Publisher::Operation::Base
     # tell if we should depend the multi read operation in question.
 
     perform_db_operation_with_no_exceptions(&db_operation)
-    # XXX The driver must populate its @instance to allow us to fetch
-    # dependencies.
-    self.add_operation_in_current_context unless failed?
+
+    unless failed?
+      current_context.read_operations << self if read?
+      trace_operation
+    end
   end
 
   def execute(&db_operation)
@@ -564,16 +543,11 @@ class Promiscuous::Publisher::Operation::Base
 
   def self.recover_operation(*recovery_payload)
     # Overridden to reconstruct the operation.
-    new(:operation => :dummy, :state => :recovering)
+    new(:operation => :dummy)
   end
 
   def recover_db_operation
     # Overridden to reexecute the db operation during recovery (or make sure that
     # it will never succeed).
-  end
-
-  def transaction_context
-    # Overridden to the driver name, like :active_record to locate the
-    # transaction context
   end
 end

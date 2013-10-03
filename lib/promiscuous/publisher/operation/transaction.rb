@@ -78,7 +78,7 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
     ensure_op_still_locked
 
     generate_payload
-    clear_previous_operations
+    clear_previous_dependencies
 
     publish_payload_in_redis
     release_op_lock
@@ -91,6 +91,6 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
   end
 
   def self.recover_operation(transaction_id, operation_payloads)
-    new(:transaction_id => transaction_id, :operation_payloads => operation_payloads, :state => :recovering)
+    new(:transaction_id => transaction_id, :operation_payloads => operation_payloads)
   end
 end
