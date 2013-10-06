@@ -145,7 +145,7 @@ class ActiveRecord::Base
     end
   end
 
-  class PromiscousOperation < Promiscuous::Publisher::Operation::Atomic
+  class PromiscousOperation < Promiscuous::Publisher::Operation::Base
     def initialize(arel, name, binds, options={})
       super(options)
       @arel = arel
@@ -179,12 +179,11 @@ class ActiveRecord::Base
       ensure_transaction!
       super do |op|
         db_operation_and_select.tap do
-          if op
-            @state = :failed if @instance.nil?
-
-            if write? && !failed?
-              transaction_context.add_write_operation(self)
-            end
+          if op && @instances.empty?
+            @state = :failed
+          end
+          if op && write? && !failed?
+            transaction_context.add_write_operation(self)
           end
         end
       end
@@ -192,6 +191,18 @@ class ActiveRecord::Base
 
     def db_operation_and_select
       raise
+    end
+
+    def query_dependencies
+      @instances.map { |instance| dependencies_for(instance) }
+    end
+
+    def operation_payloads
+      @instances.map do |instance|
+        instance.promiscuous.payload(:with_attributes => self.operation.in?([:create, :update])).tap do |payload|
+          payload[:operation] = self.operation
+        end
+      end
     end
   end
 
@@ -210,11 +221,9 @@ class ActiveRecord::Base
 
       @connection.exec_insert("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
         @instances = result.map { |row| model.instantiate(row) }
-        raise "writing on many rows is not supported yet" if @instances.size > 1
-        @instance = @instances.first
       end
       # TODO Use correct primary key
-      @instance.id
+      @instances.first.id
     end
   end
 
@@ -249,8 +258,6 @@ class ActiveRecord::Base
       # TODO this should be in the postgres driver (to also leverage the cache)
       @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
         @instances = result.map { |row| model.instantiate(row) }
-        raise "writing on many rows is not supported yet" if @instances.size > 1
-        @instance = @instances.first
       end.rows.size
     end
 
@@ -273,8 +280,6 @@ class ActiveRecord::Base
       # XXX This is only supported by Postgres.
       @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
         @instances = result.map { |row| model.instantiate(row) }
-        raise "writing on many rows is not supported yet" if @instances.size > 1
-        @instance = @instances.first
       end.rows.size
     end
   end
@@ -308,12 +313,10 @@ class ActiveRecord::Base
       model.instantiate(Hash[attrs])
     end
 
-    def instance_dependencies
-      @instance_dependencies ||= begin
-        dependencies_for(@instance)
-      rescue Promiscuous::Error::Dependency
-        @result.map { |r| dependencies_for(model.instantiate(r)) }.flatten
-      end
+    def query_dependencies
+      dependencies_for(get_selector_instance) || super
+    rescue Promiscuous::Error::Dependency
+      super
     end
 
     def execute(&db_operation)
@@ -322,11 +325,9 @@ class ActiveRecord::Base
     end
 
     def db_operation_and_select
-      # TODO We only need the tracked attributes really (most likely, we just need ID)
       # XXX This is only supported by Postgres.
-      @connection.exec_query("#{@connection.to_sql(@arel, @binds)}", @operation_name, @binds).to_a.tap do |attrs|
-        @instance = get_selector_instance
-        # TODO Use result if we can't have a selector
+      @connection.exec_query("#{@connection.to_sql(@arel, @binds)}", @operation_name, @binds).to_a.tap do |result|
+        @instances = result.map { |row| model.instantiate(row) }
       end
     end
   end

@@ -42,11 +42,6 @@ class Promiscuous::Publisher::Context::Base
     @transaction_managers[driver] ||= Promiscuous::Publisher::Context::Transaction.new(driver)
   end
 
-  def trace_operation(operation, options={})
-    msg = Promiscuous::Error::Dependency.explain_operation(operation, 70)
-    trace(msg, options.merge(:color => operation.read? ? '0;32' : '1;31'))
-  end
-
   def trace(msg, options={})
     level = ENV['TRACE'].to_i - options[:level].to_i
     return if level < 0
