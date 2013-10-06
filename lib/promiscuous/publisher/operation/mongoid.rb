@@ -44,14 +44,13 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
       @document[Promiscuous::Config.version_field] = version
     end
 
-    def execute_persistent(&db_operation)
+    def execute_instrumented(query)
       @instance = Mongoid::Factory.from_db(model, @document)
       super
     end
 
-    def execute(&db_operation)
-      return db_operation.call unless model
-      super
+    def should_instrument_query?
+      super && model
     end
   end
 
@@ -74,21 +73,44 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
 end
 
 class Moped::PromiscuousQueryWrapper < Moped::Query
-  class PromiscuousQueryOperation < Promiscuous::Publisher::Operation::Atomic
-    attr_accessor :raw_instance, :new_raw_instance, :change
-
-    def initialize(options={})
-      super
-      @query = options[:query]
-      @change = options[:change]
-    end
-
+  module PromiscuousHelpers
     def collection_name
       @collection_name ||= @query.collection.is_a?(String) ? @query.collection : @query.collection.name
     end
 
     def model
       @model ||= Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection_name]
+    end
+
+    def get_selector_instance
+      selector = @query.operation.selector["$query"] || @query.operation.selector
+
+      # TODO use the original instance for an update/delete, that would be
+      # an even better hint.
+
+      # We only support == selectors, no $in, or $gt.
+      @selector = selector.select { |k,v| k.to_s =~ /^[^$]/ && !v.is_a?(Hash) }
+
+      # @instance is not really a proper instance of a model, it's just a
+      # convenient representation of a selector as explain in base.rb,
+      # which explain why we don't want any constructor to be called.
+      # Note that this optimistic mechanism also works with writes because
+      # the instance gets reloaded once the lock is taken. If the
+      # dependencies were incorrect, the locks will be released and
+      # reacquired appropriately.
+      model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, @selector) }
+    end
+  end
+
+  class PromiscuousWriteOperation < Promiscuous::Publisher::Operation::Atomic
+    include Moped::PromiscuousQueryWrapper::PromiscuousHelpers
+
+    attr_accessor :raw_instance, :new_raw_instance, :change
+
+    def initialize(options={})
+      super
+      @query = options[:query]
+      @change = options[:change]
     end
 
     def recovery_payload
@@ -137,36 +159,12 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       @change['$set'][Promiscuous::Config.version_field] = version
     end
 
-    def get_selector_instance
-      selector = @query.operation.selector["$query"] || @query.operation.selector
-
-      # TODO use the original instance for an update/delete, that would be
-      # an even better hint.
-
-      # We only support == selectors, no $in, or $gt.
-      @selector = selector.select { |k,v| k.to_s =~ /^[^$]/ && !v.is_a?(Hash) }
-
-      # @instance is not really a proper instance of a model, it's just a
-      # convenient representation of a selector as explain in base.rb,
-      # which explain why we don't want any constructor to be called.
-      # Note that this optimistic mechanism also works with writes because
-      # the instance gets reloaded once the lock is taken. If the
-      # dependencies were incorrect, the locks will be released and
-      # reacquired appropriately.
-      model.allocate.tap { |doc| doc.instance_variable_set(:@attributes, @selector) }
-    end
-
-    def execute_persistent(&db_operation)
+    def execute_instrumented(query)
       # We are trying to be optimistic for the locking. We are trying to figure
       # out our dependencies with the selector upfront to avoid an extra read
       # from reload_instance.
       @instance = get_selector_instance
       super
-    end
-
-    def execute_non_persistent(&db_operation)
-      super
-      @instance ||= get_selector_instance
     end
 
     def fields_in_query(change)
@@ -191,20 +189,36 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       (attributes & model.published_db_fields).present?
     end
 
-    def execute(&db_operation)
-      return db_operation.call unless model
-      return db_operation.call unless any_published_field_changed?
-
-      super
-    end
-
-    def nop?
-      @instance.nil?
+    def should_instrument_query?
+      super && model && any_published_field_changed?
     end
   end
 
-  def promiscuous_operation(operation, options={})
-    PromiscuousQueryOperation.new(options.merge(:query => self, :operation => operation))
+  class PromiscuousReadOperation < Promiscuous::Publisher::Operation::NonPersistent
+    include Moped::PromiscuousQueryWrapper::PromiscuousHelpers
+
+    def initialize(options={})
+      super
+      @operation = :read
+      @query = options[:query]
+    end
+
+    def execute_instrumented(query)
+      super
+      @instances = [get_selector_instance] if @instances.empty?
+    end
+
+    def should_instrument_query?
+      super && model
+    end
+  end
+
+  def promiscuous_read_operation(options={})
+    PromiscuousReadOperation.new(options.merge(:query => self))
+  end
+
+  def promiscuous_write_operation(operation, options={})
+    PromiscuousWriteOperation.new(options.merge(:query => self, :operation => operation))
   end
 
   def selector=(value)
@@ -215,11 +229,11 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   # Moped::Query
 
   def count(*args)
-    promiscuous_operation(:read, :operation_ext => :count).execute { super }.to_i
+    promiscuous_read_operation(:operation_ext => :count).execute { super }.to_i
   end
 
   def distinct(key)
-    promiscuous_operation(:read, :operation_ext => :distinct).execute { super }
+    promiscuous_read_operation(:operation_ext => :distinct).execute { super }
   end
 
   def each
@@ -235,7 +249,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   def first
     # FIXME If the the user is using something like .only(), we need to make
     # sure that we add the id, otherwise we are screwed.
-    promiscuous_operation(:read).execute { super }
+    promiscuous_read_operation.execute { super }
   end
   alias :one :first
 
@@ -245,22 +259,21 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       raise "No upsert support yet" if flags.include?(:upsert)
     end
 
-    promiscuous_operation(:update, :change => change).execute do |operation|
-      if operation
-        operation.new_raw_instance = without_promiscuous { modify(change, :new => true) }
+    promiscuous_write_operation(:update, :change => change).execute do |query|
+      query.non_instrumented { super }
+      query.instrumented do |op|
+        op.new_raw_instance = without_promiscuous { modify(change, :new => true) }
         {'updatedExisting' => true, 'n' => 1, 'err' => nil, 'ok' => 1.0}
-      else
-        super
       end
     end
   end
 
   def modify(change, options={})
-    promiscuous_operation(:update, :change => change).execute { super }
+    promiscuous_write_operation(:update, :change => change).execute { super }
   end
 
   def remove
-    promiscuous_operation(:destroy).execute { super }
+    promiscuous_write_operation(:destroy).execute { super }
   end
 
   def remove_all
@@ -270,20 +283,20 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 end
 
 class Moped::PromiscuousCursorWrapper < Moped::Cursor
-  def promiscuous_operation(op, options={})
-    Moped::PromiscuousQueryWrapper::PromiscuousQueryOperation.new(
-      options.merge(:query => @query, :operation => op, :operation_ext => :each))
+  def promiscuous_read_operation(options={})
+    Moped::PromiscuousQueryWrapper::PromiscuousReadOperation.new(
+      options.merge(:query => @query, :operation_ext => :each))
   end
 
   # Moped::Cursor
 
   def load_docs
-    promiscuous_operation(:read).execute { super }.to_a
+    promiscuous_read_operation.execute { super }.to_a
   end
 
   def get_more
     # TODO support batch_size
-    promiscuous_operation(:read).execute { super }
+    promiscuous_read_operation.execute { super }
   end
 
   def initialize(session, query_operation)
@@ -295,9 +308,8 @@ end
 class Moped::PromiscuousDatabase < Moped::Database
   # TODO it might be safer to use the alias attribute method because promiscuous
   # may come late in the loading.
-  def promiscuous_operation(op, options={})
-    Moped::PromiscuousQueryWrapper::PromiscuousQueryOperation.new(
-      options.merge(:operation => op))
+  def promiscuous_read_operation(options={})
+    Moped::PromiscuousQueryWrapper::PromiscuousReadOperation.new(options)
   end
 
   # Moped::Database
@@ -305,8 +317,7 @@ class Moped::PromiscuousDatabase < Moped::Database
   def command(command)
     if command[:mapreduce]
       query = Moped::Query.new(self[command[:mapreduce]], command[:query])
-      promiscuous_operation(:read, :query => query,
-                            :operation_ext => :mapreduce).execute { super }
+      promiscuous_read_operation(:query => query, :operation_ext => :mapreduce).execute { super }
     else
       super
     end

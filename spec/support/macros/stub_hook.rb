@@ -1,8 +1,9 @@
 module StubHook
-  class Control < Struct.new(:active, :instance)
+  class Control < Struct.new(:active, :instance, :arguments)
     def initialize
       self.active = true
       self.instance = nil
+      self.arguments = nil
     end
 
     def unstub!
@@ -23,6 +24,7 @@ module StubHook
         if control.active
           mutex.synchronize do
             control.instance = self
+            control.arguments = args
             before_call.call(control)
           end
         end

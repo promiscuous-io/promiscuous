@@ -2,6 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before do
+    @proxy_klass = Promiscuous::Publisher::Operation::ProxyForQuery
     @operation_klass = Promiscuous::Publisher::Operation::Base
     @operation_klass.stubs(:lock_options).returns(
       :timeout => 1.year,
@@ -21,11 +22,17 @@ describe Promiscuous do
 
   def stub_once_on(klass, method, options={}, &block)
     stub_before_hook(klass, method) do |control|
-      if !options[:if] || options[:if].call(control.instance)
+      if !options[:if] || options[:if].call(control.instance, control.arguments)
         control.unstub!
         block.call(control.instance)
       end
     end
+  end
+
+  def stub_once_on_db_query(&block)
+    stub_once_on(@proxy_klass, :call_and_remember_result,
+                 :if => proc { |op, args| caller.grep(/non_persistent/).empty? && # Really sad hack
+                                          args[0] == :instrumented }, &block)
   end
 
   after { @pub_worker.stop }
@@ -89,8 +96,7 @@ describe Promiscuous do
   context 'when the publisher dies right after the increments' do
     context 'when doing a create' do
       it 'recovers' do
-        stub_once_on(@operation_klass, :perform_db_operation_with_no_exceptions,
-                     :if => proc { |op| op.persists? }) { raise }
+        stub_once_on_db_query { raise }
         expect { Promiscuous.context { PublisherModel.create(:field_1 => '1') } }.to raise_error
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
@@ -114,8 +120,7 @@ describe Promiscuous do
         pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
 
-        stub_once_on(@operation_klass, :perform_db_operation_with_no_exceptions,
-                     :if => proc { |op| op.persists? }) { raise }
+        stub_once_on_db_query { raise }
         expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 } if ORM.has(:transaction)
@@ -152,8 +157,7 @@ describe Promiscuous do
         pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
 
-        stub_once_on(@operation_klass, :perform_db_operation_with_no_exceptions,
-                     :if => proc { |op| op.persists? }) { raise }
+        stub_once_on_db_query { raise }
         expect { Promiscuous.context { pub.destroy } }.to raise_error
 
         Promiscuous.context { pub.update_attributes(:field_1 => '3') }
@@ -191,8 +195,8 @@ describe Promiscuous do
   context 'when the publisher takes its time to do the db query' do
     context 'when doing a create' do
       it 'recovers' do
-        stub_once_on(@operation_klass, :perform_db_operation_with_no_exceptions,
-                     :if => proc { |op| op.persists? }) { sleep 2 }
+
+        stub_once_on_db_query { sleep 2 }
         expect do
           Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         end.to raise_error(Promiscuous::Error::LostLock)
@@ -229,8 +233,7 @@ describe Promiscuous do
         pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
 
-        stub_once_on(@operation_klass, :perform_db_operation_with_no_exceptions,
-                     :if => proc { |op| op.persists? }) { sleep 2 }
+        stub_once_on_db_query { sleep 2 }
         expect do
           Promiscuous.context { pub.update_attributes(:field_1 => '2') }
         end.to raise_error(Promiscuous::Error::LostLock)
@@ -268,8 +271,7 @@ describe Promiscuous do
         pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         Promiscuous::AMQP::Fake.get_next_message
 
-        stub_once_on(@operation_klass, :perform_db_operation_with_no_exceptions,
-                     :if => proc { |op| op.persists? }) { sleep 2 }
+        stub_once_on_db_query { sleep 2 }
         expect do
           Promiscuous.context { pub.destroy }
         end.to raise_error(Promiscuous::Error::LostLock)

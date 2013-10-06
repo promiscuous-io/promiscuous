@@ -92,7 +92,9 @@ class ActiveRecord::Base
 
             def commit_db_transaction
               ops = with_promiscuous_transaction_context { |tx| tx.write_operations_to_commit }
-              PromiscuousTransaction.new(:connection => self, :transaction_operations => ops).execute do
+              PromiscuousTransaction.new(:connection => self,
+                                         :transaction_id => self.current_transaction_id,
+                                         :transaction_operations => ops).execute do
                 commit_db_transaction_without_promiscuous
               end
               with_promiscuous_transaction_context { |tx| tx.commit }
@@ -145,7 +147,7 @@ class ActiveRecord::Base
     end
   end
 
-  class PromiscousOperation < Promiscuous::Publisher::Operation::Base
+  class PromiscousOperation < Promiscuous::Publisher::Operation::NonPersistent
     def initialize(arel, name, binds, options={})
       super(options)
       @arel = arel
@@ -156,10 +158,6 @@ class ActiveRecord::Base
 
     def transaction_context
       current_context.transaction_context_of(:active_record)
-    end
-
-    def persists?
-      false
     end
 
     def ensure_transaction!
@@ -177,13 +175,20 @@ class ActiveRecord::Base
     def execute(&db_operation)
       return db_operation.call unless model
       ensure_transaction!
-      super do |op|
-        db_operation_and_select.tap do
-          if op && @instances.empty?
-            @state = :failed
-          end
-          if op && write? && !failed?
-            transaction_context.add_write_operation(self)
+
+      super do |query|
+        query.non_instrumented do
+          db_operation.call
+        end
+
+        query.instrumented do
+          db_operation_and_select.tap do
+            if @instances.empty?
+              @state = :failed
+            end
+            if write? && !failed?
+              transaction_context.add_write_operation(self)
+            end
           end
         end
       end
@@ -333,15 +338,27 @@ class ActiveRecord::Base
   end
 
   class PromiscuousTransaction < Promiscuous::Publisher::Operation::Transaction
+    attr_accessor :connection
+
     def initialize(options={})
       super
       # When we do a recovery, we use the default connection.
-      @connection ||= ActiveRecord::Base.connection
+      @connection = options[:connection] || ActiveRecord::Base.connection
+    end
+
+    def execute_instrumented(query)
+      query.prepare      { @connection.prepare_db_transaction }
+      query.instrumented { @connection.commit_prepared_db_transaction(@transaction_id) }
+      super
     end
 
     def self.recover_transaction(connection, transaction_id)
-      op = new(:transaction_id => transaction_id)
-      op.release_op_lock if op.acquire_op_lock
+      op = new(:connection => connection, :transaction_id => transaction_id)
+      # Getting the lock will trigger the real recovery mechanism
+      if op.acquire_op_lock
+        op.release_op_lock
+      end
+
       # In the event where the recovery payload wasn't found, we must roll back.
       # If the operation was recoverable, but couldn't be recovered, an
       # exception would be thrown, so we won't roll it back by mistake.

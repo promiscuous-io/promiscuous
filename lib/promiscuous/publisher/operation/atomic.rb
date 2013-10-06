@@ -7,13 +7,6 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     @instance = options[:instance]
   end
 
-  def operation_payloads
-    op = self.failed? ? :dummy : self.operation
-    instance_payload = @instance.promiscuous.payload(:with_attributes => op.in?([:create, :update]))
-    instance_payload[:operation] = op
-    [instance_payload]
-  end
-
   def acquire_op_lock
     unless dependency_for_op_lock
       return unless reload_instance
@@ -42,7 +35,18 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     end
   end
 
-  def execute_persistent_locked(&db_operation)
+  def execute_instrumented(query)
+    unless self.recovering?
+      generate_read_dependencies
+      acquire_op_lock
+
+      if @instance.nil?
+        # The selector missed the instance, bailing out.
+        query.call_and_remember_result(:non_instrumented)
+        return
+      end
+    end
+
     # All the versions are updated and a marked as pending for publish in Redis
     # atomically in case we die before we could write the versions in the
     # database. Once incremented, concurrent queries that are reading our
@@ -75,7 +79,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     when :update
       stash_version_in_write_query(@committed_write_deps.first.version)
       # We are now in the possession of an instance that matches the original
-      # selector. We need to make sure the db_operation will operate on it,
+      # selector. We need to make sure the db query will operate on it,
       # instead of the original selector.
       use_id_selector(:use_atomic_version_selector => true)
       # We need to use an atomic versioned selector to make sure that
@@ -86,16 +90,13 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
       use_id_selector(:use_atomic_version_selector => true)
     end
 
-    # Perform the actual database query.
-    # If successful, the result goes in @result, otherwise, @exception contains
-    # the thrown exception.
-    perform_db_operation_with_no_exceptions(&db_operation)
+    query.call_and_remember_result(:instrumented)
 
     # We take a timestamp right after the write is performed because latency
     # measurements are performed on the subscriber.
     record_timestamp
 
-    if operation == :update && !failed?
+    if operation == :update && !query.failed?
       # The underlying driver should implement some sort of find and modify
       # operation in the previous write query to avoid this extra read query,
       # and let us access the instance through fetch_instance called from
@@ -129,6 +130,11 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     # We don't care if we lost the lock and got recovered, subscribers are
     # immune to duplicate messages.
     publish_payload_in_rabbitmq_async
+  end
+
+  def operation_payloads
+    return [] if self.failed?
+    [payload_for(@instance)]
   end
 
   def query_dependencies

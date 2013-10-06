@@ -14,9 +14,8 @@ ActiveRecord::Base.establish_connection(
   :pool => 20,
 )
 
-ActiveRecord::Base.connection.execute("select gid from pg_prepared_xacts").column_values(0)
-  .each do |xid|
-    ActiveRecord::Base.connection.execute("ROLLBACK PREPARED '#{xid}'")
+ActiveRecord::Base.connection.execute("select gid from pg_prepared_xacts").column_values(0).each do |xid|
+  ActiveRecord::Base.connection.execute("ROLLBACK PREPARED '#{xid}'")
 end
 
 class PromiscuousMigration < ActiveRecord::Migration

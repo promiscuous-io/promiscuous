@@ -25,10 +25,6 @@ class Promiscuous::Publisher::Operation::Base
     !read?
   end
 
-  def persists?
-    write?
-  end
-
   def recovering?
     @state == :recovering
   end
@@ -43,13 +39,6 @@ class Promiscuous::Publisher::Operation::Base
 
   def current_context
     @current_context ||= Promiscuous::Publisher::Context.current
-  end
-
-  def trace_operation
-    if ENV['TRACE']
-      msg = Promiscuous::Error::Dependency.explain_operation(self, 70)
-      current_context.trace(msg, :color => self.read? ? '0;32' : '1;31')
-    end
   end
 
   def record_timestamp
@@ -157,6 +146,13 @@ class Promiscuous::Publisher::Operation::Base
       .each   { |node| node.del(versions_recovery_key) }
   end
 
+  def payload_for(instance)
+    options = { :with_attributes => self.operation.in?([:create, :update]) }
+    instance.promiscuous.payload(options).tap do |payload|
+      payload[:operation] = self.operation
+    end
+  end
+
   def generate_payload
     payload = {}
     payload[:operations] = operation_payloads
@@ -216,8 +212,10 @@ class Promiscuous::Publisher::Operation::Base
           @write_dependencies = write_dependencies
           @op_lock = lock
           @state = :recovering
-          execute_persistent_locked { recover_db_operation }
-          raise(@exception) if @exception
+
+          query = Promiscuous::Publisher::Operation::ProxyForQuery.new(self) { recover_db_operation }
+          execute_instrumented(query)
+          query.result
         end
       end
     end.join
@@ -464,59 +462,22 @@ class Promiscuous::Publisher::Operation::Base
     @write_dependencies ||= self.query_dependencies.uniq.each { |d| d.type = :write }
   end
 
-  def perform_db_operation_with_no_exceptions(&db_operation)
-    @result = db_operation.call(self)
-  rescue Exception => e
-    @exception = e
-    @state = :failed
+  def should_instrument_query?
+    # current_context is later enforced for writes.
+    !Promiscuous.disabled? && (current_context || write?)
   end
 
-  def execute_persistent(&db_operation)
-    # generate_read_dependencies will throw if there are issues with previous
-    # operations. It's better to fail now than with locks held.
-    generate_read_dependencies
-    acquire_op_lock
+  def execute(&query_config)
+    query = Promiscuous::Publisher::Operation::ProxyForQuery.new(self, &query_config)
 
-    return db_operation.call if nop?
-
-    execute_persistent_locked(&db_operation)
-  end
-
-  def execute_non_persistent(&db_operation)
-    # We don't do any reload_query_dependencies at this point (and thus we
-    # won't raise an exception on a multi read that we cannot track).
-    # We'll wait until the commit, and hopefully with tainting, we'll be able to
-    # tell if we should depend the multi read operation in question.
-
-    perform_db_operation_with_no_exceptions(&db_operation)
-
-    unless failed?
-      current_context.read_operations << self if read?
-      trace_operation
-    end
-  end
-
-  def execute(&db_operation)
-    return db_operation.call if Promiscuous.disabled?
-
-    unless current_context
-      raise Promiscuous::Error::MissingContext if write? && !nop?
-      return db_operation.call
+    if should_instrument_query?
+      raise Promiscuous::Error::MissingContext if !current_context && write?
+      execute_instrumented(query)
+    else
+      query.call_and_remember_result(:non_instrumented)
     end
 
-    self.persists? ? execute_persistent(&db_operation) :
-                     execute_non_persistent(&db_operation)
-
-    @exception ? (raise @exception) : @result
-  rescue
-    @state = :failed
-    raise
-  end
-
-  def nop?
-    # Tell if the query will have no effect (updating a non existing row for
-    # example).
-    false
+    query.result
   end
 
   def query_dependencies
@@ -526,14 +487,14 @@ class Promiscuous::Publisher::Operation::Base
     raise
   end
 
-  def execute_persistent_locked(&db_operation)
-    # Implemented by Atomic/Transaction.
+  def execute_instrumented(db_operation)
+    # Implemented by subclasses
     raise
   end
 
-  def validate_acquired_op_lock
-    # That's for atomic operations.
-    true
+  def operation_payloads
+    # subclass can use payloads_for to generate the payload
+    raise
   end
 
   def recovery_payload
@@ -549,5 +510,16 @@ class Promiscuous::Publisher::Operation::Base
   def recover_db_operation
     # Overridden to reexecute the db operation during recovery (or make sure that
     # it will never succeed).
+  end
+
+  def trace_operation
+    if ENV['TRACE']
+      msg = self.explain_operation(70)
+      current_context.trace(msg, :color => self.read? ? '0;32' : '1;31')
+    end
+  end
+
+  def explain_operation(max_width)
+    "Unknown database operation"
   end
 end

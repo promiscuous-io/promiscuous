@@ -1,26 +1,12 @@
 class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::Operation::Base
-  attr_accessor :transaction_id
+  attr_accessor :transaction_id, :transaction_operations, :operation_payloads
 
   def initialize(options={})
     super
     @operation = :commit
-    @transaction_operations = options[:transaction_operations] || []
-    @connection = options[:connection]
-    @transaction_id = options[:transaction_id] || @connection.current_transaction_id
-    @document_payloads = options[:document_payloads]
+    @transaction_operations = options[:transaction_operations].to_a
+    @transaction_id = options[:transaction_id]
     @operation_payloads = options[:operation_payloads]
-  end
-
-  def nop?
-    # Don't do anything fancy if we have no operations to deal with
-    pending_writes.empty?
-  end
-
-  def pending_writes
-    # TODO (performance) Return a list of writes that:
-    # - Never touch the same id (the latest write is sufficient)
-    # - create/update and then delete should be invisible
-    @pending_writes ||= @transaction_operations.select(&:write?).select(&:pending?)
   end
 
   def dependency_for_op_lock
@@ -29,6 +15,13 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
     # A lock on the transaction ID is taken so we know when we conflict with
     # the recovery mechanism.
     Promiscuous::Dependency.new("__transactions__", self.transaction_id, :dont_hash => true)
+  end
+
+  def pending_writes
+    # TODO (performance) Return a list of writes that:
+    # - Never touch the same id (the latest write is sufficient)
+    # - create/update and then delete should be invisible
+    @pending_writes ||= @transaction_operations.select(&:write?).select(&:pending?)
   end
 
   def query_dependencies
@@ -41,35 +34,31 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
 
   alias cache_operation_payloads operation_payloads
 
-  def prepare_db_transaction
-    @connection.prepare_db_transaction
+  def should_instrument_query?
+    super && !pending_writes.empty?
   end
 
-  def commit_db_transaction
-    @connection.commit_prepared_db_transaction(@transaction_id)
-  end
+  def execute_instrumented(query)
+    unless self.recovering?
+      generate_read_dependencies
+      acquire_op_lock
 
-  def rollback_db_transaction
-    @connection.rollback_prepared_db_transaction(@transaction_id)
-  end
+      # As opposed to atomic operations, we know the values of the instances
+      # before the database operation, and not after, so only one stage
+      # of recovery is used.
+      cache_operation_payloads
 
-  def execute_persistent_locked(&db_operation)
-    # As opposed to atomic operations, we know the values of the instances
-    # before the database operation, and not after, so only one stage
-    # of recovery is used.
-    cache_operation_payloads
-
-    prepare_db_transaction unless self.recovering?
+      query.call_and_remember_result(:prepare)
+    end
 
     self.increment_read_and_write_dependencies
 
-    perform_db_operation_with_no_exceptions do
-      # We don't use the original db_operation, we do a 2pc on the db.
-      commit_db_transaction
-    end
+    query.call_and_remember_result(:instrumented)
 
-    # We don't know what to do if the commit fails. It's not supposed to.
-    return if failed?
+    # We can't do anything if the prepared commit doesn't go through.
+    # Either it's a network failure, or the database is having some real
+    # difficulties.
+    return if query.failed?
 
     # We take a timestamp right after the write is performed because latency
     # measurements are performed on the subscriber.
