@@ -83,12 +83,11 @@ describe Promiscuous do
 
       op = payload['operations'].first
       op['id'].should == pub.id.to_s
+      op['operation'].should == 'update'
       if ORM.has(:transaction)
-        op['operation'].should == 'update'
-        op['attributes']['field_1'] = '1'
+        op['attributes']['field_1'].should == '1'
       else
-        op['operation'].should == 'dummy'
-        op['attributes'].should == nil
+        op['attributes']['field_1'].should == nil
       end
     end
   end
@@ -133,12 +132,11 @@ describe Promiscuous do
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         op = payload['operations'].first
         op['id'].should == pub.id.to_s
+        op['operation'].should == 'update'
         if ORM.has(:transaction)
-          op['operation'].should == 'update'
-          op['attributes']['field_1'] = '2'
+          op['attributes']['field_1'] == '2'
         else
-          op['operation'].should == 'dummy'
-          op['attributes'].should == nil
+          op['attributes']['field_1'] == '1'
         end
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
@@ -162,7 +160,7 @@ describe Promiscuous do
 
         Promiscuous.context { pub.update_attributes(:field_1 => '3') }
 
-        eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 } if ORM.has(:transaction)
+        eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -170,24 +168,8 @@ describe Promiscuous do
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         op = payload['operations'].first
         op['id'].should == pub.id.to_s
-
-        if ORM.has(:transaction)
-          op['operation'].should == 'destroy'
-        else
-          op['operation'].should == 'dummy'
-        end
+        op['operation'].should == 'destroy'
         op['attributes'].should == nil
-
-        unless ORM.has(:transaction)
-          payload = Promiscuous::AMQP::Fake.get_next_payload
-          dep = payload['dependencies']
-          dep['read'].should  == nil
-          dep['write'].should == hashed["publisher_models/id/#{pub.id}:3"]
-          op = payload['operations'].first
-          op['id'].should == pub.id.to_s
-          op['operation'].should == 'update'
-          op['attributes']['field_1'].should == '3'
-        end
       end
     end
   end
@@ -246,13 +228,12 @@ describe Promiscuous do
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         op = payload['operations'].first
         op['id'].should == pub.id.to_s
+        op['operation'].should == 'update'
 
         if ORM.has(:transaction)
-          op['operation'].should == 'update'
           op['attributes']['field_1'].should == '2'
         else
-          op['operation'].should == 'dummy'
-          op['attributes'].should == nil
+          op['attributes']['field_1'].should == '1'
         end
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
@@ -278,32 +259,16 @@ describe Promiscuous do
 
         Promiscuous.context { pub.update_attributes(:field_1 => '3') }
 
+        eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
+
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
         dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         op = payload['operations'].first
         op['id'].should == pub.id.to_s
-        if ORM.has(:transaction)
-          op['operation'].should == 'destroy'
-        else
-          op['operation'].should == 'dummy'
-        end
+        op['operation'].should == 'destroy'
         op['attributes'].should == nil
-
-        payload = Promiscuous::AMQP::Fake.get_next_payload
-
-        if ORM.has(:transaction)
-          payload.should == nil
-        else
-          dep = payload['dependencies']
-          dep['read'].should  == nil
-          dep['write'].should == hashed["publisher_models/id/#{pub.id}:3"]
-          op = payload['operations'].first
-          op['id'].should == pub.id.to_s
-          op['operation'].should == 'update'
-          op['attributes']['field_1'].should == '3'
-        end
       end
     end
   end
@@ -358,12 +323,11 @@ describe Promiscuous do
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         op = payload['operations'].first
         op['id'].should == pub.id.to_s
+        op['operation'].should == 'update'
         if ORM.has(:transaction)
-          op['operation'].should == 'update'
-          op['attributes']['field_1'] = '2'
+          op['attributes']['field_1'] == '2'
         else
-          op['operation'].should == 'dummy'
-          op['attributes'].should == nil
+          op['attributes']['field_1'] == '1'
         end
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
@@ -393,11 +357,7 @@ describe Promiscuous do
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
         op = payload['operations'].first
         op['id'].should == pub.id.to_s
-        if ORM.has(:transaction)
-          op['operation'].should == 'destroy'
-        else
-          op['operation'].should == 'dummy'
-        end
+        op['operation'].should == 'destroy'
         op['attributes'].should == nil
       end
     end

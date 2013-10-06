@@ -199,7 +199,9 @@ class Promiscuous::Subscriber::MessageProcessor
 
     begin
       self.current = new(*args)
-      self.current.operations.each(&:execute)
+      self.current.synchronize_and_update_dependencies do
+        self.current.operations.each(&:execute)
+      end
     ensure
       self.current = nil
     end

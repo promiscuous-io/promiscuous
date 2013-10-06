@@ -183,12 +183,7 @@ class ActiveRecord::Base
 
         query.instrumented do
           db_operation_and_select.tap do
-            if @instances.empty?
-              @state = :failed
-            end
-            if write? && !failed?
-              transaction_context.add_write_operation(self)
-            end
+            transaction_context.add_write_operation(self) if write? && !@instances.empty?
           end
         end
       end

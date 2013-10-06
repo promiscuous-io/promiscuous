@@ -36,6 +36,8 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
   end
 
   def execute_instrumented(query)
+    raise if @instance.nil? # assert()
+
     unless self.recovering?
       generate_read_dependencies
       acquire_op_lock
@@ -75,37 +77,33 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
 
     case operation
     when :create
-      stash_version_in_write_query(@committed_write_deps.first.version)
+      # We don't stash the version in the document as we can't have races
+      # on the same document.
     when :update
-      stash_version_in_write_query(@committed_write_deps.first.version)
+      stash_version_in_document(@committed_write_deps.first.version)
       # We are now in the possession of an instance that matches the original
       # selector. We need to make sure the db query will operate on it,
       # instead of the original selector.
       use_id_selector(:use_atomic_version_selector => true)
       # We need to use an atomic versioned selector to make sure that
       # if we lose the lock for a long period of time, we don't mess up
-      # with other people's updates. Also we make sure that the recovery
-      # mechanism is not racing with us.
+      # the record. Perhaps the operation has been recovered a while ago.
     when :destroy
-      use_id_selector(:use_atomic_version_selector => true)
+      use_id_selector
     end
 
+    # The driver is responsible to set instance to the appropriate value.
     query.call_and_remember_result(:instrumented)
+
+    if query.failed?
+      # If we get an network failure, we should retry later.
+      return if recoverable_failure?(query.exception)
+      @instance = nil
+    end
 
     # We take a timestamp right after the write is performed because latency
     # measurements are performed on the subscriber.
     record_timestamp
-
-    if operation == :update && !query.failed?
-      # The underlying driver should implement some sort of find and modify
-      # operation in the previous write query to avoid this extra read query,
-      # and let us access the instance through fetch_instance called from
-      # reload_instance.
-      # If reload_instance raise an exception, we let it bubble up,
-      # and we'll trigger the recovery mechanism.
-      use_id_selector
-      reload_instance
-    end
 
     # This make sure that if the db operation failed because of a network issue
     # and we got recovered, we don't send anything as we could send a different
@@ -133,8 +131,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
   end
 
   def operation_payloads
-    return [] if self.failed?
-    [payload_for(@instance)]
+    @instance.nil? ? [] : [payload_for(@instance)]
   end
 
   def query_dependencies
@@ -151,7 +148,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     @instance = fetch_instance
   end
 
-  def stash_version_in_write_query(version)
+  def stash_version_in_document(version)
     # Overridden to update the query to set the version field with:
     # instance[Promiscuous::Config.version_field] = version
   end
@@ -160,5 +157,11 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     # Overridden to use the {:id => @instance.id} selector.
     # if the option use_atomic_version_selector is passed, the driver must add
     # the version_field selector.
+  end
+
+  def recoverable_failure?(exception)
+    # Overridden to tell if the db exception is spurious, like a network
+    # failure.
+    raise
   end
 end

@@ -21,7 +21,7 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
     # TODO (performance) Return a list of writes that:
     # - Never touch the same id (the latest write is sufficient)
     # - create/update and then delete should be invisible
-    @pending_writes ||= @transaction_operations.select(&:write?).select(&:pending?)
+    @transaction_operations
   end
 
   def query_dependencies
@@ -57,7 +57,7 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
 
     # We can't do anything if the prepared commit doesn't go through.
     # Either it's a network failure, or the database is having some real
-    # difficulties.
+    # difficulties. The recovery mechanism will have to retry the transaction.
     return if query.failed?
 
     # We take a timestamp right after the write is performed because latency

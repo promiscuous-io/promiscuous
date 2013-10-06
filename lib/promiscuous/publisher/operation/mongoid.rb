@@ -40,10 +40,6 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
       end
     end
 
-    def stash_version_in_write_query(version)
-      @document[Promiscuous::Config.version_field] = version
-    end
-
     def execute_instrumented(query)
       @instance = Mongoid::Factory.from_db(model, @document)
       super
@@ -51,6 +47,10 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
 
     def should_instrument_query?
       super && model
+    end
+
+    def recoverable_failure?(exception)
+      exception.is_a?(Moped::Errors::ConnectionFailure)
     end
   end
 
@@ -105,7 +105,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   class PromiscuousWriteOperation < Promiscuous::Publisher::Operation::Atomic
     include Moped::PromiscuousQueryWrapper::PromiscuousHelpers
 
-    attr_accessor :raw_instance, :new_raw_instance, :change
+    attr_accessor :change
 
     def initialize(options={})
       super
@@ -121,26 +121,29 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       # TODO We need to use the primary database. We cannot read from a secondary.
       model = Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection]
       query = model.unscoped.where(:id => instance_id).query
-      op = new(:query => query, :change => {})
 
-      # TODO refactor this not so pretty instance_eval
-      op.instance_eval do
-        reload_instance
-        @instance ||= get_selector_instance
-      end
-      op
+      # We no-op the update operation instead of making it idempotent.
+      # To do so, we do a dummy update on the document.
+      # The original caller will fail because the lock was unlocked, so we'll
+      # won't send a different message.
+      new(:query => query, :change => {}).tap { |op| op.instance_eval { reload_instance } }
     end
 
     def recover_db_operation
-      # We no-op the update/destroy operation instead of making it idempotent.
-      # The original caller will fail because the lock was unlocked.
-      without_promiscuous { @query.update(@change) }
-      @operation = :dummy
+      if operation == :update
+        without_promiscuous { @query.update(@change) }
+      else
+        without_promiscuous { @query.remove }
+      end
+    end
+
+    def recoverable_failure?(exception)
+      exception.is_a?(Moped::Errors::ConnectionFailure)
     end
 
     def fetch_instance
-      @raw_instance = @new_raw_instance || without_promiscuous { @query.first }
-      Mongoid::Factory.from_db(model, @raw_instance) if @raw_instance
+      raw_instance = without_promiscuous { @query.first }
+      Mongoid::Factory.from_db(model, raw_instance) if raw_instance
     end
 
     def use_id_selector(options={})
@@ -154,7 +157,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       @query.selector = selector
     end
 
-    def stash_version_in_write_query(version)
+    def stash_version_in_document(version)
       @change['$set'] ||= {}
       @change['$set'][Promiscuous::Config.version_field] = version
     end
@@ -163,7 +166,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       # We are trying to be optimistic for the locking. We are trying to figure
       # out our dependencies with the selector upfront to avoid an extra read
       # from reload_instance.
-      @instance = get_selector_instance
+      @instance ||= get_selector_instance
       super
     end
 
@@ -262,14 +265,21 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     promiscuous_write_operation(:update, :change => change).execute do |query|
       query.non_instrumented { super }
       query.instrumented do |op|
-        op.new_raw_instance = without_promiscuous { modify(change, :new => true) }
+        raw_instance = without_promiscuous { modify(change, :new => true) }
+        op.instance = Mongoid::Factory.from_db(op.model, raw_instance)
         {'updatedExisting' => true, 'n' => 1, 'err' => nil, 'ok' => 1.0}
       end
     end
   end
 
   def modify(change, options={})
-    promiscuous_write_operation(:update, :change => change).execute { super }
+    promiscuous_write_operation(:update, :change => change).execute do |query|
+      query.non_instrumented { super }
+      query.instrumented do |op|
+        raise "You can only use find_and_modify() with :new => true" if !options[:new]
+        super.tap { |raw_instance| op.instance = Mongoid::Factory.from_db(op.model, raw_instance) }
+      end
+    end
   end
 
   def remove

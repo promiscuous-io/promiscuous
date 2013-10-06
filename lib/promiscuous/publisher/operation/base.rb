@@ -10,11 +10,10 @@ class Promiscuous::Publisher::Operation::Base
     self.recovery_mechanisms.each(&:call)
   end
 
-  attr_accessor :operation, :state
+  attr_accessor :operation
 
   def initialize(options={})
     @operation = options[:operation]
-    @state     = options[:state] || :pending
   end
 
   def read?
@@ -26,15 +25,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def recovering?
-    @state == :recovering
-  end
-
-  def pending?
-    @state == :pending
-  end
-
-  def failed?
-    @state == :failed
+    !!@recovering
   end
 
   def current_context
@@ -211,7 +202,7 @@ class Promiscuous::Publisher::Operation::Base
           @read_dependencies  = read_dependencies
           @write_dependencies = write_dependencies
           @op_lock = lock
-          @state = :recovering
+          @recovering = true
 
           query = Promiscuous::Publisher::Operation::ProxyForQuery.new(self) { recover_db_operation }
           execute_instrumented(query)
@@ -504,7 +495,6 @@ class Promiscuous::Publisher::Operation::Base
 
   def self.recover_operation(*recovery_payload)
     # Overridden to reconstruct the operation.
-    new(:operation => :dummy)
   end
 
   def recover_db_operation

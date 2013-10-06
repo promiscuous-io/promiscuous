@@ -133,14 +133,11 @@ class Promiscuous::Subscriber::Operation
       # on_bootstrap_operation(:update, :always_postpone => true) { bootstrap_missing_data if model }
       # TODO unbind the bootstrap exchange
     else
-      message_processor.synchronize_and_update_dependencies do
-        case operation
-        when :create  then create  if model
-        when :update  then update  if model
-        when :destroy then destroy if model
-        when :dummy   then ;
-        else raise "Invalid operation received: #{operation}"
-        end
+      case operation
+      when :create  then create  if model
+      when :update  then update  if model
+      when :destroy then destroy if model
+      else raise "Invalid operation received: #{operation}"
       end
     end
   end

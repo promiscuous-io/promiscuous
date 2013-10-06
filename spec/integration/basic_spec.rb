@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'pry'
 
 describe Promiscuous do
   before { use_real_backend }
@@ -67,7 +66,7 @@ describe Promiscuous do
         pub = nil
         Promiscuous.context do
           pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-          PublisherModel.find_and_modify('$set' => { :field_1 => '1_updated', :field_2 => '2_updated'})
+          PublisherModel.find_and_modify({'$set' => { :field_1 => '1_updated', :field_2 => '2_updated'}}, :new => true)
         end
         pub.reload
 
