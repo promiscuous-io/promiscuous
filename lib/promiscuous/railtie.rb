@@ -22,9 +22,10 @@ class Promiscuous::Railtie < Rails::Railtie
     class << IRB
       alias_method :start_without_promiscuous, :start
 
-      def start
-        ::Promiscuous::Middleware.with_context 'rails/console' do
-          start_without_promiscuous
+      def start(*args, &block)
+        return start_without_promiscuous(*args, &block) if Promiscuous::Publisher::Context.current
+        Promiscuous::Middleware.with_context 'rails/console' do
+          start_without_promiscuous(*args, &block)
         end
       end
     end
@@ -33,9 +34,10 @@ class Promiscuous::Railtie < Rails::Railtie
       class << Pry
         alias_method :start_without_promiscuous, :start
 
-        def start
-          ::Promiscuous::Middleware.with_context 'rails/console' do
-            start_without_promiscuous
+        def start(*args, &block)
+          return start_without_promiscuous(*args, &block) if Promiscuous::Publisher::Context.current
+          Promiscuous::Middleware.with_context 'rails/console' do
+            start_without_promiscuous(*args, &block)
           end
         end
       end
