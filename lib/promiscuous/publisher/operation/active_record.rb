@@ -177,10 +177,7 @@ class ActiveRecord::Base
       ensure_transaction!
 
       super do |query|
-        query.non_instrumented do
-          db_operation.call
-        end
-
+        query.non_instrumented { db_operation.call }
         query.instrumented do
           db_operation_and_select.tap do
             transaction_context.add_write_operation(self) if write? && !@instances.empty?
@@ -314,9 +311,8 @@ class ActiveRecord::Base
     end
 
     def query_dependencies
-      dependencies_for(get_selector_instance) || super
-    rescue Promiscuous::Error::Dependency
-      super
+      deps = dependencies_for(get_selector_instance, :strict => false)
+      deps.empty? ? super : deps
     end
 
     def execute(&db_operation)

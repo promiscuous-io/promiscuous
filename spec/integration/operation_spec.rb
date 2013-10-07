@@ -221,21 +221,50 @@ require 'spec_helper'
     end
 
     context 'when using without_promiscuous.each' do
-      it 'track the reads one by one if the set is not tracked', :pending => true do
-        pub1 = pub2 = pub3 = nil
-        without_promiscuous do
-          pub1 = PublisherModel.create(:field_1 => '123')
-          pub2 = PublisherModel.create(:field_1 => '123')
-        end
-        Promiscuous.context do
-          PublisherModel.where(:field_1 => '123').to_a
-          pub3 = PublisherModel.create(:field_1 => '456')
-        end
+      context 'when tracking the set' do
+        before { PublisherModel.track_dependencies_of :field_1 }
 
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['read'].should  == hashed["publisher_models/id/#{pub1.id}:0",
-                                      "publisher_models/id/#{pub2.id}:0"]
-        dep['write'].should == hashed["publisher_models/id/#{pub3.id}:1"]
+        it 'track the reads one by one if the set is not tracked' do
+          pub1 = pub2 = pub3 = pub4 = nil
+          without_promiscuous do
+            pub1 = PublisherModel.create(:field_1 => '123')
+            pub2 = PublisherModel.create(:field_1 => '123')
+            pub3 = PublisherModel.create(:field_1 => '123')
+          end
+          Promiscuous.context do
+            q = PublisherModel.where(:field_1 => '123')
+            q = q.batch_size(2) if ORM.has(:mongoid)
+            q.to_a
+            pub4 = PublisherModel.create(:field_2 => '456')
+          end
+
+          dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+          dep['read'].should  =~ hashed["publisher_models/field_1/123:0"]
+          dep['write'].should == hashed["publisher_models/id/#{pub4.id}:1"]
+        end
+      end
+
+      context 'when the set is not tracked' do
+        it 'track the reads one by one if the set is not tracked' do
+          pub1 = pub2 = pub3 = pub4 = nil
+          without_promiscuous do
+            pub1 = PublisherModel.create(:field_1 => '123')
+            pub2 = PublisherModel.create(:field_1 => '123')
+            pub3 = PublisherModel.create(:field_1 => '123')
+          end
+          Promiscuous.context do
+            q = PublisherModel.where(:field_1 => '123')
+            q = q.batch_size(2) if ORM.has(:mongoid)
+            q.to_a
+            pub4 = PublisherModel.create(:field_2 => '456')
+          end
+
+          dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+          dep['read'].should  =~ hashed["publisher_models/id/#{pub1.id}:0",
+                                        "publisher_models/id/#{pub3.id}:0",
+                                        "publisher_models/id/#{pub2.id}:0"]
+          dep['write'].should == hashed["publisher_models/id/#{pub4.id}:1"]
+        end
       end
     end
 

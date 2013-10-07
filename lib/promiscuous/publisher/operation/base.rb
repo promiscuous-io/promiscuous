@@ -408,7 +408,7 @@ class Promiscuous::Publisher::Operation::Base
   end
   register_recovery_mechanism :recover_locks
 
-  def dependencies_for(instance)
+  def dependencies_for(instance, options={})
     return [] if instance.nil?
 
     if read?
@@ -418,10 +418,9 @@ class Promiscuous::Publisher::Operation::Base
       # pick the first one. In most cases, it should resolve to the id
       # dependency.
       best_dependency = instance.promiscuous.tracked_dependencies(:allow_missing_attributes => true).first
-      if Promiscuous::Config.strict_multi_read
-        unless best_dependency
-          raise Promiscuous::Error::Dependency.new(:operation => self)
-        end
+      strict = options[:strict].nil? ? options[:strict] : Promiscuous::Config.strict_multi_read
+      if strict && !best_dependency
+        raise Promiscuous::Error::Dependency.new(:operation => self)
       end
       [best_dependency].compact
     else

@@ -206,9 +206,13 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       @query = options[:query]
     end
 
+    def query_dependencies
+      deps = dependencies_for(get_selector_instance, :strict => false)
+      deps.empty? ? super : deps
+    end
+
     def execute_instrumented(query)
       super
-      @instances = [get_selector_instance] if @instances.empty?
     end
 
     def should_instrument_query?
@@ -293,20 +297,28 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 end
 
 class Moped::PromiscuousCursorWrapper < Moped::Cursor
-  def promiscuous_read_operation(options={})
-    Moped::PromiscuousQueryWrapper::PromiscuousReadOperation.new(
-      options.merge(:query => @query, :operation_ext => :each))
+  # Moped::Cursor
+  def promiscuous_read_each(&block)
+    op = Moped::PromiscuousQueryWrapper::PromiscuousReadOperation.new(
+           :query => @query, :operation_ext => :each)
+
+    op.execute do |query|
+      query.non_instrumented { block.call.to_a }
+      query.instrumented do
+        block.call.to_a.tap do |docs|
+          op.instances = docs.map { |doc| Mongoid::Factory.from_db(op.model, doc) }
+        end
+      end
+    end
   end
 
-  # Moped::Cursor
-
   def load_docs
-    promiscuous_read_operation.execute { super }.to_a
+    promiscuous_read_each { super }
   end
 
   def get_more
     # TODO support batch_size
-    promiscuous_read_operation.execute { super }
+    promiscuous_read_each { super }
   end
 
   def initialize(session, query_operation)
