@@ -33,4 +33,13 @@ module ORM
       @ar_id
     end
   end
+
+  def self.purge!
+    Mongoid.purge! if has(:mongoid)
+
+    if has(:active_record)
+      DatabaseCleaner.clean
+      DatabaseCleaner.start
+    end
+  end
 end
