@@ -1,7 +1,7 @@
 class Promiscuous::Railtie < Rails::Railtie
   initializer 'load promiscuous' do
-    config.before_initialize do
-      ActionController::Base.__send__(:include, Promiscuous::Middleware::Controller)
+    ActiveSupport.on_load(:action_controller) do
+      include Promiscuous::Middleware::Controller
     end
 
     config.after_initialize do

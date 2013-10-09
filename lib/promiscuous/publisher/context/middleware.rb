@@ -19,7 +19,7 @@ class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Cont
     super
   rescue Exception => e
     $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
-    pretty_print_exception(e)
+    pretty_print_exception(e) unless e.is_a? ActionView::MissingTemplate
     raise e
   ensure
     Promiscuous.disabled = old_disabled
@@ -35,7 +35,7 @@ class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Cont
     yield
   rescue Exception => e
     $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
-    pretty_print_exception(e)
+    pretty_print_exception(e) unless e.is_a? ActionView::MissingTemplate
     raise e
   ensure
     self.current = old_current
