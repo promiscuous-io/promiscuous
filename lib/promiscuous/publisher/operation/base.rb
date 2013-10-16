@@ -192,14 +192,10 @@ class Promiscuous::Publisher::Operation::Base
     read_dependencies.map!  { |k| Promiscuous::Dependency.parse(k.to_s, :type => :read) }
     write_dependencies.map! { |k| Promiscuous::Dependency.parse(k.to_s, :type => :write) }
 
-    model = Promiscuous::Publisher::Model.publishers[collection]
+    model = Promiscuous::Publisher::Model::Mongoid.collection_mapping[collection]
 
     if model.is_a? Promiscuous::Publisher::Model::Ephemeral
       operation = :dummy
-    else
-      # TODO Abstract db operations.
-      # We need to query on the root model
-      model = model.collection.name.singularize.camelize.constantize
     end
 
     op_klass = model.get_operation_class_for(operation)
