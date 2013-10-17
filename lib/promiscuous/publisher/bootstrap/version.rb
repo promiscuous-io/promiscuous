@@ -11,6 +11,8 @@ class Promiscuous::Publisher::Bootstrap::Version
         begin_at += chunk_size
       end
     end
+  ensure
+    connection.close
   end
 
   class Chunk

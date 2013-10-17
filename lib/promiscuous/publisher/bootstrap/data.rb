@@ -44,6 +44,8 @@ class Promiscuous::Publisher::Bootstrap::Data
           end
         end
       end
+    ensure
+      connection.close
     end
 
     private
