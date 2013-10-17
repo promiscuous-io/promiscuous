@@ -22,12 +22,12 @@ class Promiscuous::Publisher::Bootstrap::Data
         lock = Promiscuous::Redis::Mutex.new(key, lock_options(options[:lock]))
         if lock.try_lock
           if range = redis.get(key)
-            range = MultiJson.load(range)
-            selector = range['selector']
-            options  = range['options']
-            klass    = range['class'].constantize
-            start    = range['start'].to_i
-            finish   = range['finish'].to_i
+            range = YAML.load(range)
+            selector = range[:selector]
+            options  = range[:options]
+            klass    = range[:class].constantize
+            start    = range[:start].to_i
+            finish   = range[:finish].to_i
 
             lock_extended_at = Time.now
             range_selector(klass, selector, options, start, finish).each_with_index do |instance, i|
@@ -67,7 +67,7 @@ class Promiscuous::Publisher::Bootstrap::Data
           range_finish = range_start + increment
 
           key = range_redis_key.join(namespace).join(i)
-          value = MultiJson.dump(:selector => model.all.selector,
+          value = YAML.dump(:selector => model.all.selector,
                                  :options  => model.all.options,
                                  :class    => model.all.klass.to_s,
                                  :start    => range_start.to_s,
