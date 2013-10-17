@@ -9,12 +9,12 @@ module Promiscuous::Redis
   end
 
   def self.master
-    ensure_connected
+    ensure_connected unless @master
     @master
   end
 
   def self.slave
-    ensure_connected
+    ensure_connected unless @slave
     @slave
   end
 
