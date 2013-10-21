@@ -198,7 +198,7 @@ class Promiscuous::Subscriber::Operation
     end
   rescue Exception => e
     # TODO Abstract the duplicated index error message
-    if e.message =~ /E11000 duplicate key error index: .*\.\$_id_ +dup key/
+    if e.message =~ /E11000/
       if options[:upsert]
         update
       else
