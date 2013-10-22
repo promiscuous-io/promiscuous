@@ -12,4 +12,12 @@ describe Promiscuous do
 
     Promiscuous::AMQP::Fake.get_next_payload['from_host'].should == 'example.com'
   end
+
+  it "includes the current_user in the payload" do
+    Promiscuous.context('test', 'ABC') do
+      PublisherModel.create(:field_1 => '1')
+    end
+
+    Promiscuous::AMQP::Fake.get_next_payload['current_user_id'].should == 'ABC'
+  end
 end

@@ -6,7 +6,7 @@ class Promiscuous::Middleware
 
     def process_action(*args)
       full_name = "#{self.class.controller_path}/#{self.action_name}"
-      Promiscuous::Middleware.with_context(full_name) { super }
+      Promiscuous::Middleware.with_context(full_name, self.current_user.try(:id)) { super }
     end
 
     def render(*args)

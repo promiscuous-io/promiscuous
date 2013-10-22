@@ -25,14 +25,15 @@ class Promiscuous::Publisher::Context
     Thread.current[:promiscuous_context] = value
   end
 
-  attr_accessor :name, :operations, :nesting_level, :last_write_dependency
+  attr_accessor :name, :operations, :nesting_level, :last_write_dependency, :current_user_id
 
   def initialize(*args)
     options = args.extract_options!
     @parent = self.class.current unless !!options[:detached_from_parent]
     @last_write_dependency = @parent.try(:last_write_dependency)
     @nesting_level = @parent.try(:nesting_level).to_i + 1
-    @name = args.first.try(:to_s)
+    @name = args[0].try(:to_s)
+    @current_user_id = args[1].to_s
     @name ||= "#{@parent.next_child_name}" if @parent
     @name ||= 'anonymous'
     @operations = []
