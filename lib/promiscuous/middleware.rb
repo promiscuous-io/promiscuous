@@ -6,10 +6,8 @@ class Promiscuous::Middleware
 
     def process_action(*args)
       full_name = "#{self.class.controller_path}/#{self.action_name}"
-      current_user_id = begin
-                          if self.respond_to?(:current_user)
-                            self.current_user.try(:id)
-                          end
+      current_user_id = if self.respond_to?(:current_user)
+                          self.current_user.try(:id)
                         end
       Promiscuous::Middleware.with_context(full_name, current_user_id) { super }
     end
