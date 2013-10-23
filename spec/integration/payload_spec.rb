@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { use_fake_backend }
-  before { load_models }
+  before { load_models; load_mocks; load_ephemerals }
   before { run_subscriber_worker! }
 
   it "includes the hosname in the payload" do
@@ -13,11 +13,22 @@ describe Promiscuous do
     Promiscuous::AMQP::Fake.get_next_payload['from_host'].should == 'example.com'
   end
 
-  it "includes the current_user in the payload" do
-    Promiscuous.context('test', 'ABC') do
-      PublisherModel.create(:field_1 => '1')
-    end
+  describe "includes the current_user in the payload" do
+    context "with a publisher" do
+      it "the second attribute that is passed to the context is used" do
+        Promiscuous.context('test', 'ABC') do
+          PublisherModel.create(:field_1 => '1')
+        end
 
-    Promiscuous::AMQP::Fake.get_next_payload['current_user_id'].should == 'ABC'
+        Promiscuous::AMQP::Fake.get_next_payload['current_user_id'].should == 'ABC'
+      end
+    end
+    context "with a mock and without a context" do
+      it "does not raise an execption" do
+        expect do
+          without_promiscuous { MockModel.create(:field_1 => '1') }
+        end.to_not raise_error
+      end
+    end
   end
 end
