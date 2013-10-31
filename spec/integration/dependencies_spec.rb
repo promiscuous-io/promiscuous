@@ -173,8 +173,8 @@ describe Promiscuous do
         @worker.pump.recover # this will retry the message
         eventually { SubscriberModel.first.field_1.should == '2' }
 
-        @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s, :owner => 'test') }
-          .each { |dep| dep.redis_node.get(dep.key(:sub).join('rw').to_s).should == '1' }
+        @num_deps.times.map { |i| Promiscuous::Dependency.new('publisher_models', 'field_2', i.to_s, :type => :write, :owner => 'test') }
+          .each { |dep| puts "Dep #{dep}"; dep.redis_node.get(dep.key(:sub).to_s).should == '1' }
       end
     end
 

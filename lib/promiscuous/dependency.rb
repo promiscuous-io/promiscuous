@@ -85,6 +85,11 @@ class Promiscuous::Dependency
     self.internal_key.hash
   end
 
+  def upgrade
+    @type = :write if read?
+    self
+  end
+
   private
 
   def type_key

@@ -85,7 +85,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       get_redis = dep.redis_node
       subscriber_redis = dep.redis_node(@redis)
 
-      key = dep.key(:sub).to_s
+      key = dep.upgrade.key(:sub).to_s
       version = dep.version
       node_synchronizer = @node_synchronizers[subscriber_redis]
       proc { node_synchronizer.on_version(subscriber_redis, get_redis, key, version, msg) { chain.call } }

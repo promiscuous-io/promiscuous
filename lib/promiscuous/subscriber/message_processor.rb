@@ -80,13 +80,12 @@ class Promiscuous::Subscriber::MessageProcessor
       end
 
       for i, _key in ipairs(read_deps) do
-        local key = _key .. ':rw'
+        local key = _key .. 'w'
         local v = redis.call('incr', key)
         redis.call('publish', key, v)
       end
 
-      for i, _key in ipairs(write_deps) do
-        local key = _key .. ':rw'
+      for i, key in ipairs(write_deps) do
         local v = write_versions[i]
         local current_version = tonumber(redis.call('get', key)) or 0
         if current_version < v then
