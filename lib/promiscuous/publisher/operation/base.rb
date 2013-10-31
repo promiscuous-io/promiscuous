@@ -418,8 +418,7 @@ class Promiscuous::Publisher::Operation::Base
       # pick the first one. In most cases, it should resolve to the id
       # dependency.
       best_dependency = instance.promiscuous.tracked_dependencies(:allow_missing_attributes => true).first
-      strict = options[:strict].nil? ? options[:strict] : Promiscuous::Config.strict_multi_read
-      if strict && !best_dependency
+      if Promiscuous::Config.strict_multi_read && !best_dependency
         raise Promiscuous::Error::Dependency.new(:operation => self)
       end
       [best_dependency].compact

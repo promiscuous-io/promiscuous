@@ -61,7 +61,7 @@ module Promiscuous::Config
     self.subscriber_threads   ||= 10
     self.error_notifier       ||= proc {}
     self.version_field        ||= '_pv'
-    self.strict_multi_read    = true if self.strict_multi_read.nil?
+    self.strict_multi_read    = false if self.strict_multi_read.nil?
     self.relaxed_schema       ||= false
     self.recovery_on_boot     = true if self.recovery_on_boot.nil?
   end

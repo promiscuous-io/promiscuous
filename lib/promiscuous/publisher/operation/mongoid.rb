@@ -207,7 +207,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
 
     def query_dependencies
-      deps = dependencies_for(get_selector_instance, :strict => false)
+      deps = dependencies_for(get_selector_instance)
       deps.empty? ? super : deps
     end
 
