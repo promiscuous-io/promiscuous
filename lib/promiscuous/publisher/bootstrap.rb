@@ -1,18 +1,24 @@
 module Promiscuous::Publisher::Bootstrap
   extend Promiscuous::Autoload
-  autoload :Base, :Version, :Data
+  autoload :Connection, :Version, :Data, :Mode, :Status
 
-  def self.enable
-    Promiscuous::Redis.master.nodes.each { |node| node.set(bootstrap_mode_key, 1) }
+  def self.setup(options={})
+    Mode.enable
+    Version.bootstrap
+    Data.setup(options)
   end
 
-  def self.disable
-    Promiscuous::Redis.master.nodes.each { |node| node.del(bootstrap_mode_key) }
+  def self.run
+    raise "Setup must be run before starting to bootstrap" unless Mode.enabled?
+    Data.run
   end
 
-  def self.bootstrap_mode_key
-    # XXX You must change the LUA script in promiscuous/publisher/operation/base.rb
-    # if you change this value
-    Promiscuous::Key.new(:pub).join('bootstrap')
+  def self.finalize
+    raise "Setup must be run before disabling" unless Mode.enabled?
+    Mode.disable
+  end
+
+  def self.status
+    Status.monitor
   end
 end

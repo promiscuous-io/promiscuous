@@ -41,8 +41,13 @@ class Promiscuous::Dependency
     @type == :write
   end
 
-  def key(role)
-    Promiscuous::Key.new(role).join(@internal_key)
+  # TODO Update all usage to use this syntax
+  def key(role, type=nil)
+    raise "You cannot override type if its already set" if @type && type
+    raise "Type needs to be rw or w" if type && ![:read, :write].include?(type.to_sym)
+
+    @type = type if type
+    Promiscuous::Key.new(role).join(@internal_key).join(type_key)
   end
 
   def redis_node(distributed_redis=nil)
@@ -61,6 +66,10 @@ class Promiscuous::Dependency
     end
   end
 
+  def get(role, type=nil)
+    @version = redis_node.get(key(role, type))
+  end
+
   def to_s
     as_json.to_s
   end
@@ -74,5 +83,16 @@ class Promiscuous::Dependency
 
   def hash
     self.internal_key.hash
+  end
+
+  private
+
+  def type_key
+    case @type
+    when :write then :rw
+    when :write then :w
+    else
+      @type
+    end
   end
 end

@@ -77,8 +77,9 @@ class Promiscuous::Subscriber::Operation
   # - CLI interface and progress bars
 
   def bootstrap_versions
-    keys = message.parsed_payload['keys']
-    keys.map { |k| Promiscuous::Dependency.parse(k, :owner => message.app) }.group_by(&:redis_node).each do |node, deps|
+    operations = message.parsed_payload['operations']
+
+    operations.map { |op| op['keys'] }.flatten.map { |k| Promiscuous::Dependency.parse(k, :owner => message.app) }.group_by(&:redis_node).each do |node, deps|
       node.pipelined do
         deps.each do |dep|
           node.set(dep.key(:sub).join('rw').to_s, dep.version)
@@ -88,8 +89,8 @@ class Promiscuous::Subscriber::Operation
   end
 
   def bootstrap_data
-    # XXX FIXME find the instance version and all that.
-    if instance_dep.version <= get_current_instance_version
+    dep = message.dependencies.first
+    if dep.version <= dep.redis_node.get(dep.key(:sub).to_s).to_i
       create(:upsert => true)
     else
       # We don't save the instance if we don't have a matching version in redis.
