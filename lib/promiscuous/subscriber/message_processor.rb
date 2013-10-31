@@ -38,7 +38,7 @@ class Promiscuous::Subscriber::MessageProcessor
   end
 
   def get_current_instance_version
-    master_node.get(instance_dep.key(:sub).join('rw').to_s).to_i
+    master_node.get(instance_dep.key(:sub).to_s).to_i
   end
 
   # XXX TODO Code is not tolerant to losing a lock.

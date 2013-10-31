@@ -90,7 +90,7 @@ class Promiscuous::Dependency
   def type_key
     case @type
     when :write then :rw
-    when :write then :w
+    when :read then  :r
     else
       @type
     end

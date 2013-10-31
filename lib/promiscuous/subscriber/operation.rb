@@ -80,7 +80,7 @@ class Promiscuous::Subscriber::Operation
     operations = message.parsed_payload['operations']
 
     operations.map { |op| op['keys'] }.flatten.map { |k| Promiscuous::Dependency.parse(k, :owner => message.app) }.group_by(&:redis_node).each do |node, deps|
-      node.mset(deps.map { |dep| [dep.key(:sub).join('rw').to_s, dep.version] }.flatten)
+      node.mset(deps.map { |dep| [dep.key(:sub, :type => :write).to_s, dep.version] }.flatten)
     end
   end
 
