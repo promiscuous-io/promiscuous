@@ -36,7 +36,6 @@ class Promiscuous::Subscriber::Worker::Runner
         msg = @message_queue.pop
         @kill_lock.synchronize do
           @current_message = msg
-          puts "MSG #{msg}"
           msg.process # msg.process does not throw
           @current_message = nil
         end
