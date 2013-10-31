@@ -4,7 +4,10 @@ module Promiscuous::Subscriber::Model::Base
   def __promiscuous_update(payload, options={})
     self.class.subscribed_attrs.map(&:to_s).each do |attr|
       unless payload.attributes.has_key?(attr)
-        raise "Attribute '#{attr}' is missing from the payload"
+        "Attribute '#{attr}' is missing from the payload".tap do |error_msg|
+          Promiscuous.warn "[receive] #{error_msg}"
+          raise error_msg unless Promiscuous::Config.relaxed_schema
+        end
       end
 
       value = payload.attributes[attr]

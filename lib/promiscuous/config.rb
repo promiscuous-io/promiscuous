@@ -5,7 +5,8 @@ module Promiscuous::Config
                  :redis_urls, :redis_stats_url, :stats_interval,
                  :socket_timeout, :heartbeat, :no_deps, :hash_size, :recovery,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
-                 :error_notifier, :strict_multi_read, :version_field
+                 :version_field, :error_notifier, :strict_multi_read,
+                 :relaxed_schema, :recovery_on_boot
 
   def self.backend=(value)
     @@backend = value
@@ -59,20 +60,20 @@ module Promiscuous::Config
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10
     self.error_notifier       ||= proc {}
-    self.strict_multi_read    ||= false
     self.version_field        ||= '_pv'
+    self.strict_multi_read    = true if self.strict_multi_read.nil?
+    self.relaxed_schema       ||= false
+    self.recovery_on_boot     = true if self.recovery_on_boot.nil?
   end
 
   def self.configure(&block)
-    Promiscuous.disconnect
+    reconnect_if_connected do
+      self._configure(&block)
 
-    self._configure(&block)
-
-    unless self.app
-      raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
+      unless self.app
+        raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
+      end
     end
-
-    Promiscuous.connect
 
     hook_fork
   end
@@ -111,5 +112,19 @@ module Promiscuous::Config
 
   def self.configured?
     self.app != nil
+  end
+
+  private
+
+  private
+
+  def self.reconnect_if_connected(&block)
+    if Promiscuous.should_be_connected?
+      Promiscuous.disconnect
+      yield
+      Promiscuous.connect
+    else
+      yield
+    end
   end
 end

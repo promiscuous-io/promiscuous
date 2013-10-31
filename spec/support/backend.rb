@@ -15,6 +15,7 @@ module BackendHelper
       config.stats_interval = 0
       block.call(config) if block
     end
+    Promiscuous.connect
   end
 
   def use_real_backend(options={}, &block)
@@ -26,7 +27,7 @@ module BackendHelper
         block.call(config) if block
       end
     end
-
+    Promiscuous.ensure_connected
     Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
   end
 

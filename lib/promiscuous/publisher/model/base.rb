@@ -20,6 +20,8 @@ module Promiscuous::Publisher::Model::Base
       msg = {}
       msg[:types] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
       msg[:id]    = @instance.id.to_s
+      msg[:from_host] = Socket.gethostname
+      msg[:current_user_id] = Thread.current[:promiscuous_context].try(:current_user_id)
       unless options[:with_attributes] == false
         # promiscuous_payload is useful to implement relays
         msg[:attributes] = @instance.respond_to?(:promiscuous_payload) ? @instance.promiscuous_payload :

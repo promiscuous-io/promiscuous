@@ -75,18 +75,6 @@ class Promiscuous::CLI
     end
   end
 
-  def set_publisher_bootstrap
-    case options[:publisher_bootstrap]
-    when 'on'
-      Promiscuous::Publisher::Bootstrap.enable
-      print_status "Bootstrap mode enabled"
-    when 'off'
-      Promiscuous::Publisher::Bootstrap.disable
-      print_status "Bootstrap mode disabled"
-    else raise "Bootstrap mode must be on or off"
-    end
-  end
-
   def replay
     require 'json'
     @num_msg = 0
@@ -100,6 +88,16 @@ class Promiscuous::CLI
     end
 
     print_status "Replayed #{@num_msg} messages"
+  end
+
+  def bootstrap
+    phase = options[:criterias][0].to_sym
+    raise "Subscriber bootstrap must be one of [setup|run|finalize|status]" unless [:setup, :run, :finalize, :status].include?(phase)
+    if phase == :setup && criteria = options[:bootstrap_criteria]
+      Promiscuous::Publisher::Bootstrap.setup(:models => eval(criteria).to_a)
+    else
+      Promiscuous::Publisher::Bootstrap.__send__(phase)
+    end
   end
 
   def subscribe
@@ -135,7 +133,7 @@ class Promiscuous::CLI
       opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" [Model2 Model3...]"
       opts.separator "    promiscuous publisher_recovery"
       opts.separator "    promiscuous subscribe"
-      opts.separator "    promiscuous publisher_bootstrap [on|off]"
+      opts.separator "    promiscuous bootstrap phase"
       opts.separator "    promiscuous mocks"
       opts.separator "    promiscuous record logfile"
       opts.separator "    promiscuous replay logfile"
@@ -152,6 +150,10 @@ class Promiscuous::CLI
 
       opts.on "-r", "--recovery", "Run in recovery mode" do
         Promiscuous::Config.recovery = true
+      end
+
+      opts.on "-a", "--relaxed-schema", "Only warn if message does not match schema on subscriber" do
+        Promiscuous::Config.relaxed_schema = true
       end
 
       opts.on "-p", "--prefetch [NUM]", "Number of messages to prefetch" do |prefetch|
@@ -177,6 +179,18 @@ class Promiscuous::CLI
         Promiscuous::Config.subscriber_threads = threads.to_i
       end
 
+      opts.on "-c", "--criteria FILE", "Criteria to bootstrap a subset of data" do |criteria|
+        options[:bootstrap_criteria] = criteria
+      end
+
+      opts.on "-D", "--daemonize", "Daemonize process" do
+        options[:daemonize] = true
+      end
+
+      opts.on "-P", "--pid-file [pid_file]", "Set a pid-file" do |pid_file|
+        options[:pid_file] = pid_file
+      end
+
       opts.on("-V", "--version", "Show version") do
         puts "Promiscuous #{Promiscuous::VERSION}"
         puts "License MIT"
@@ -195,6 +209,7 @@ class Promiscuous::CLI
     case options[:action]
     when :publish             then raise "Please specify one or more criterias" unless options[:criterias].present?
     when :subscribe           then raise "Why are you specifying a criteria?"   if     options[:criterias].present?
+    when :bootstrap           then raise "You must specify one of [setup|start|finalize]"   unless options[:criterias].present?
     when :record              then raise "Please specify a log file to record"  unless options[:log_file].present?
     when :replay              then raise "Please specify a log file to replay"  unless options[:log_file].present?
     when :publisher_bootstrap then raise "Please specify 'on' or 'off'" unless options[:publisher_bootstrap].present?
@@ -228,8 +243,22 @@ class Promiscuous::CLI
 
   def boot
     self.options = parse_args(ARGV)
+    daemonize
+    write_pid
     load_app
     run
+  end
+
+  def daemonize
+    Process.daemon(true, true) if options[:daemonize]
+  end
+
+  def write_pid
+    return unless options[:pid_file]
+
+    File.open(options[:pid_file], 'w') do |f|
+      f.puts Process.pid
+    end
   end
 
   def run
@@ -237,6 +266,7 @@ class Promiscuous::CLI
     case options[:action]
     when :publish   then publish
     when :subscribe then subscribe
+    when :bootstrap then bootstrap
     when :record    then record
     when :replay    then replay
     when :mocks     then generate_mocks
@@ -247,6 +277,6 @@ class Promiscuous::CLI
 
   def print_status(msg)
     Promiscuous.info msg
-    STDERR.puts msg
+    STDERR.puts msg unless options[:daemonize]
   end
 end

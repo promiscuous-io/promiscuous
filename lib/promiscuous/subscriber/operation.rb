@@ -37,7 +37,7 @@ class Promiscuous::Subscriber::Operation
     end
   rescue Exception => e
     # TODO Abstract the duplicated index error message
-    if e.message =~ /E11000 duplicate key error index: .*\.\$_id_ +dup key/ ||
+    if e.message =~ /E11000/ ||
        e.is_a?(ActiveRecord::RecordNotUnique) # TODO Ensure that it's on the pk
       if options[:upsert]
         update
@@ -80,11 +80,7 @@ class Promiscuous::Subscriber::Operation
     operations = message.parsed_payload['operations']
 
     operations.map { |op| op['keys'] }.flatten.map { |k| Promiscuous::Dependency.parse(k, :owner => message.app) }.group_by(&:redis_node).each do |node, deps|
-      node.pipelined do
-        deps.each do |dep|
-          node.set(dep.key(:sub).join('rw').to_s, dep.version)
-        end
-      end
+      node.mset(deps.map { |dep| [dep.key(:sub).join('rw').to_s, dep.version] }.flatten)
     end
   end
 

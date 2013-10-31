@@ -175,6 +175,8 @@ describe Promiscuous, 'bootstrapping replication' do
         $other_counter.should == SubscriberModelOther.count
       end
     end
+
+    context "bootstrapping a subset of documents using a timestamp to filter"
   end
 end
 

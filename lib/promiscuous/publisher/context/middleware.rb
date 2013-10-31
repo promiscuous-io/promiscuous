@@ -4,7 +4,8 @@ class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Cont
 
     def process_action(*args)
       full_name = "#{self.class.controller_path}/#{self.action_name}"
-      Promiscuous::Publisher::Context::Middleware.with_context(full_name) { super }
+      current_user_id = self.respond_to?(:current_user) ? self.current_user.try(:id) : nil
+      Promiscuous::Publisher::Context::Middleware.with_context(full_name, current_user_id) { super }
     end
 
     def render(*args)

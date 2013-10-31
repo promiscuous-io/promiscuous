@@ -63,6 +63,17 @@ module Promiscuous
       true
     end
 
+    def ensure_connected
+      unless should_be_connected?
+        connect
+      end
+    end
+
+    def disabled
+      return $promiscuous_disabled if Thread.current[:promiscuous_disabled].nil?
+      Thread.current[:promiscuous_disabled]
+    end
+
     def disabled=(value)
       Thread.current[:promiscuous_disabled] = value
     end

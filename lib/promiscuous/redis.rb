@@ -3,11 +3,19 @@ require 'redis/distributed'
 require 'digest/sha1'
 
 module Promiscuous::Redis
-  mattr_accessor :master, :slave
-
   def self.connect
     disconnect
-    self.master = new_connection
+    @master = new_connection
+  end
+
+  def self.master
+    ensure_connected unless @master
+    @master
+  end
+
+  def self.slave
+    ensure_connected unless @slave
+    @slave
   end
 
   def self.ensure_slave
@@ -18,10 +26,10 @@ module Promiscuous::Redis
   end
 
   def self.disconnect
-    self.master.quit if self.master
-    self.slave.quit  if self.slave
-    self.master = nil
-    self.slave  = nil
+    @master.quit if @master
+    @slave.quit  if @slave
+    @master = nil
+    @slave  = nil
   end
 
   def self.new_connection(url=nil)
@@ -55,7 +63,9 @@ module Promiscuous::Redis
   end
 
   def self.ensure_connected
-    Promiscuous::Redis.master.nodes.each do |node|
+    Promiscuous.ensure_connected
+
+    @master.nodes.each do |node|
       begin
         node.ping
       rescue Exception => e
@@ -159,6 +169,26 @@ module Promiscuous::Redis
       result, @token = @@lock_script.eval(@node, :keys => [@key, 'promiscuous:next_token', @lock_set].compact,
                                                  :argv => [now, now + @expire, @orig_key])
       result == 'recovered' ? :recovered : !!result
+    end
+
+    def extend
+      @expires_at = Time.now.to_i + @expire + 1
+      @@extend_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
+        local key = KEYS[1]
+        local lock_set = KEYS[2]
+        local expires_at = tonumber(ARGV[1])
+        local token = ARGV[2]
+        local lock_value = expires_at .. ':' .. token
+        local old_value = redis.call('get', key)
+
+        if old_value then
+          redis.call('set', key, lock_value)
+          return true
+        else
+          return false
+        end
+      SCRIPT
+      @@extend_script.eval(@node, :keys => [@key, @lock_set].compact, :argv => [@expires_at, @token])
     end
 
     def unlock
