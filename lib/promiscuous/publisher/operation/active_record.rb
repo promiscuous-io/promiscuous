@@ -190,10 +190,6 @@ class ActiveRecord::Base
       raise
     end
 
-    def query_dependencies
-      @instances.map { |instance| dependencies_for(instance) }
-    end
-
     def operation_payloads
       @instances.map do |instance|
         instance.promiscuous.payload(:with_attributes => self.operation.in?([:create, :update])).tap do |payload|

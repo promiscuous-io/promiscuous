@@ -211,10 +211,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       deps.empty? ? super : deps
     end
 
-    def execute_instrumented(query)
-      super
-    end
-
     def should_instrument_query?
       super && model
     end
