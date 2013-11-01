@@ -268,44 +268,6 @@ require 'spec_helper'
       end
     end
 
-    context 'when not in strict mode for multi reads' do
-      before { Promiscuous::Config.strict_multi_read = false }
-
-      it "doesn't raise when a multi read cannot be tracked" do
-        pub1 = pub2 = nil
-        without_promiscuous do
-          pub1 = PublisherModel.create(:field_1 => '123')
-          pub2 = PublisherModel.create(:field_1 => '123')
-        end
-
-        Promiscuous.context do
-          expect do
-            PublisherModel.where(:field_1 => '123').count
-            pub1.update_attributes(:field_1 => '321')
-          end.to_not raise_error
-        end
-      end
-    end
-
-    context 'when in strict mode for multi reads' do
-      before { Promiscuous::Config.strict_multi_read = true }
-
-      it "raises when a multi read cannot be tracked" do
-        pub1 = pub2 = nil
-        without_promiscuous do
-          pub1 = PublisherModel.create(:field_1 => '123')
-          pub2 = PublisherModel.create(:field_1 => '123')
-        end
-
-        Promiscuous.context do
-          expect do
-            PublisherModel.where(:field_1 => '123').count
-            pub1.update_attributes(:field_1 => '321')
-          end.to raise_error
-        end
-      end
-    end
-
     context 'when using hashing' do
       before { Promiscuous::Config.hash_size = 1 }
       before { PublisherModel.track_dependencies_of :field_1 }

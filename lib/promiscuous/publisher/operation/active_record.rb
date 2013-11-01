@@ -190,10 +190,6 @@ class ActiveRecord::Base
       raise
     end
 
-    def query_dependencies
-      @instances.map { |instance| dependencies_for(instance) }
-    end
-
     def operation_payloads
       @instances.map do |instance|
         instance.promiscuous.payload(:with_attributes => self.operation.in?([:create, :update])).tap do |payload|
@@ -311,7 +307,7 @@ class ActiveRecord::Base
     end
 
     def query_dependencies
-      deps = dependencies_for(get_selector_instance, :strict => false)
+      deps = dependencies_for(get_selector_instance)
       deps.empty? ? super : deps
     end
 

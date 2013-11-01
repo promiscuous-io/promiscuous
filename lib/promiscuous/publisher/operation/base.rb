@@ -417,11 +417,8 @@ class Promiscuous::Publisher::Operation::Base
       # the largest. For maximum performance on the subscriber side, we thus
       # pick the first one. In most cases, it should resolve to the id
       # dependency.
+      # If we don't have any, the driver should track individual instances.
       best_dependency = instance.promiscuous.tracked_dependencies(:allow_missing_attributes => true).first
-      strict = options[:strict].nil? ? options[:strict] : Promiscuous::Config.strict_multi_read
-      if strict && !best_dependency
-        raise Promiscuous::Error::Dependency.new(:operation => self)
-      end
       [best_dependency].compact
     else
       # Note that tracked_dependencies will not return the id dependency if it

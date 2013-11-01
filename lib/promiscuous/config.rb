@@ -5,7 +5,7 @@ module Promiscuous::Config
                  :redis_urls, :redis_stats_url, :stats_interval,
                  :socket_timeout, :heartbeat, :no_deps, :hash_size, :recovery,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
-                 :error_notifier, :strict_multi_read, :version_field
+                 :error_notifier, :version_field
 
   def self.backend=(value)
     @@backend = value
@@ -59,7 +59,6 @@ module Promiscuous::Config
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10
     self.error_notifier       ||= proc {}
-    self.strict_multi_read    ||= false
     self.version_field        ||= '_pv'
   end
 
