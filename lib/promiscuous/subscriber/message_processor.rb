@@ -38,7 +38,7 @@ class Promiscuous::Subscriber::MessageProcessor
   end
 
   def get_current_instance_version
-    master_node.get(instance_dep.key(:sub).to_s).to_i
+    master_node.get(instance_dep.key(:sub).join('rw').to_s).to_i
   end
 
   # XXX TODO Code is not tolerant to losing a lock.
@@ -80,12 +80,13 @@ class Promiscuous::Subscriber::MessageProcessor
       end
 
       for i, _key in ipairs(read_deps) do
-        local key = _key .. 'w'
+        local key = _key .. ':rw'
         local v = redis.call('incr', key)
         redis.call('publish', key, v)
       end
 
-      for i, key in ipairs(write_deps) do
+      for i, _key in ipairs(write_deps) do
+        local key = _key .. ':rw'
         local v = write_versions[i]
         local current_version = tonumber(redis.call('get', key)) or 0
         if current_version < v then

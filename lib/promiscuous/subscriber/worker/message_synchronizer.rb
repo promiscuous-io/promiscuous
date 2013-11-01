@@ -85,7 +85,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       get_redis = dep.redis_node
       subscriber_redis = dep.redis_node(@redis)
 
-      key = dep.upgrade.key(:sub).to_s
+      key = dep.key(:sub).join('rw').to_s
       version = dep.version
       node_synchronizer = @node_synchronizers[subscriber_redis]
       proc { node_synchronizer.on_version(subscriber_redis, get_redis, key, version, msg) { chain.call } }
@@ -125,7 +125,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     incremented_deps = {}
 
     msg.happens_before_dependencies.each do |dep|
-      key = dep.key(:sub)
+      key = dep.key(:sub).join('rw')
       guard_key = key.join('guard') if dep.write?
       version = dep.version
 
