@@ -7,7 +7,7 @@ describe Promiscuous do
       include Mongoid::Document
       include Promiscuous::Subscriber
 
-      subscribe :from => 'publisher_model' do
+      subscribe :as => :PublisherModel do
         field :field_1
         field :fieldX
       end
