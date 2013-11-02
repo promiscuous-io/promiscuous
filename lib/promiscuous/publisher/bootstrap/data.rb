@@ -105,17 +105,11 @@ class Promiscuous::Publisher::Bootstrap::Data
     end
 
     def publish_data(connection, instance)
-      dep = instance.promiscuous.tracked_dependencies.first
-      # TODO: Make sure its ok to get the version after the instance (as the
-      # instance may have been updated)
-      dep.version = dep.redis_node.get(dep.key(:pub).join('rw'))
-
       operation = instance.promiscuous.payload
       operation[:operation] = :bootstrap_data
 
       payload = {}
       payload[:app] = Promiscuous::Config.app
-      payload[:dependencies] = {:write => [dep]}
       payload[:operations] = [operation]
 
       connection.publish(:key => Promiscuous::Config.app, :payload => MultiJson.dump(payload))

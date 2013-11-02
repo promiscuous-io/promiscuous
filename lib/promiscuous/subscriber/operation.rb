@@ -85,15 +85,7 @@ class Promiscuous::Subscriber::Operation
   end
 
   def bootstrap_data
-    dep = message.dependencies.first
-    if dep.version <= dep.redis_node.get(dep.key(:sub).join('rw').to_s).to_i
-      create(:upsert => true)
-    else
-      # We don't save the instance if we don't have a matching version in redis.
-      # It would mean that the document got update since the bootstrap_versions.
-      # We'll get it on the next pass. But we should remember what we've dropped
-      # to be able to know when we can go live
-    end
+    create(:upsert => true)
   end
 
   def bootstrap_missing_data

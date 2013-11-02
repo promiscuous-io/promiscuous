@@ -55,7 +55,7 @@ end
 
 describe Promiscuous, 'bootstrapping replication' do
   before { use_real_backend }
-  before { Promiscuous::Config.hash_size = 10 }
+  before { Promiscuous::Config.hash_size = 5 }
   before { load_models }
   after  { use_null_backend }
 
@@ -105,19 +105,47 @@ describe Promiscuous, 'bootstrapping replication' do
       Promiscuous::Publisher::Bootstrap::Data.run
 
       eventually do
-        SubscriberModel.count.should == PublisherModel.count - 1
-      end
-
-      switch_subscriber_mode(false)
-
-      eventually do
         SubscriberModel.count.should == PublisherModel.count
         SubscriberModel.first.field_2.should == 'hello'
       end
 
+      switch_subscriber_mode(false)
+
       PublisherModel.all.each { |pub| Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') } }
 
       eventually { SubscriberModel.each { |sub| sub.field_1.should == 'ohai' } }
+    end
+  end
+
+  context 'when updates happens after the data bootstrap, but before the bootstrap mode is turned off' do
+    it 'bootstraps' do
+      Promiscuous::Publisher::Bootstrap::Mode.enable
+      Promiscuous.context { 10.times { PublisherModel.create } }
+
+      switch_subscriber_mode(:pass1)
+
+      Promiscuous::Publisher::Bootstrap::Version.bootstrap
+      sleep 1
+      Promiscuous::Publisher::Bootstrap::Mode.disable
+
+      switch_subscriber_mode(:pass2)
+
+      Promiscuous::Publisher::Bootstrap::Data.setup
+      Promiscuous::Publisher::Bootstrap::Data.run
+
+      eventually do
+        SubscriberModel.count.should == PublisherModel.count
+      end
+
+      Promiscuous.context { PublisherModel.first.update_attributes(:field_2 => 'hello') }
+
+      sleep 1
+
+      SubscriberModel.first.field_2.should == nil
+
+      switch_subscriber_mode(false)
+
+      eventually { SubscriberModel.first.field_2.should == 'hello' }
     end
   end
 
