@@ -21,30 +21,30 @@ class Promiscuous::Publisher::Bootstrap::Data
         lock = Promiscuous::Redis::Mutex.new(key, lock_options(options[:lock]))
         if lock.try_lock
           if range = redis.get(key)
-            range = YAML.load(range)
-            selector = range[:selector]
-            options  = range[:options]
-            klass    = range[:class].constantize
-            start    = range[:start].to_i
-            finish   = range[:finish].to_i
+            range = MultiJson.load(range)
+            selector = range['selector']
+            options  = range['options']
+            klass    = range['class'].constantize
+            start    = range['start'].to_i
+            finish   = range['finish'].to_i
 
             lock_extended_at = Time.now
-            range_selector(klass, selector, options, start, finish).each_with_index do |instance, i|
-              publish_data(connection, instance)
+            without_promiscuous do
+              range_selector(klass, selector, options, start, finish).each_with_index do |instance, i|
+                publish_data(connection, instance)
 
-              if (Time.now - lock_extended_at) > lock_options[:expire]/5
-                raise "Another worker stole your work!" unless lock.extend
-                lock_extended_at = Time.now
+                if (Time.now - lock_extended_at) > lock_options[:expire]/5
+                  raise "Another worker stole your work!" unless lock.extend
+                  lock_extended_at = Time.now
+                end
+                Promiscuous::Publisher::Bootstrap::Status.inc
               end
-              Promiscuous::Publisher::Bootstrap::Status.inc
+              redis.del(key)
+              lock.unlock
             end
-            redis.del(key)
-            lock.unlock
           end
         end
       end
-    ensure
-      connection.close
     end
 
     private
@@ -66,7 +66,7 @@ class Promiscuous::Publisher::Bootstrap::Data
           range_finish = range_start + increment
 
           key = range_redis_key.join(namespace).join(i)
-          value = YAML.dump(:selector => model.all.selector,
+          value = MultiJson.dump(:selector => model.all.selector,
                                  :options  => model.all.options,
                                  :class    => model.all.klass.to_s,
                                  :start    => range_start.to_s,
@@ -106,13 +106,19 @@ class Promiscuous::Publisher::Bootstrap::Data
 
     def publish_data(connection, instance)
       dep = instance.promiscuous.tracked_dependencies.first
-      dep.version = instance[Promiscuous::Publisher::Operation::Base::VERSION_FIELD].to_i
+      # TODO: Make sure its ok to get the version after the instance (as the
+      # instance may have been updated)
+      dep.version = dep.redis_node.get(dep.key(:pub).join('rw'))
 
-      payload = instance.promiscuous.payload
-      payload[:operation] = :bootstrap_data
+      operation = instance.promiscuous.payload
+      operation[:operation] = :bootstrap_data
+
+      payload = {}
+      payload[:app] = Promiscuous::Config.app
       payload[:dependencies] = {:write => [dep]}
+      payload[:operations] = [operation]
 
-      connection.publish(:key => payload[:__amqp__], :payload => MultiJson.dump(payload))
+      connection.publish(:key => Promiscuous::Config.app, :payload => MultiJson.dump(payload))
     end
 
     def min_max(model)

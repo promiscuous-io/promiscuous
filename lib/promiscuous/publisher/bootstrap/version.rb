@@ -11,8 +11,6 @@ class Promiscuous::Publisher::Bootstrap::Version
         begin_at += chunk_size
       end
     end
-  ensure
-    connection.close
   end
 
   class Chunk
@@ -34,11 +32,15 @@ class Promiscuous::Publisher::Bootstrap::Version
         end
       end
 
+      operation = {}
+      operation[:operation] = :bootstrap_versions
+      operation[:keys] = futures.map { |i, f| "#{i}:#{f.value}" if f.value }.compact
+
       payload = {}
-      payload[:__amqp__] = Promiscuous::Config.app
-      payload[:operation] = :bootstrap_versions
-      payload[:keys] = futures.map { |i, f| "#{i}:#{f.value}" if f.value }.compact
-      @connection.publish(:payload => MultiJson.dump(payload)) if payload[:keys].present?
+      payload[:app] = Promiscuous::Config.app
+      payload[:operations] = [operation]
+
+      @connection.publish(:payload => MultiJson.dump(payload)) if operation[:keys].present?
     end
   end
 end

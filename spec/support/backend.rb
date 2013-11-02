@@ -7,7 +7,7 @@ module BackendHelper
     Promiscuous.configure do |config|
       config.reset
       config.redis_urls = NUM_SHARDS.times.map { |i| "redis://localhost/#{i}" }
-      config.app = 'test_app'
+      config.app = 'test'
       config.queue_options = {:auto_delete => true}
       config.hash_size = HASH_SIZE
       config.logger = Logger.new(STDERR)

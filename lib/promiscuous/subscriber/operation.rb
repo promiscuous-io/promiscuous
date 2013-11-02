@@ -38,7 +38,7 @@ class Promiscuous::Subscriber::Operation
   rescue Exception => e
     # TODO Abstract the duplicated index error message
     if e.message =~ /E11000/ ||
-       e.is_a?(ActiveRecord::RecordNotUnique) # TODO Ensure that it's on the pk
+       e.is_a?(ActiveRecord::RecordNotUnique) # TODO Ensure that it's on the pk AND only check if ActiveRecord is defined
       if options[:upsert]
         update
       else
@@ -86,7 +86,7 @@ class Promiscuous::Subscriber::Operation
 
   def bootstrap_data
     dep = message.dependencies.first
-    if dep.version <= dep.redis_node.get(dep.key(:sub).to_s).to_i
+    if dep.version <= dep.redis_node.get(dep.key(:sub).join('rw').to_s).to_i
       create(:upsert => true)
     else
       # We don't save the instance if we don't have a matching version in redis.

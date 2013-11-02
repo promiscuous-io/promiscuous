@@ -166,30 +166,30 @@ class Promiscuous::Subscriber::MessageProcessor
                    :expire  => 1.minute }  # after one minute, we are considered dead
 
   def synchronize_and_update_dependencies
-    unless message.try(:has_dependencies?)
-      # TODO Is this block relevant? Remove if not.
-      yield
-      message.ack
-      return
-    end
+    if Promiscuous::Config.bootstrap
+      if operations.first.try(:operation) =~ /bootstrap/
+        yield
+        return
+      end
+    else
+      lock_options = LOCK_OPTIONS.merge(:node => master_node)
+      mutex = Promiscuous::Redis::Mutex.new(instance_dep.key(:sub).to_s, lock_options)
 
-    lock_options = LOCK_OPTIONS.merge(:node => master_node)
-    mutex = Promiscuous::Redis::Mutex.new(instance_dep.key(:sub).to_s, lock_options)
+      unless mutex.lock
+        raise Promiscuous::Error::LockUnavailable.new(mutex.key)
+      end
 
-    unless mutex.lock
-      raise Promiscuous::Error::LockUnavailable.new(mutex.key)
-    end
-
-    begin
-      check_for_duplicated_message
-      yield
-      update_dependencies
-      message.ack
-    ensure
-      unless mutex.unlock
-        # TODO Be safe in case we have a duplicate message and lost the lock on it
-        raise "The subscriber lost the lock during its operation. It means that someone else\n"+
-              "received a duplicate message, and we got screwed.\n"
+      begin
+        check_for_duplicated_message
+        yield
+        update_dependencies
+        message.ack
+      ensure
+        unless mutex.unlock
+          # TODO Be safe in case we have a duplicate message and lost the lock on it
+          raise "The subscriber lost the lock during its operation. It means that someone else\n"+
+            "received a duplicate message, and we got screwed.\n"
+        end
       end
     end
   end
