@@ -295,4 +295,22 @@ require 'spec_helper'
         dep['write'].should == ["0:3"]
       end
     end
+
+    context 'when updating a model that is not tracked' do
+      before do
+        define_constant :UntrackedModel do
+          include Mongoid::Document
+
+          field :field_1
+        end
+      end
+      before { 10.times { |i| UntrackedModel.create(:field_1 => "field#{i}") } }
+
+      it 'can update_all' do
+        Promiscuous.context { UntrackedModel.update_all(:field_1 => 'updated') }
+
+        Promiscuous::AMQP::Fake.get_next_payload.should == nil
+        UntrackedModel.all.each { |doc| doc.field_1.should == 'updated' }
+      end
+    end
   end

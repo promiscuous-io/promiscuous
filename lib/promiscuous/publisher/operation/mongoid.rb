@@ -257,12 +257,14 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   alias :one :first
 
   def update(change, flags=nil)
-    if flags
+    update_op = promiscuous_write_operation(:update, :change => change)
+
+    if flags && update_op.should_instrument_query?
       raise "You cannot do a multi update. Instead, update each document separately." if flags.include?(:multi)
       raise "No upsert support yet" if flags.include?(:upsert)
     end
 
-    promiscuous_write_operation(:update, :change => change).execute do |query|
+    update_op.execute do |query|
       query.non_instrumented { super }
       query.instrumented do |op|
         raw_instance = without_promiscuous { modify(change, :new => true) }
