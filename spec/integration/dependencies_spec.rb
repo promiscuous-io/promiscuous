@@ -160,13 +160,13 @@ describe Promiscuous do
 
         @num_deps = 10
 
-        Promiscuous::Subscriber::Operation.any_instance.stubs(:after_secondary_update_hook).raises
+        Promiscuous::Subscriber::Operation::Regular.any_instance.stubs(:after_secondary_update_hook).raises
         Promiscuous.context do
           @num_deps.times.map { |i| PublisherModel.where(:field_2 => i.to_s).count }
           pub.update_attributes(:field_1 => '1')
         end
         sleep 2
-        Promiscuous::Subscriber::Operation.any_instance.unstub(:after_secondary_update_hook)
+        Promiscuous::Subscriber::Operation::Regular.any_instance.unstub(:after_secondary_update_hook)
 
         Promiscuous.context { pub.update_attributes(:field_1 => '2') }
 
@@ -187,13 +187,13 @@ describe Promiscuous do
 
         @num_deps = 10
 
-        Promiscuous::Subscriber::Operation.any_instance.stubs(:update_dependencies_single).raises
+        Promiscuous::Subscriber::Operation::Regular.any_instance.stubs(:update_dependencies_single).raises
         Promiscuous.context do
           @num_deps.times.map { |i| PublisherModel.where(:field_2 => i.to_s).count }
           pub.update_attributes(:field_1 => '1')
         end
         sleep 5
-        Promiscuous::Subscriber::Operation.any_instance.unstub(:update_dependencies_single)
+        Promiscuous::Subscriber::Operation::Regular.any_instance.unstub(:update_dependencies_single)
 
         Promiscuous.context { pub.update_attributes(:field_1 => '2') }
 

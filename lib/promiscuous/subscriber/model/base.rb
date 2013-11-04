@@ -13,7 +13,7 @@ module Promiscuous::Subscriber::Model::Base
       value = payload.attributes[attr]
       update = true
 
-      attr_payload = Promiscuous::Subscriber::Operation.new(value)
+      attr_payload = Promiscuous::Subscriber::Operation::Regular.new(value)
       if model = attr_payload.model
         # Nested subscriber
         old_value =  __send__(attr)

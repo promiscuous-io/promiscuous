@@ -104,7 +104,11 @@ class Promiscuous::Subscriber::Worker::Message
 
   def process
     unit_of_work(context) do
-      Promiscuous::Subscriber::MessageProcessor.process(self)
+      if Promiscuous::Config.bootstrap
+        Promiscuous::Subscriber::MessageProcessor::Bootstrap.process(self)
+      else
+        Promiscuous::Subscriber::MessageProcessor::Regular.process(self)
+      end
     end
   rescue Exception => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)

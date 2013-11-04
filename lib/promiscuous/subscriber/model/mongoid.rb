@@ -58,7 +58,7 @@ module Promiscuous::Subscriber::Model::Mongoid
           new_e['existed'] = true
           old_e.instance_variable_set(:@keep, true)
 
-          payload = Promiscuous::Subscriber::Operation.new(new_e)
+          payload = Promiscuous::Subscriber::Operation::Regular.new(new_e)
           old_e.__promiscuous_update(payload, :old_value => old_e)
         end
       end
@@ -70,7 +70,7 @@ module Promiscuous::Subscriber::Model::Mongoid
 
       # create all the new ones
       new_embeddeds.reject { |new_e| new_e['existed'] }.each do |new_e|
-        payload = Promiscuous::Subscriber::Operation.new(new_e)
+        payload = Promiscuous::Subscriber::Operation::Regular.new(new_e)
         new_e_instance = payload.model. __promiscuous_fetch_new(payload.id)
         new_e_instance.__promiscuous_update(payload)
         options[:parent].__send__(old_embeddeds.metadata[:name]) << new_e_instance
