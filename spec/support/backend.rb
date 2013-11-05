@@ -8,6 +8,7 @@ module BackendHelper
       config.reset
       config.redis_urls = NUM_SHARDS.times.map { |i| "redis://localhost/#{i}" }
       config.app = 'test'
+      config.subscriber_exchanges = [config.app]
       config.queue_options = {:auto_delete => true}
       config.hash_size = HASH_SIZE
       config.logger = Logger.new(STDERR)

@@ -1,8 +1,8 @@
 module Promiscuous::Config
   mattr_accessor :app, :bootstrap, :bootstrap_chunk_size, :backend, :amqp_url,
                  :publisher_amqp_url, :subscriber_amqp_url, :publisher_exchange,
-                 :subscriber_exchanges, :queue_name, :queue_options, :redis_url,
-                 :redis_urls, :redis_stats_url, :stats_interval,
+                 :subscriber_exchanges, :bootstrap_exchange, :queue_name, :queue_options,
+                 :redis_url, :redis_urls, :redis_stats_url, :stats_interval,
                  :socket_timeout, :heartbeat, :no_deps, :hash_size, :recovery,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
                  :version_field, :error_notifier, :relaxed_schema, :recovery_on_boot
@@ -40,8 +40,8 @@ module Promiscuous::Config
     self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
     self.publisher_amqp_url   ||= self.amqp_url
     self.subscriber_amqp_url  ||= self.amqp_url
-    self.publisher_exchange   ||= Promiscuous::AMQP::LIVE_EXCHANGE
-    self.subscriber_exchanges ||= [Promiscuous::AMQP::LIVE_EXCHANGE]
+    self.publisher_exchange   ||= self.app
+    self.bootstrap_exchange   ||= "#{self.app}.bootstrap"
     self.queue_name           ||= "#{self.app}.promiscuous"
     self.queue_options        ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.redis_url            ||= 'redis://localhost/'
