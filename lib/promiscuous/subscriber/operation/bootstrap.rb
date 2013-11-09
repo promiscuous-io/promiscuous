@@ -1,5 +1,5 @@
 class Promiscuous::Subscriber::Operation::Bootstrap < Promiscuous::Subscriber::Operation::Base
-  # XXX Bootstrapping is a WIP. Here's what's left to do:
+  # TODO Here's what's left to do:
   # - Automatic switching from pass1, pass2, live
   # - Unbinding the bootstrap exchange when going live, and reset prefetch
   #   during the version bootstrap phase.
