@@ -172,23 +172,20 @@ module Promiscuous::Redis
     end
 
     def extend
-      @expires_at = Time.now.to_i + @expire + 1
+      now  = Time.now.to_i
       @@extend_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
         local key = KEYS[1]
-        local lock_set = KEYS[2]
         local expires_at = tonumber(ARGV[1])
         local token = ARGV[2]
-        local lock_value = expires_at .. ':' .. token
-        local old_value = redis.call('get', key)
 
-        if old_value then
-          redis.call('set', key, lock_value)
+        if redis.call('hget', key, 'token') == token then
+          redis.call('hset', key, 'expires_at', expires_at)
           return true
         else
           return false
         end
       SCRIPT
-      @@extend_script.eval(@node, :keys => [@key, @lock_set].compact, :argv => [@expires_at, @token])
+      !!@@extend_script.eval(@node, :keys => [@key].compact, :argv => [now + @expire, @token])
     end
 
     def unlock
