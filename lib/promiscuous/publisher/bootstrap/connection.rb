@@ -3,7 +3,7 @@ class Promiscuous::Publisher::Bootstrap::Connection
     # We don't put the connection in the initializer because it gets funny when
     # it comes to the disconnection.
     connection_options = { :url      => Promiscuous::Config.publisher_amqp_url,
-                           :exchange => Promiscuous::Config.bootstrap_exchange }
+                           :exchange => Promiscuous::AMQP::BOOTSTRAP_EXCHANGE }
     @connection, @channel, @exchange = Promiscuous::AMQP.new_connection(connection_options)
     self
   end

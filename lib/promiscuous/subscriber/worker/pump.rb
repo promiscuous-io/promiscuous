@@ -15,7 +15,7 @@ class Promiscuous::Subscriber::Worker::Pump
     end
 
     if Promiscuous::Config.bootstrap
-      options[:bindings][Promiscuous::Config.bootstrap_exchange] = ['*']
+      options[:bindings][Promiscuous::AMQP::BOOTSTRAP_EXCHANGE] = ['*']
     end
 
     subscribe(options, &method(:on_message))
