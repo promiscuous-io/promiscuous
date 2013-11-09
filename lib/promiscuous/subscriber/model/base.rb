@@ -6,7 +6,7 @@ module Promiscuous::Subscriber::Model::Base
       unless payload.attributes.has_key?(attr)
         "Attribute '#{attr}' is missing from the payload".tap do |error_msg|
           Promiscuous.warn "[receive] #{error_msg}"
-          raise error_msg unless Promiscuous::Config.relaxed_schema
+          raise error_msg
         end
       end
 

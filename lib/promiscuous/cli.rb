@@ -152,10 +152,6 @@ class Promiscuous::CLI
         Promiscuous::Config.recovery = true
       end
 
-      opts.on "-a", "--relaxed-schema", "Only warn if message does not match schema on subscriber" do
-        Promiscuous::Config.relaxed_schema = true
-      end
-
       opts.on "-p", "--prefetch [NUM]", "Number of messages to prefetch" do |prefetch|
         exit 1 if prefetch.to_i == 0
         Promiscuous::Config.prefetch = prefetch.to_i
@@ -209,7 +205,7 @@ class Promiscuous::CLI
     case options[:action]
     when :publish             then raise "Please specify one or more criterias" unless options[:criterias].present?
     when :subscribe           then raise "Why are you specifying a criteria?"   if     options[:criterias].present?
-    when :bootstrap           then raise "You must specify one of [setup|start|finalize]"   unless options[:criterias].present?
+    when :bootstrap           then raise "You must specify one of [setup|start|finalize]" unless options[:criterias].present?
     when :record              then raise "Please specify a log file to record"  unless options[:log_file].present?
     when :replay              then raise "Please specify a log file to replay"  unless options[:log_file].present?
     when :publisher_bootstrap then raise "Please specify 'on' or 'off'" unless options[:publisher_bootstrap].present?
