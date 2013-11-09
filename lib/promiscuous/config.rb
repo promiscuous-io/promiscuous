@@ -113,8 +113,6 @@ module Promiscuous::Config
 
   private
 
-  private
-
   def self.reconnect_if_connected(&block)
     if Promiscuous.should_be_connected?
       Promiscuous.disconnect
