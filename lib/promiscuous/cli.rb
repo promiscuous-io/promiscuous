@@ -239,19 +239,17 @@ class Promiscuous::CLI
 
   def boot
     self.options = parse_args(ARGV)
-    daemonize
-    write_pid
+    daemonize if options[:daemonize]
+    write_pid if options[:pid_file]
     load_app
     run
   end
 
   def daemonize
-    Process.daemon(true, true) if options[:daemonize]
+    Process.daemon(true)
   end
 
   def write_pid
-    return unless options[:pid_file]
-
     File.open(options[:pid_file], 'w') do |f|
       f.puts Process.pid
     end
@@ -273,6 +271,6 @@ class Promiscuous::CLI
 
   def print_status(msg)
     Promiscuous.info msg
-    STDERR.puts msg unless options[:daemonize]
+    STDERR.puts msg
   end
 end
