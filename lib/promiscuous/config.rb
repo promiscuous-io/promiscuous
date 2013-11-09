@@ -59,7 +59,7 @@ module Promiscuous::Config
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10
     self.error_notifier       ||= proc {}
-    self.version_field        ||= '_pv'
+    self.version_field        ||= '_v'
     self.recovery_on_boot     = true if self.recovery_on_boot.nil?
   end
 
