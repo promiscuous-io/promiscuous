@@ -1,6 +1,6 @@
 <p align="center">
-  <a href="https://github.com/crowdtap/promiscuous/#introduction">
-    <img src="https://github.com/crowdtap/promiscuous/wiki/promiscuous.png">
+  <a href="https://github.com/promiscuous-io/promiscuous/#introduction">
+    <img src="https://github.com/promiscuous-io/promiscuous/wiki/promiscuous.png">
   </a>
 </p>
 
@@ -112,38 +112,38 @@ Promiscuous in Depth
 --------------------
 
 ### Features and Recipes
-* [Attributes](https://github.com/crowdtap/promiscuous/wiki/Features-and-Recipes#wiki-attributes)
-* [Ephemerals & Observers](https://github.com/crowdtap/promiscuous/wiki/Features-and-Recipes#wiki-ephemerals-observers)
-* [Polymorphism](https://github.com/crowdtap/promiscuous/wiki/Features-and-Recipes#wiki-polymorphism)
-* [Embedded Documents](https://github.com/crowdtap/promiscuous/wiki/Features-and-Recipes#wiki-embedded-documents)
-* [Foreign Keys](https://github.com/crowdtap/promiscuous/wiki/Features-and-Recipes#wiki-foreign-keys)
-* [Namespace Mapping](https://github.com/crowdtap/promiscuous/wiki/Features-and-Recipes#wiki-namespace-mapping)
-* [Promiscuous DSL](https://github.com/crowdtap/promiscuous/wiki/Features-and-Recipes#wiki-promiscuous-dsl)
+* [Attributes](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-attributes)
+* [Ephemerals & Observers](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-ephemerals-observers)
+* [Polymorphism](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-polymorphism)
+* [Embedded Documents](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-embedded-documents)
+* [Foreign Keys](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-foreign-keys)
+* [Namespace Mapping](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-namespace-mapping)
+* [Promiscuous DSL](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-promiscuous-dsl)
 
 ### The Replication Mechanism
-* [Pipeline Description](https://github.com/crowdtap/promiscuous/wiki/The-Replication-Mechanism#wiki-pipeline-description)
+* [Pipeline Description](https://github.com/promiscuous-io/promiscuous/wiki/The-Replication-Mechanism#wiki-pipeline-description)
 
 ### Configuration
-* [Configuration Options](https://github.com/crowdtap/promiscuous/wiki/Configuration#wiki-configuration-options)
-* [Subscriber CLI Options](https://github.com/crowdtap/promiscuous/wiki/Configuration#wiki-subscriber-cli-options)
+* [Configuration Options](https://github.com/promiscuous-io/promiscuous/wiki/Configuration#wiki-configuration-options)
+* [Subscriber CLI Options](https://github.com/promiscuous-io/promiscuous/wiki/Configuration#wiki-subscriber-cli-options)
 
 ### Testing
-* [Exporting Publishers Definitions](https://github.com/crowdtap/promiscuous/wiki/Testing#wiki-exporting-publishers-definitions)
-* [Unit Testing](https://github.com/crowdtap/promiscuous/wiki/Testing#wiki-unit-testing)
-* [Integration Testing](https://github.com/crowdtap/promiscuous/wiki/Testing#wiki-integration-testing)
-* [Gemify your Apps](https://github.com/crowdtap/promiscuous/wiki/Testing#wiki-gemify-your-apps)
+* [Exporting Publishers Definitions](https://github.com/promiscuous-io/promiscuous/wiki/Testing#wiki-exporting-publishers-definitions)
+* [Unit Testing](https://github.com/promiscuous-io/promiscuous/wiki/Testing#wiki-unit-testing)
+* [Integration Testing](https://github.com/promiscuous-io/promiscuous/wiki/Testing#wiki-integration-testing)
+* [Gemify your Apps](https://github.com/promiscuous-io/promiscuous/wiki/Testing#wiki-gemify-your-apps)
 
 ### Going to Production
-* [RabbitMQ & Redis](https://github.com/crowdtap/promiscuous/wiki/Going-to-Production#wiki-rabbitmq-and-redis)
-* [Initial Sync](https://github.com/crowdtap/promiscuous/wiki/Going-to-Production#wiki-initial-sync)
-* [Error Handling](https://github.com/crowdtap/promiscuous/wiki/Going-to-Production#wiki-error-handling)
-* [Instrumentation](https://github.com/crowdtap/promiscuous/wiki/Going-to-Production#wiki-instrumentation)
-* [Managing Deploys](https://github.com/crowdtap/promiscuous/wiki/Going-to-Production#wiki-managing-deploys)
-* [Setup with Unicorn, Resque, etc.](https://github.com/crowdtap/promiscuous/wiki/Going-to-Production#wiki-setup-with-unicorn-resque-etc)
+* [RabbitMQ & Redis](https://github.com/promiscuous-io/promiscuous/wiki/Going-to-Production#wiki-rabbitmq-and-redis)
+* [Initial Sync](https://github.com/promiscuous-io/promiscuous/wiki/Going-to-Production#wiki-initial-sync)
+* [Error Handling](https://github.com/promiscuous-io/promiscuous/wiki/Going-to-Production#wiki-error-handling)
+* [Instrumentation](https://github.com/promiscuous-io/promiscuous/wiki/Going-to-Production#wiki-instrumentation)
+* [Managing Deploys](https://github.com/promiscuous-io/promiscuous/wiki/Going-to-Production#wiki-managing-deploys)
+* [Setup with Unicorn, Resque, etc.](https://github.com/promiscuous-io/promiscuous/wiki/Going-to-Production#wiki-setup-with-unicorn-resque-etc)
 
 ### Miscellaneous
-* [Roadmap](https://github.com/crowdtap/promiscuous/wiki/Miscellaneous#wiki-roadmap)
-* [Coding Restrictions](https://github.com/crowdtap/promiscuous/wiki/Miscellaneous#wiki-coding-restrictions)
-* [Limitations](https://github.com/crowdtap/promiscuous/wiki/Miscellaneous#wiki-limitations)
-* [FAQs](https://github.com/crowdtap/promiscuous/wiki/Miscellaneous#wiki-faqs)
-* [License](https://github.com/crowdtap/promiscuous/wiki/Miscellaneous#wiki-license)
+* [Roadmap](https://github.com/promiscuous-io/promiscuous/wiki/Miscellaneous#wiki-roadmap)
+* [Coding Restrictions](https://github.com/promiscuous-io/promiscuous/wiki/Miscellaneous#wiki-coding-restrictions)
+* [Limitations](https://github.com/promiscuous-io/promiscuous/wiki/Miscellaneous#wiki-limitations)
+* [FAQs](https://github.com/promiscuous-io/promiscuous/wiki/Miscellaneous#wiki-faqs)
+* [License](https://github.com/promiscuous-io/promiscuous/wiki/Miscellaneous#wiki-license)
