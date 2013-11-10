@@ -3,6 +3,7 @@ gemspec
 
 gem 'rake'
 gem 'rspec'
+gem 'rspec-retry', :require => false
 gem 'mocha', :require => false
 
 gem 'activerecord', '~> 3.2'

@@ -5,19 +5,18 @@ env: JRUBY_OPTS="--server --debug -J-Xms512m -J-Xmx1024m" TIMEOUT=10
 rvm:
   - ruby-1.9.3
   - ruby-2.0.0
+  - jruby
   - jruby-head
+  - ruby-head
 gemfile:
   - gemfiles/mongoid3.gemfile
   - gemfiles/mongoid31.gemfile
-  # - gemfiles/active_record.gemfile
+  - gemfiles/active_record32.gemfile
 services:
   - mongodb
   - rabbitmq
   - redis-server
 matrix:
-  include:
+  allow_failures:
+    - rvm: ruby-head
     - rvm: jruby-head
-      jdk: oraclejdk7
-      gemfile: gemfiles/mongoid3.gemfile
-# before_script:
-#   - psql -c 'create database promiscuous;' -U postgres
