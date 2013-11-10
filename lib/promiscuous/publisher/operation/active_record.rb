@@ -299,6 +299,9 @@ class ActiveRecord::Base
         model = nil unless model < Promiscuous::Publisher::Model::ActiveRecord
         model
       end
+    rescue
+      # TODO Track dependencies of complex queries properly...
+      nil
     end
 
     def get_selector_instance
