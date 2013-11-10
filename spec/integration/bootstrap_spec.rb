@@ -1,5 +1,6 @@
 require 'spec_helper'
 
+if ORM.has(:mongoid)
 describe Promiscuous, 'bootstrapping dependencies' do
   before { use_fake_backend }
   before { load_models }
@@ -219,6 +220,7 @@ describe Promiscuous, 'bootstrapping replication' do
 
     context "bootstrapping a subset of documents using a timestamp to filter"
   end
+end
 end
 
 def switch_subscriber_mode(bootstrap_mode)
