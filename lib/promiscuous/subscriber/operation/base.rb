@@ -34,6 +34,7 @@ class Promiscuous::Subscriber::Operation::Base
   rescue Exception => e
     # TODO Abstract the duplicated index error message
     dup_index_error = true if defined?(Mongoid) && e.message =~ /E11000/
+    # # TODO Ensure that it's on the pk
     dup_index_error = true if defined?(ActiveRecord) && e.is_a?(ActiveRecord::RecordNotUnique)
 
     if dup_index_error
