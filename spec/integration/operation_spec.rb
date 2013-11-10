@@ -40,6 +40,25 @@ require 'spec_helper'
       end
     end
 
+    context 'when using a single read' do
+      it 'publishes proper dependencies' do
+        pub1 = Promiscuous.context { PublisherModel.create }
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['read'].should  == nil
+        dep['write'].should == hashed["publisher_models/id/#{pub1.id}:1"]
+
+        pub2 = Promiscuous.context do
+          PublisherModel.first
+          PublisherModel.create
+        end
+
+        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
+        dep['read'].should  == hashed["publisher_models/id/#{pub1.id}:1"]
+        dep['write'].should == hashed["publisher_models/id/#{pub2.id}:1"]
+      end
+    end
+
     context 'when using only writes that hits' do
       it 'publishes proper dependencies' do
         pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }

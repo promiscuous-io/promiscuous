@@ -252,7 +252,16 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   def first
     # FIXME If the the user is using something like .only(), we need to make
     # sure that we add the id, otherwise we are screwed.
-    promiscuous_read_operation.execute { super }
+    op = promiscuous_read_operation
+
+    op.execute do |query|
+      query.non_instrumented { super }
+      query.instrumented do
+        super.tap do |doc|
+          op.instances = doc ? [Mongoid::Factory.from_db(op.model, doc)] : []
+        end
+      end
+    end
   end
   alias :one :first
 
