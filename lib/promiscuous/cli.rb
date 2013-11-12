@@ -148,10 +148,6 @@ class Promiscuous::CLI
         options[:require] = file
       end
 
-      opts.on "-r", "--recovery", "Run in recovery mode" do
-        Promiscuous::Config.recovery = true
-      end
-
       opts.on "-p", "--prefetch [NUM]", "Number of messages to prefetch" do |prefetch|
         exit 1 if prefetch.to_i == 0
         Promiscuous::Config.prefetch = prefetch.to_i

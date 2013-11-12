@@ -3,7 +3,7 @@ module Promiscuous::Config
                  :publisher_amqp_url, :subscriber_amqp_url, :publisher_exchange,
                  :subscriber_exchanges, :queue_name, :queue_options, :redis_url,
                  :redis_urls, :redis_stats_url, :stats_interval,
-                 :socket_timeout, :heartbeat, :no_deps, :hash_size, :recovery,
+                 :socket_timeout, :heartbeat, :no_deps, :hash_size,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
                  :version_field, :error_notifier, :recovery_on_boot
 
@@ -53,7 +53,6 @@ module Promiscuous::Config
     self.heartbeat            ||= 60
     self.no_deps              ||= false
     self.hash_size            ||= 2**20 # one million keys ~ 200Mb.
-    self.recovery             ||= false
     self.prefetch             ||= self.bootstrap ? 10000000 : 1000
     self.recovery_timeout     ||= 10
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }

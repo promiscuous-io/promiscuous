@@ -6,7 +6,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   CLEANUP_INTERVAL   = 100 # messages
   QUEUE_MAX_AGE      = 100 # messages
 
-  attr_accessor :redis, :node_synchronizers, :num_processed_messages, :num_queued_messages
+  attr_accessor :redis, :node_synchronizers, :num_processed_messages
 
   def initialize(root)
     @root = root
@@ -24,7 +24,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       return unless !connected?
 
       @num_processed_messages = 0
-      @num_queued_messages = 0
       redis = Promiscuous::Redis.new_blocking_connection
       redis.nodes.each { |node| @node_synchronizers[node] = NodeSynchronizer.new(self, node) }
       @redis = redis
@@ -83,8 +82,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
     # Dropped messages will be redelivered as we (re)connect
     return unless self.redis
 
-    @lock.synchronize { @num_queued_messages += 1 }
-
     @message_queue.push([msg, msg.happens_before_dependencies.dup])
   end
 
@@ -113,70 +110,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     cleanup = false
     @lock.synchronize do
-      @num_queued_messages -= 1
       @num_processed_messages += 1
       cleanup = @num_processed_messages % CLEANUP_INTERVAL == 0
     end
     @node_synchronizers.values.each(&:cleanup_if_old) if @node_synchronizers && cleanup
-  end
-
-  def maybe_recover
-    if @num_queued_messages == Promiscuous::Config.prefetch
-      # We've reached the amount of messages the amqp queue is willing to give us.
-      # We also know that we are not processing messages (@num_queued_messages is
-      # decremented before we send the message to the runners), and we are called
-      # after adding a pending callback.
-      recover_dependencies_for(blocked_messages.first)
-    end
-  end
-
-  def recover_dependencies_for(msg)
-    # XXX This recovery mechanism only works with one worker.
-    # We are taking the earliest message to unblock, but in reality we should
-    # do the DAG of the happens before dependencies, take root nodes
-    # of the disconnected graphs, and sort by timestamps if needed.
-
-    incremented_deps = {}
-
-    msg.happens_before_dependencies.each do |dep|
-      key = dep.key(:sub).join('rw')
-      guard_key = key.join('guard') if dep.write?
-      version = dep.version
-
-      @@version_recovery_script ||= Promiscuous::Redis::Script.new <<-SCRIPT
-        local key = ARGV[1]
-        local wanted_version = tonumber(ARGV[2])
-        local guard_key = ARGV[3]
-
-        if redis.call('exists', guard_key) == 1 then
-          return
-        end
-
-        local current_version = tonumber(redis.call('get', key)) or 0
-
-        if wanted_version > current_version then
-          redis.call('set', guard_key, 1)
-          redis.call('expire', guard_key, 10)
-
-          redis.call('set', key, wanted_version)
-          redis.call('publish', key, wanted_version)
-          return wanted_version - current_version
-        end
-      SCRIPT
-      increment = @@version_recovery_script.eval(dep.redis_node, :argv => [key, version, guard_key].compact)
-      incremented_deps[dep] = increment if increment
-    end
-
-    if incremented_deps.present?
-      recovery_msg = "Incrementing "
-      recovery_msg += incremented_deps.map { |dep, increment| "#{dep} by #{increment}" }.join(", ")
-
-      e = Promiscuous::Error::Recovery.new(recovery_msg)
-      Promiscuous.error "[synchronization recovery] #{e}"
-
-      # TODO Should we report the error to the notifier, or the log file is enough?
-      # Promiscuous::Config.error_notifier.call(e)
-    end
   end
 
   def blocked_messages
@@ -378,11 +315,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
           end
         end
 
-        if can_perform_immediately
-          callback.perform
-        else
-          node_synchronizer.root_synchronizer.maybe_recover if Promiscuous::Config.recovery
-        end
+        callback.perform if can_perform_immediately
       end
 
       class Callback < Struct.new(:version, :callback, :message)

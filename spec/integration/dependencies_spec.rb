@@ -227,35 +227,4 @@ describe Promiscuous do
       end
     end
   end
-
-  context 'when recovering' do
-    before do
-      Promiscuous::Config.logger.level = Logger::FATAL
-      Promiscuous::Config.prefetch = 5
-      Promiscuous::Config.recovery = true
-    end
-
-    it 'increments versions properly' do
-      pub = nil
-      pub = Promiscuous.context { PublisherModel.create }
-      Promiscuous.context { pub.update_attributes(:field_1 => '2') }
-      eventually { SubscriberModel.num_saves.should == 2 }
-
-      dep = pub.promiscuous.tracked_dependencies.first
-      key = dep.key(:pub)
-      dep.redis_node.incr(key.join('rw').to_s)
-      dep.redis_node.incr(key.join('w').to_s)
-
-      Promiscuous.context { pub.update_attributes(:field_1 => '3') }
-      Promiscuous.context { pub.update_attributes(:field_1 => '4') }
-      Promiscuous.context { pub.update_attributes(:field_1 => '5') }
-      Promiscuous.context { pub.update_attributes(:field_1 => '6') }
-      Promiscuous.context { pub.update_attributes(:field_1 => '7') }
-
-      eventually do
-        SubscriberModel.first.field_1.should == '7'
-        SubscriberModel.num_saves.should == 7
-      end
-    end
-  end
 end
