@@ -22,15 +22,17 @@ module Promiscuous::Publisher::Model::Mock
     end
   end
 
-  class PromiscuousMethods
-    include Promiscuous::Publisher::Model::Base::PromiscuousMethodsBase
-    include Promiscuous::Publisher::Model::Ephemeral::PromiscuousMethodsEphemeral
+  def save_operation(operation)
+    payload = nil
 
-    def sync(options={}, &block)
-      payload[:operations] = [self.payload.merge(:operation => options[:operation] || :update)]
-      payload[:app] = self.class.mock_options[:from]
-      Promiscuous::Subscriber::Worker::Message.new(MultiJson.dump(payload)).process
+    Promiscuous::Publisher::Context::Middleware.with_context("mocking #{self.class}") do
+      op = Promiscuous::Publisher::Operation::Atomic.new(:instance => self, :operation => operation)
+      # TODO FIX the mocks to populate app name, also we need to hook before the
+      # json dump.
+      payload = op.generate_payload
     end
+
+    Promiscuous::Subscriber::Worker::Message.new(payload).process
   end
 
   module ClassMethods
