@@ -28,6 +28,10 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       redis = Promiscuous::Redis.new_blocking_connection
       redis.nodes.each { |node| @node_synchronizers[node] = NodeSynchronizer.new(self, node) }
       @redis = redis
+
+      # XXX HACK FOR AVOIDING STACK OVERFLOWS
+      @message_queue = Queue.new
+      @processor_thread = Thread.new { queue_process_main_loop }
     end
     # Do not recover messages while bootstrapping as there are a very large
     # number of messages that remain un-acked. If bootstrap messages are missed
@@ -44,6 +48,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       @node_synchronizers.values.each { |node_synchronizer| node_synchronizer.stop_main_loop }
       @node_synchronizers.clear
       redis.quit
+      @processor_thread.kill
     end
   rescue Exception
   end
@@ -80,16 +85,25 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
 
     @lock.synchronize { @num_queued_messages += 1 }
 
-    process_message_proc = proc { process_message!(msg) }
-    msg.happens_before_dependencies.reduce(process_message_proc) do |chain, dep|
-      get_redis = dep.redis_node
-      subscriber_redis = dep.redis_node(@redis)
+    @message_queue.push([msg, msg.happens_before_dependencies.dup])
+  end
 
-      key = dep.key(:sub).join('rw').to_s
-      version = dep.version
-      node_synchronizer = @node_synchronizers[subscriber_redis]
-      proc { node_synchronizer.on_version(subscriber_redis, get_redis, key, version, msg) { chain.call } }
-    end.call
+  def queue_process_main_loop
+    loop do
+      msg, deps = @message_queue.pop
+
+      if dep = deps.pop
+        get_redis = dep.redis_node
+        subscriber_redis = dep.redis_node(@redis)
+
+        key = dep.key(:sub).join('rw').to_s
+        version = dep.version
+        node_synchronizer = @node_synchronizers[subscriber_redis]
+        node_synchronizer.on_version(subscriber_redis, get_redis, key, version, msg) { @message_queue.push([msg, deps]) }
+      else
+        process_message!(msg)
+      end
+    end
   end
 
   def process_message!(msg)
