@@ -13,7 +13,7 @@ module Promiscuous
   require_for 'rails',   'promiscuous/railtie'
   require_for 'resque',  'promiscuous/resque'
   require_for 'sidekiq', 'promiscuous/sidekiq'
-
+  require_for 'mongoid', 'promiscuous/mongoid'
 
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
