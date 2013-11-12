@@ -26,6 +26,14 @@ class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Cont
     Promiscuous.disabled = old_disabled
   end
 
+  def self.ensure_context(*args, &block)
+    unless self.current
+      with_context { yield }
+    else
+      yield
+    end
+  end
+
   def self.without_context
     # This is different from the method without_promiscuous in convenience.rb
     # That's used for render() and things that are *not* supposed to write.
