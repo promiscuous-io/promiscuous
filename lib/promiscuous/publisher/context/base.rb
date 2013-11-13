@@ -24,11 +24,11 @@ class Promiscuous::Publisher::Context::Base
     end
   end
 
-  attr_accessor :name, :read_operations, :extra_dependencies, :current_user_id
+  attr_accessor :name, :read_operations, :extra_dependencies, :current_user
 
-  def initialize(*args)
-    @name = args[0].try(:to_s) || 'anonymous'
-    @current_user_id = args[1]
+  def initialize(name=nil, options={})
+    @name = name.try(:to_s) || 'anonymous'
+    @current_user = options[:current_user]
     @read_operations = []
     @extra_dependencies = []
     @transaction_managers = {}

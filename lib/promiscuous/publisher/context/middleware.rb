@@ -4,12 +4,8 @@ class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Cont
 
     def process_action(*args)
       full_name = "#{self.class.controller_path}/#{self.action_name}"
-      current_user_id = self.respond_to?(:current_user) ? self.current_user.try(:id) : nil
-      Promiscuous::Publisher::Context::Middleware.with_context(full_name, current_user_id) { super }
-    end
-
-    def render(*args)
-      Promiscuous::Publisher::Context::Middleware.without_context { super }
+      current_user = self.current_user if self.respond_to?(:current_user)
+      Promiscuous::Publisher::Context::Middleware.with_context(full_name, :current_user => current_user) { super }
     end
   end
 
@@ -23,31 +19,6 @@ class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Cont
     pretty_print_exception(e) unless e.is_a? ActionView::MissingTemplate
     raise e
   ensure
-    Promiscuous.disabled = old_disabled
-  end
-
-  def self.ensure_context(*args, &block)
-    unless self.current
-      with_context { yield }
-    else
-      yield
-    end
-  end
-
-  def self.without_context
-    # This is different from the method without_promiscuous in convenience.rb
-    # That's used for render() and things that are *not* supposed to write.
-    # We actually force promiscuous to instrument queries, and make sure that
-    # we don't do any writes we shouldn't.
-    old_disabled, Promiscuous.disabled = Promiscuous.disabled?, false
-    old_current, self.current = self.current, nil
-    yield
-  rescue Exception => e
-    $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
-    pretty_print_exception(e) unless e.is_a? ActionView::MissingTemplate
-    raise e
-  ensure
-    self.current = old_current
     Promiscuous.disabled = old_disabled
   end
 

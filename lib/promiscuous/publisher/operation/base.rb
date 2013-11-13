@@ -147,11 +147,11 @@ class Promiscuous::Publisher::Operation::Base
   def generate_payload
     payload = {}
     payload[:operations] = operation_payloads
-    payload[:context] = current_context.name
     payload[:app] = Promiscuous::Config.app
+    payload[:context] = current_context.name
+    payload[:current_user_id] = current_context.current_user.id if current_context.current_user
     payload[:timestamp] = @timestamp
     payload[:host] = Socket.gethostname
-    payload[:current_user_id] = Thread.current[:promiscuous_context].try(:current_user_id)
     payload[:dependencies] = {}
     payload[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
     payload[:dependencies][:write] = @committed_write_deps

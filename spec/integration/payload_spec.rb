@@ -16,11 +16,13 @@ describe Promiscuous do
   describe "includes the current_user in the payload" do
     context "with a publisher" do
       it "the second attribute that is passed to the context is used" do
-        Promiscuous.context('test', 'ABC') do
+        user = without_promiscuous { PublisherModel.create }
+
+        Promiscuous.context('test', :current_user => user) do
           PublisherModel.create(:field_1 => '1')
         end
 
-        Promiscuous::AMQP::Fake.get_next_payload['current_user_id'].should == 'ABC'
+        Promiscuous::AMQP::Fake.get_next_payload['current_user_id'].to_s.should == user.id.to_s
       end
     end
     context "with a mock and without a context" do
