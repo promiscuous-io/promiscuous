@@ -21,7 +21,7 @@ class Promiscuous::Subscriber::Worker::Runner
   end
 
   def show_stop_status(num_requests)
-    @runner_threads.each { |runner_thread| runner_thread.show_stop_status(num_requests) }
+    @runner_threads.to_a.each { |runner_thread| runner_thread.show_stop_status(num_requests) }
   end
 
   class RunnerThread
