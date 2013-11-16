@@ -47,16 +47,16 @@ class Promiscuous::Subscriber::Worker::Stats
         latency = sprintf("%.3fsec", latency)
       end
     end
-    STDERR.puts "\e[1A" + "\b" * 200 + "Messages: #{processed_messages}  Rate: #{rate} msg/s  Latency: #{latency}" + " " * 30
+    STDERR.puts "\e[1A" + "\b" * 200 + "Messages: Rate: #{rate} msg/s  Latency: #{latency}" + " " * 30
   end
 
   def notify_processed_message(msg, time)
-    return if msg.timestamp.zero? || !@redis
+    return if !@redis
 
     msecs = (time.to_i * 1000 + time.usec / 1000).to_i - msg.timestamp
     @redis.pipelined do
       @redis.incr(@key_processed_message)
-      @redis.incrby(@key_total_response_time, msecs)
+      @redis.incrby(@key_total_response_time, msecs) unless msg.timestamp.zero?
     end
   end
 end
