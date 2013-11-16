@@ -3,22 +3,28 @@ class Promiscuous::CLI
 
   def trap_debug_signals
     Signal.trap 'SIGUSR2' do
-      Thread.list.each do |thread|
-        print_status  '----[ Threads ]----' + '-' * (100-19)
-        if thread.backtrace
-          print_status "Thread #{thread} #{thread['label']}"
-          print_status thread.backtrace.join("\n")
-        else
-          print_status "Thread #{thread} #{thread['label']} -- no backtrace"
-        end
-      end
+      # Using a thread because we cannot acquire mutexes in a trap context in
+      # ruby 2.0
+      Thread.new do
+        Thread.list.each do |thread|
+          next if Thread.current == thread
 
-      if @worker && @worker.respond_to?(:message_synchronizer)
-        if blocked_messages = @worker.message_synchronizer.try(:blocked_messages)
-          print_status  '----[ Pending Dependencies ]----' + '-' * (100-32)
-          blocked_messages.reverse_each { |msg| print_status msg }
+          print_status  '----[ Threads ]----' + '-' * (100-19)
+          if thread.backtrace
+            print_status "Thread #{thread} #{thread['label']}"
+            print_status thread.backtrace.join("\n")
+          else
+            print_status "Thread #{thread} #{thread['label']} -- no backtrace"
+          end
         end
-        print_status  '-' * 100
+
+        if @worker && @worker.respond_to?(:message_synchronizer)
+          if blocked_messages = @worker.message_synchronizer.try(:blocked_messages)
+            print_status  '----[ Pending Dependencies ]----' + '-' * (100-32)
+            blocked_messages.reverse_each { |msg| print_status msg }
+          end
+          print_status  '-' * 100
+        end
       end
     end
   end
@@ -26,14 +32,18 @@ class Promiscuous::CLI
   def trap_exit_signals
     %w(SIGTERM SIGINT).each do |signal|
       Signal.trap(signal) do
-        print_status "Exiting..."
-        if @stop
-          @worker.try(:show_stop_status)
-        else
-          @stop = true
-          @worker.try(:stop)
-          @worker = nil
-        end
+        # Using a thread because we cannot acquire mutexes in a trap context in
+        # ruby 2.0
+        Thread.new do
+          print_status "Exiting..."
+          if @stop
+            @worker.try(:show_stop_status)
+          else
+            @stop = true
+            @worker.try(:stop)
+            @worker = nil
+          end
+        end.join
       end
     end
   end
