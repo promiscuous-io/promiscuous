@@ -38,9 +38,6 @@ class Promiscuous::AMQP::Fake
     msg && JSON.parse(msg[:payload])
   end
 
-  def open_queue(options={}, &block)
-  end
-
   module Subscriber
     def subscribe(options={}, &block)
     end

@@ -1,6 +1,6 @@
 module Promiscuous::AMQP
   extend Promiscuous::Autoload
-  autoload :HotBunnies, :Bunny, :Null, :Fake
+  autoload :HotBunnies, :Bunny, :Null, :Fake, :File
 
   LIVE_EXCHANGE      = 'promiscuous'
   BOOTSTRAP_EXCHANGE = 'promiscuous.bootstrap'
