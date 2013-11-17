@@ -57,6 +57,10 @@ class Promiscuous::Subscriber::Worker::Message
     dependencies.present?
   end
 
+  def was_during_bootstrap?
+    !!parsed_payload['was_during_bootstrap']
+  end
+
   def to_s
     "#{app}/#{context} -> #{happens_before_dependencies.join(', ')}"
   end

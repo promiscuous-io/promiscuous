@@ -152,6 +152,7 @@ class Promiscuous::Publisher::Operation::Base
     payload[:current_user_id] = current_context.current_user.id if current_context.current_user
     payload[:timestamp] = @timestamp
     payload[:host] = Socket.gethostname
+    payload[:was_during_bootstrap] = true if @was_during_bootstrap
     payload[:dependencies] = {}
     payload[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
     payload[:dependencies][:write] = @committed_write_deps
@@ -256,7 +257,8 @@ class Promiscuous::Publisher::Operation::Base
       # The index of the first write is then used to pass to redis along with the
       # dependencies. This is done because arguments to redis LUA scripts cannot
       # accept complex data types.
-      argv << (deps.index(&:read?) || deps.length)
+      first_read_index = deps.index(&:read?) || deps.length
+      argv << first_read_index
 
       # Each shard have their own recovery payload. The master recovery node
       # has the full operation recovery, and the others just have their versions.
@@ -326,12 +328,13 @@ class Promiscuous::Publisher::Operation::Base
         return { first_read_index-1, versions }
       SCRIPT
 
-      first_read_index, versions = @@increment_script.eval(node, :argv => argv, :keys => deps)
+      received_first_read_index, versions = @@increment_script.eval(node, :argv => argv, :keys => deps)
 
       deps.zip(versions).each  { |dep, version| dep.version = version }
 
-      @committed_write_deps += deps[0...first_read_index]
-      @committed_read_deps  += deps[first_read_index..-1]
+      @committed_write_deps += deps[0...received_first_read_index]
+      @committed_read_deps  += deps[received_first_read_index..-1]
+      @was_during_bootstrap = true if first_read_index != received_first_read_index
     end
 
     # The instance version must to be the first in the list to allow atomic

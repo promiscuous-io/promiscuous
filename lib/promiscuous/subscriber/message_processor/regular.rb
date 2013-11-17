@@ -33,32 +33,14 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
 
   # XXX TODO Code is not tolerant to losing a lock.
 
-  def update_dependencies_on_node(node_with_deps, options={})
-    # Read and write dependencies are not handled the same way:
-    # * Read dependencies are just incremented (which allow parallelization).
-    # * Write dependencies are set to be max(current_version, received_version).
-    #   This allow the version bootstrapping process to be non-atomic.
-    #   Publishers upgrade their reads dependencies to write dependencies
-    #   during bootstrapping to permit the mechanism to function properly.
-
-    # TODO Evaluate the performance hit of this heavy mechanism, and see if it's
-    # worth optimizing it for the non-bootstrap case.
-
-    node = node_with_deps[0]
-    r_deps = node_with_deps[1].select(&:read?)
-    w_deps = node_with_deps[1].select(&:write?)
-
-    if options[:only_write_dependencies]
-      r_deps = []
-    end
-
+  def update_dependencies_non_atomic_bootstrap(node, r_deps, w_deps, options={})
     argv = []
     argv << MultiJson.dump([r_deps.map { |dep| dep.key(:sub) },
                             w_deps.map { |dep| dep.key(:sub) },
                             w_deps.map { |dep| dep.version }])
     argv << recovery_key if options[:with_recovery]
 
-    @@update_script_secondary ||= Promiscuous::Redis::Script.new <<-SCRIPT
+    @@update_script_bootstrap ||= Promiscuous::Redis::Script.new <<-SCRIPT
       local _args = cjson.decode(ARGV[1])
       local read_deps = _args[1]
       local write_deps = _args[2]
@@ -90,7 +72,56 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
       end
     SCRIPT
 
-    @@update_script_secondary.eval(node, :argv => argv)
+    @@update_script_bootstrap.eval(node, :argv => argv)
+  end
+
+  def update_dependencies_fast(node, r_deps, w_deps, options={})
+    keys = (r_deps + w_deps).map { |dep| dep.key(:sub) }
+    argv = options[:with_recovery] ? [recovery_key] : []
+
+    @@update_script_fast ||= Promiscuous::Redis::Script.new <<-SCRIPT
+      local deps = KEYS
+      local recovery_key = ARGV[1]
+
+      if recovery_key and redis.call('exists', recovery_key) == 1 then
+        return
+      end
+
+      for i, _key in ipairs(deps) do
+        local key = _key .. ':rw'
+        local v = redis.call('incr', key)
+        redis.call('publish', key, v)
+      end
+
+      if recovery_key then
+        redis.call('set', recovery_key, 'done')
+      end
+    SCRIPT
+
+    @@update_script_fast.eval(node, :keys => keys, :argv => argv)
+  end
+
+  def update_dependencies_on_node(node_with_deps, options={})
+    # Read and write dependencies are not handled the same way:
+    # * Read dependencies are just incremented (which allow parallelization).
+    # * Write dependencies are set to be max(current_version, received_version).
+    #   This allow the version bootstrapping process to be non-atomic.
+    #   Publishers upgrade their reads dependencies to write dependencies
+    #   during bootstrapping to permit the mechanism to function properly.
+
+    # TODO Evaluate the performance hit of this heavy mechanism, and see if it's
+    # worth optimizing it for the non-bootstrap case.
+
+    node = node_with_deps[0]
+    r_deps = node_with_deps[1].select(&:read?)
+    w_deps = node_with_deps[1].select(&:write?)
+
+    if message.was_during_bootstrap?
+      raise "Message should not have any read deps" unless r_deps.empty?
+      update_dependencies_non_atomic_bootstrap(node, r_deps, w_deps, options)
+    else
+      update_dependencies_fast(node, r_deps, w_deps, options)
+    end
   end
 
   def update_dependencies_master(options={})
@@ -142,8 +173,7 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
       # seldom: either (1) the publisher recovered a payload that didn't need
       # recovery, or (2) a subscriber worker died after # update_dependencies_master,
       # but before the message acking).
-      # It is thus okay to assume the worse and be inefficient.
-      update_dependencies(:only_write_dependencies => true)
+      update_dependencies if message.was_during_bootstrap?
 
       message.ack
 

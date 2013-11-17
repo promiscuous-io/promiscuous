@@ -87,6 +87,36 @@ describe Promiscuous, 'bootstrapping replication' do
     end
   end
 
+  context 'when updates happens during the version boostrapping' do
+    it 'bootstraps' do
+      stub_before_hook(Promiscuous::Publisher::Bootstrap::Version::Chunk, :fetch_and_send) do |control|
+        Promiscuous.context do
+          # generating lots of dependencies to force us to touch different shards
+          PublisherModel.each { }
+          PublisherModel.create
+        end
+      end
+
+      Promiscuous::Config.logger.level = Logger::FATAL
+
+      Promiscuous.context { 10.times { PublisherModel.create } }
+      switch_subscriber_mode(:pass1)
+      Promiscuous::Publisher::Bootstrap::Mode.enable
+      Promiscuous::Publisher::Bootstrap::Version.bootstrap
+      Promiscuous::Publisher::Bootstrap::Mode.disable
+      sleep 1
+      switch_subscriber_mode(:pass2)
+      Promiscuous::Publisher::Bootstrap::Data.setup
+      Promiscuous::Publisher::Bootstrap::Data.run
+
+      eventually { SubscriberModel.count.should == PublisherModel.count }
+
+      switch_subscriber_mode(false)
+      PublisherModel.all.each { |pub| Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') } }
+      eventually { SubscriberModel.each { |sub| sub.field_1.should == 'ohai' } }
+    end
+  end
+
   context 'when updates happens after the version bootstrap, but before the document is replicated' do
     it 'bootstraps' do
       Promiscuous::Publisher::Bootstrap::Mode.enable

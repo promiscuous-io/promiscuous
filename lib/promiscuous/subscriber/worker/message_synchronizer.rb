@@ -28,7 +28,6 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
       redis.nodes.each { |node| @node_synchronizers[node] = NodeSynchronizer.new(self, node) }
       @redis = redis
 
-      # XXX HACK FOR AVOIDING STACK OVERFLOWS
       @message_queue = Queue.new
       @processor_thread = Thread.new { queue_process_main_loop }
     end
