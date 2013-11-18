@@ -5,7 +5,8 @@ module Promiscuous::Config
                  :redis_urls, :redis_stats_url, :stats_interval,
                  :socket_timeout, :heartbeat, :no_deps, :hash_size,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
-                 :version_field, :error_notifier, :recovery_on_boot
+                 :version_field, :error_notifier, :recovery_on_boot,
+                 :on_stats
 
   def self.backend=(value)
     @@backend = value
@@ -60,6 +61,7 @@ module Promiscuous::Config
     self.error_notifier       ||= proc {}
     self.version_field        ||= '_v'
     self.recovery_on_boot     = true if self.recovery_on_boot.nil?
+    self.on_stats             ||= proc { |rate, latency| }
   end
 
   def self.configure(&block)

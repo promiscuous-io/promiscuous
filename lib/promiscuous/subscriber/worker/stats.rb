@@ -37,17 +37,21 @@ class Promiscuous::Subscriber::Worker::Stats
     processed_messages = processed_messages.value.to_i
     total_response_time = total_response_time.value.to_i
 
-    rate = sprintf("%.1f", processed_messages.to_f / (Time.now - last_aggregate))
-    latency = "N/A"
+    rate = processed_messages.to_f / (Time.now - last_aggregate)
+    rate_str = sprintf("%.1f", rate)
+    latency = 0
+    latency_str = "N/A"
     unless processed_messages.zero?
       latency = total_response_time.to_f / (1000 * processed_messages).to_f
       if latency > 2.minutes
-        latency = sprintf("%.3fmin", latency / 1.minute)
+        latency_str = sprintf("%.3fmin", latency / 1.minute)
       else
-        latency = sprintf("%.3fsec", latency)
+        latency_str = sprintf("%.3fsec", latency)
       end
     end
-    STDERR.puts "\e[1A" + "\b" * 200 + "Messages: Rate: #{rate} msg/s  Latency: #{latency}" + " " * 30
+
+    STDERR.puts "\e[1A" + "\b" * 200 + "Messages: Rate: #{rate_str} msg/s  Latency: #{latency_str}" + " " * 30
+    Promiscuous::Config.on_stats.call(rate, latency)
   end
 
   def notify_processed_message(msg, time)
