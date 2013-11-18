@@ -21,7 +21,12 @@ class Promiscuous::AMQP::File
     attr_accessor :lock, :prefetch_wait, :num_pending
 
     def subscribe(options={}, &block)
-      file = File.open(Promiscuous::Config.subscriber_amqp_url, 'r')
+      file_name, worker_index, num_workers = Promiscuous::Config.subscriber_amqp_url.split(':')
+
+      worker_index = worker_index.to_i
+      num_workers = num_workers.to_i
+
+      file = File.open(file_name, 'r')
 
       @prefetch = Promiscuous::Config.prefetch
       @num_pending = 0
@@ -29,7 +34,11 @@ class Promiscuous::AMQP::File
       @prefetch_wait = ConditionVariable.new
 
       @thread = Thread.new do
-        file.each do |line|
+        file.each_with_index do |line, i|
+          if num_workers > 0
+            next if ((i+worker_index) % num_workers) != 0
+          end
+
           return if @stop
 
           @lock.synchronize do
