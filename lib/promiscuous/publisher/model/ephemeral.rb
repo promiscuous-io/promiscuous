@@ -41,7 +41,7 @@ module Promiscuous::Publisher::Model::Ephemeral
   alias :save! :save
 
   def save_operation(operation)
-    Promiscuous::Publisher::Operation::Atomic.new(:instance => self, :operation => operation).execute {}
+    Promiscuous::Publisher::Operation::Ephemeral.new(:instance => self, :operation => operation).execute
   end
 
   def update_attributes(attrs)

@@ -451,5 +451,22 @@ describe Promiscuous do
         op['attributes']['field_1'].should == '1'
       end
     end
+
+    context 'with ephemerals' do
+      before { load_ephemerals }
+      it 'replicates' do
+        stub_once_on_db_query { raise }
+        expect { Promiscuous.context { ModelEphemeral.create(:field_1 => '1') } }.to raise_error
+
+        eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
+
+        payload = Promiscuous::AMQP::Fake.get_next_payload
+        dep = payload['dependencies']
+        dep['read'].should  == nil
+        dep['write'].should == hashed["model_ephemerals/id/none:1"]
+
+        payload['operations'].size.should == 0
+      end
+    end
   end
 end

@@ -63,16 +63,18 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     end
   end
 
+  def yell_about_missing_instance
+    err = "Cannot find document. Database had a dataloss?. Proceeding anyways. #{@recovery_data}"
+    e = Promiscuous::Error::Recovery.new(err)
+    Promiscuous.warn "[recovery] #{e}"
+    Promiscuous::Config.error_notifier.call(e)
+  end
+
   def execute_instrumented(query)
     if recovering?
       # The DB died or something. We cannot find our instance any more :(
       # this is a problem, but we need to publish.
-      if @instance.nil?
-        err = "Cannot find document. Database had a dataloss?. Proceeding anyways. #{@recovery_data}"
-        e = Promiscuous::Error::Recovery.new(err)
-        Promiscuous.warn "[recovery] #{e}"
-        Promiscuous::Config.error_notifier.call(e)
-      end
+      yell_about_missing_instance if @instance.nil?
     else
       generate_read_dependencies
       acquire_op_lock
