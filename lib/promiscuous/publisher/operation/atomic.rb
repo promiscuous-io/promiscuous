@@ -35,10 +35,45 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     end
   end
 
-  def execute_instrumented(query)
-    raise if @instance.nil? # assert()
+  def do_database_query(query)
+    case operation
+    when :create
+      # We don't stash the version in the document as we can't have races
+      # on the same document.
+    when :update
+      stash_version_in_document(@committed_write_deps.first.version)
+      # We are now in the possession of an instance that matches the original
+      # selector. We need to make sure the db query will operate on it,
+      # instead of the original selector.
+      use_id_selector(:use_atomic_version_selector => true)
+      # We need to use an atomic versioned selector to make sure that
+      # if we lose the lock for a long period of time, we don't mess up
+      # the record. Perhaps the operation has been recovered a while ago.
+    when :destroy
+      use_id_selector
+    end
 
-    unless self.recovering?
+    # The driver is responsible to set instance to the appropriate value.
+    query.call_and_remember_result(:instrumented)
+
+    if query.failed?
+      # If we get an network failure, we should retry later.
+      return if recoverable_failure?(query.exception)
+      @instance = nil
+    end
+  end
+
+  def execute_instrumented(query)
+    if recovering?
+      # The DB died or something. We cannot find our instance any more :(
+      # this is a problem, but we need to publish.
+      if @instance.nil?
+        err = "Cannot find document. Database had a dataloss?. Proceeding anyways. #{@recovery_data}"
+        e = Promiscuous::Error::Recovery.new(err)
+        Promiscuous.warn "[recovery] #{e}"
+        Promiscuous::Config.error_notifier.call(e)
+      end
+    else
       generate_read_dependencies
       acquire_op_lock
 
@@ -75,32 +110,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     # documents are missing on our side to be able to resend the destroy
     # message.
 
-    case operation
-    when :create
-      # We don't stash the version in the document as we can't have races
-      # on the same document.
-    when :update
-      stash_version_in_document(@committed_write_deps.first.version)
-      # We are now in the possession of an instance that matches the original
-      # selector. We need to make sure the db query will operate on it,
-      # instead of the original selector.
-      use_id_selector(:use_atomic_version_selector => true)
-      # We need to use an atomic versioned selector to make sure that
-      # if we lose the lock for a long period of time, we don't mess up
-      # the record. Perhaps the operation has been recovered a while ago.
-    when :destroy
-      use_id_selector
-    end
-
-    # The driver is responsible to set instance to the appropriate value.
-    query.call_and_remember_result(:instrumented)
-
-    if query.failed?
-      # If we get an network failure, we should retry later.
-      return if recoverable_failure?(query.exception)
-      @instance = nil
-    end
-
+    do_database_query(query) unless @instance.nil?
     # We take a timestamp right after the write is performed because latency
     # measurements are performed on the subscriber.
     record_timestamp

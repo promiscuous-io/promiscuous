@@ -166,7 +166,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       # We are trying to be optimistic for the locking. We are trying to figure
       # out our dependencies with the selector upfront to avoid an extra read
       # from reload_instance.
-      @instance ||= get_selector_instance
+      @instance ||= get_selector_instance unless recovering? && operation == :update
       super
     end
 

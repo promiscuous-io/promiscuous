@@ -2,6 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before do
+
     @proxy_klass = Promiscuous::Publisher::Operation::ProxyForQuery
     @operation_klass = Promiscuous::Publisher::Operation::Base
     @operation_klass.stubs(:lock_options).returns(
@@ -147,6 +148,33 @@ describe Promiscuous do
         op['id'].should == pub.id.to_s
         op['operation'].should == 'update'
         op['attributes']['field_1'].should == '3'
+      end
+    end
+
+    if ORM.has(:mongoid)
+      context 'when doing an update, but the document is gone due to a dataloss on the db' do
+        it 'recovers without an operation' do
+          Promiscuous::Config.logger.level = Logger::FATAL
+
+          pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+          Promiscuous::AMQP::Fake.get_next_message
+
+          stub_once_on_db_query do
+            without_promiscuous { pub.delete }
+            raise
+          end
+          expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
+
+          PublisherModel.count.should == 0
+
+          eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
+
+          payload = Promiscuous::AMQP::Fake.get_next_payload
+          dep = payload['dependencies']
+          dep['read'].should  == nil
+          dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
+          payload['operations'].count.should == 0
+        end
       end
     end
 

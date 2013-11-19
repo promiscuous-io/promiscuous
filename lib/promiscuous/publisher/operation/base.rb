@@ -25,7 +25,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def recovering?
-    !!@recovering
+    !!@recovery_data
   end
 
   def current_context
@@ -204,10 +204,10 @@ class Promiscuous::Publisher::Operation::Base
           @read_dependencies  = read_dependencies
           @write_dependencies = write_dependencies
           @op_lock = lock
-          @recovering = true
+          @recovery_data = recovery_data
 
           query = Promiscuous::Publisher::Operation::ProxyForQuery.new(self) { recover_db_operation }
-          execute_instrumented(query)
+          self.execute_instrumented(query)
           query.result
         end
       end
