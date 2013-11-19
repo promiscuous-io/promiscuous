@@ -23,7 +23,9 @@ module Promiscuous::Publisher::Model::Mongoid
 
     def sync(options={}, &block)
       raise "Use promiscuous.sync on the parent instance" if @instance.embedded?
-      super
+
+      # We can use the ephemeral because both are mongoid and ephemerals are atomic operations.
+      Promiscuous::Publisher::Operation::Ephemeral.new(:instance => @instance, :operation => :update).execute
     end
 
     def attribute(attr)
