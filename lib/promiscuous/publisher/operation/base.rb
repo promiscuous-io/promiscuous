@@ -153,6 +153,7 @@ class Promiscuous::Publisher::Operation::Base
     payload[:timestamp] = @timestamp
     payload[:host] = Socket.gethostname
     payload[:was_during_bootstrap] = true if @was_during_bootstrap
+    payload[:recovered_operation] = true if recovering?
     payload[:dependencies] = {}
     payload[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
     payload[:dependencies][:write] = @committed_write_deps
