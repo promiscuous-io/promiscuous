@@ -154,6 +154,10 @@ class Promiscuous::CLI
         Promiscuous::Config.no_deps = true
       end
 
+      opts.on "-x", "--ignore-exceptions", "Ignore exceptions and continue to process messages" do
+        Promiscuous::Config.ignore_exceptions = true
+      end
+
       opts.on "-l", "--require FILE", "File to require to load your app. Don't worry about it with rails" do |file|
         options[:require] = file
       end

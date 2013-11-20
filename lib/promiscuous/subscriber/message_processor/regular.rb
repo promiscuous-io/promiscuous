@@ -187,31 +187,37 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
 
   def synchronize_and_update_dependencies
     unless message.has_dependencies?
-      yield 
+      yield
       message.ack
       return
     end
 
-    if Promiscuous::Config.bootstrap
-    else
-      lock_options = LOCK_OPTIONS.merge(:node => master_node)
-      mutex = Promiscuous::Redis::Mutex.new(instance_dep.key(:sub).to_s, lock_options)
+    lock_options = LOCK_OPTIONS.merge(:node => master_node)
+    mutex = Promiscuous::Redis::Mutex.new(instance_dep.key(:sub).to_s, lock_options)
 
-      unless mutex.lock
-        raise Promiscuous::Error::LockUnavailable.new(mutex.key)
+    unless mutex.lock
+      raise Promiscuous::Error::LockUnavailable.new(mutex.key)
+    end
+
+    begin
+      check_for_duplicated_message
+      begin
+        yield
+      rescue Exception => e
+        if Promiscuous::Config.ignore_exceptions
+          Promiscuous.warn "[receive] error while proceessing message but message still processed: #{e}\n#{e.backtrace.join("\n")}"
+        else
+          raise e
+        end
       end
 
-      begin
-        check_for_duplicated_message
-        yield
-        update_dependencies
-        message.ack
-      ensure
-        unless mutex.unlock
-          # TODO Be safe in case we have a duplicate message and lost the lock on it
-          raise "The subscriber lost the lock during its operation. It means that someone else\n"+
-            "received a duplicate message, and we got screwed.\n"
-        end
+      update_dependencies
+      message.ack
+    ensure
+      unless mutex.unlock
+        # TODO Be safe in case we have a duplicate message and lost the lock on it
+        raise "The subscriber lost the lock during its operation. It means that someone else\n"+
+          "received a duplicate message, and we got screwed.\n"
       end
     end
   end
