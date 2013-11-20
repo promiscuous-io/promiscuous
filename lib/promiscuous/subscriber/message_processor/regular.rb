@@ -186,7 +186,11 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
                    :expire  => 1.minute }  # after one minute, we are considered dead
 
   def synchronize_and_update_dependencies
-    return yield unless message.has_dependencies?
+    unless message.has_dependencies?
+      yield 
+      message.ack
+      return
+    end
 
     if Promiscuous::Config.bootstrap
     else
