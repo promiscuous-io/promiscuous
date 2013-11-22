@@ -53,7 +53,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def has_dependencies?
-    return false if Promiscuous::Config.no_deps
+    return false unless Promiscuous::Config.consistency == :causal
     dependencies.present?
   end
 

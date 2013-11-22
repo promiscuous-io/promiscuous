@@ -3,9 +3,47 @@ module Promiscuous::Subscriber::Model::Mongoid
   include Promiscuous::Subscriber::Model::Base
 
   def __promiscuous_update(payload, options={})
+    @__promiscuous_version = options[:version] if Promiscuous::Config.consistency == :eventual
     super
     # The return value tells if the parent should assign the attribute
     !self.embedded? || options[:old_value] != self
+  end
+
+  def atomic_selector
+    selector = super
+    key = if metadata && metadata.embedded?
+      path = metadata.path(self)
+      "#{path.path}.#{Promiscuous::Config.version_field}"
+    else
+      Promiscuous::Config.version_field
+    end
+
+    if @__promiscuous_version
+      selector.merge!({ key => { '$lt' => @__promiscuous_version }})
+    end
+
+    selector
+  end
+
+  def insert(options = {})
+    return super unless Promiscuous::Config.consistency == :eventual && valid?
+
+    self.write_attribute(Promiscuous::Config.version_field, @__promiscuous_version || 0)
+    super
+  end
+
+  def update(options = {})
+    return super unless Promiscuous::Config.consistency == :eventual && valid?
+
+    self.write_attribute(Promiscuous::Config.version_field, @__promiscuous_version || 0)
+    result = super
+
+    getlasterror = mongo_session.command({:getlasterror => 1})
+    if result && !getlasterror['updatedExisting']
+      Promiscuous.warn "[receive] Skipping #{self.class}/#{self.id}:#{@__promiscuous_version}"
+    end
+    @__promiscuous_version = nil
+    result
   end
 
   module ClassMethods
@@ -37,6 +75,21 @@ module Promiscuous::Subscriber::Model::Mongoid
 
     def __promiscuous_missing_record_exception
       Mongoid::Errors::DocumentNotFound
+    end
+
+    def __promiscuous_duplicate_key_exception?(e)
+      e.message =~ /E11000/
+    end
+
+    def __promiscuous_fetch_existing(id)
+      key = subscribe_foreign_key
+      if respond_to?("find_by")
+        promiscuous_root_class.find_by(key => id)
+      else
+        instance = promiscuous_root_class.where(key => id).first
+        raise __promiscuous_missing_record_exception.new(promiscuous_root_class, id) if instance.nil?
+        instance
+      end
     end
   end
 

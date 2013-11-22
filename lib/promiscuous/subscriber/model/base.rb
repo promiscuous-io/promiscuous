@@ -84,18 +84,5 @@ module Promiscuous::Subscriber::Model::Base
     def __promiscuous_fetch_new(id)
       new.tap { |m| m.__send__("#{subscribe_foreign_key}=", id) }
     end
-
-    def __promiscuous_fetch_existing(id)
-      key = subscribe_foreign_key
-      if promiscuous_root_class.respond_to?("find_by_#{key}!")
-        promiscuous_root_class.__send__("find_by_#{key}!", id)
-      elsif respond_to?("find_by")
-        promiscuous_root_class.find_by(key => id)
-      else
-        instance = promiscuous_root_class.where(key => id).first
-        raise __promiscuous_missing_record_exception.new(promiscuous_root_class, id) if instance.nil?
-        instance
-      end
-    end
   end
 end

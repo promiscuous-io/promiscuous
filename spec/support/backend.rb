@@ -50,6 +50,23 @@ module BackendHelper
     end
     Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
   end
+
+  def postpone_and_ack_messages
+    res = nil
+    postpone_messages { res = yield }
+    @worker.pump.postponed.each { |metadata, payload| metadata.ack }
+  end
+
+  def postpone_messages
+    @worker.pump.postpone = true
+    yield
+    sleep 0.5
+    @worker.pump.postpone = false
+  end
+
+  def process_postponed_messages
+    @worker.pump.postponed.each { |metadata, payload| @worker.pump.on_message(metadata, payload) }
+  end
 end
 
 RSpec.configure do |config|

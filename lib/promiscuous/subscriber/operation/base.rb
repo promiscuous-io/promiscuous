@@ -32,12 +32,7 @@ class Promiscuous::Subscriber::Operation::Base
       instance.save!
     end
   rescue Exception => e
-    # TODO Abstract the duplicated index error message
-    dup_index_error = true if defined?(Mongoid) && e.message =~ /E11000/
-    # # TODO Ensure that it's on the pk
-    dup_index_error = true if defined?(ActiveRecord) && e.is_a?(ActiveRecord::RecordNotUnique)
-
-    if dup_index_error
+    if model.__promiscuous_duplicate_key_exception?(e)
       if options[:upsert]
         update
       else
@@ -50,7 +45,7 @@ class Promiscuous::Subscriber::Operation::Base
 
   def update
     model.__promiscuous_fetch_existing(id).tap do |instance|
-      instance.__promiscuous_update(self)
+      instance.__promiscuous_update(self, :version => message.dependencies.first.version)
       instance.save!
     end
   rescue model.__promiscuous_missing_record_exception
