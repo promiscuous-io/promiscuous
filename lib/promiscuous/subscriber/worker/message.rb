@@ -53,8 +53,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def has_dependencies?
-    return false unless Promiscuous::Config.consistency == :causal
-    dependencies.present?
+    Promiscuous::Config.consistency == :causal && dependencies.present?
   end
 
   def was_during_bootstrap?

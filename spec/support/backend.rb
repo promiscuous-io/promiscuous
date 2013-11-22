@@ -19,7 +19,7 @@ module BackendHelper
 
   def use_real_backend(options={}, &block)
     real_backend = RUBY_PLATFORM == 'java' ? :hot_bunnies : :bunny
-    unless Promiscuous::Config.backend == real_backend
+    if Promiscuous::Config.backend != real_backend || block
       reconfigure_backend do |config|
         config.backend = real_backend
         Promiscuous::Config.error_notifier = options[:error_notifier] if options[:error_notifier]
@@ -49,23 +49,6 @@ module BackendHelper
       block.call(config) if block
     end
     Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
-  end
-
-  def postpone_and_ack_messages
-    res = nil
-    postpone_messages { res = yield }
-    @worker.pump.postponed.each { |metadata, payload| metadata.ack }
-  end
-
-  def postpone_messages
-    @worker.pump.postpone = true
-    yield
-    sleep 0.5
-    @worker.pump.postpone = false
-  end
-
-  def process_postponed_messages
-    @worker.pump.postponed.each { |metadata, payload| @worker.pump.on_message(metadata, payload) }
   end
 end
 

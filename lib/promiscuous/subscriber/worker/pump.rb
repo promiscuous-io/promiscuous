@@ -1,9 +1,6 @@
 class Promiscuous::Subscriber::Worker::Pump
-  attr_accessor :postpone
-  attr_accessor :postponed
-
   def initialize(root)
-    @root = root; @postpone = false; @postponed = []
+    @root = root
     # late include of CelluloidSubscriber because the class is resolved
     # at runtime since we can have different backends.
     extend Promiscuous::AMQP::Subscriber
@@ -25,8 +22,6 @@ class Promiscuous::Subscriber::Worker::Pump
   end
 
   def on_message(metadata, payload)
-    return @postponed << [metadata, payload] if @postpone
-
     msg = Promiscuous::Subscriber::Worker::Message.new(payload, :metadata => metadata, :root_worker => @root)
     if Promiscuous::Config.bootstrap
       # Bootstrapping doesn't require synchronzation

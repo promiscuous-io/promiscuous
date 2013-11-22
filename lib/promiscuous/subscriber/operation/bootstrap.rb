@@ -14,7 +14,7 @@ class Promiscuous::Subscriber::Operation::Bootstrap < Promiscuous::Subscriber::O
   end
 
   def bootstrap_data
-    create(:upsert => true)
+    create :on_already_created => proc { update }
   end
 
   def on_bootstrap_operation(wanted_operation, options={})

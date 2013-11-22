@@ -64,6 +64,10 @@ module Promiscuous::Config
     self.on_stats             ||= proc { |rate, latency| }
     self.ignore_exceptions    ||= false
     self.consistency          ||= :causal
+
+    if self.consistency == :eventual && !defined?(Mongoid)
+      raise "Eventual consistency is only supported with Mongoid for the moment"
+    end
   end
 
   def self.configure(&block)

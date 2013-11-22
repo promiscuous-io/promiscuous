@@ -1,13 +1,18 @@
 module StubHook
-  class Control < Struct.new(:active, :instance, :arguments)
+  class Control < Struct.new(:active, :instance, :arguments, :skip_next_call)
     def initialize
       self.active = true
       self.instance = nil
       self.arguments = nil
+      self.skip_next_call = false
     end
 
     def unstub!
       self.active = false
+    end
+
+    def skip_next_call!
+      self.skip_next_call = true
     end
   end
 
@@ -29,7 +34,11 @@ module StubHook
           end
         end
 
-        __send__("#{method}_stubbed", *args, &block)
+        if control.skip_next_call
+          control.skip_next_call = false
+        else
+          __send__("#{method}_stubbed", *args, &block)
+        end
       end
     end
   end

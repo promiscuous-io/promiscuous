@@ -8,6 +8,7 @@ module Promiscuous::Subscriber::Model::ActiveRecord
     end
 
     def __promiscuous_duplicate_key_exception?(e)
+      # TODO Ensure that it's on the pk
       e.is_a?(ActiveRecord::RecordNotUnique)
     end
 

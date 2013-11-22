@@ -3,7 +3,12 @@ module Promiscuous::Subscriber::Model::Mongoid
   include Promiscuous::Subscriber::Model::Base
 
   def __promiscuous_update(payload, options={})
-    @__promiscuous_version = options[:version] if Promiscuous::Config.consistency == :eventual
+    if Promiscuous::Config.consistency == :eventual && !self.embedded?
+      raise "No version available" unless options[:version]
+      @__promiscuous_version = options[:version]
+      self.write_attribute(Promiscuous::Config.version_field, @__promiscuous_version.to_i)
+    end
+
     super
     # The return value tells if the parent should assign the attribute
     !self.embedded? || options[:old_value] != self
@@ -11,39 +16,15 @@ module Promiscuous::Subscriber::Model::Mongoid
 
   def atomic_selector
     selector = super
-    key = if metadata && metadata.embedded?
-      path = metadata.path(self)
-      "#{path.path}.#{Promiscuous::Config.version_field}"
-    else
-      Promiscuous::Config.version_field
-    end
 
     if @__promiscuous_version
-      selector.merge!({ key => { '$lt' => @__promiscuous_version }})
+      selector = selector.merge({
+        '$or' => [{Promiscuous::Config.version_field => { '$lt' => @__promiscuous_version }},
+                  {Promiscuous::Config.version_field => nil}]
+      })
     end
 
     selector
-  end
-
-  def insert(options = {})
-    return super unless Promiscuous::Config.consistency == :eventual && valid?
-
-    self.write_attribute(Promiscuous::Config.version_field, @__promiscuous_version || 0)
-    super
-  end
-
-  def update(options = {})
-    return super unless Promiscuous::Config.consistency == :eventual && valid?
-
-    self.write_attribute(Promiscuous::Config.version_field, @__promiscuous_version || 0)
-    result = super
-
-    getlasterror = mongo_session.command({:getlasterror => 1})
-    if result && !getlasterror['updatedExisting']
-      Promiscuous.warn "[receive] Skipping #{self.class}/#{self.id}:#{@__promiscuous_version}"
-    end
-    @__promiscuous_version = nil
-    result
   end
 
   module ClassMethods
@@ -124,7 +105,7 @@ module Promiscuous::Subscriber::Model::Mongoid
       # create all the new ones
       new_embeddeds.reject { |new_e| new_e['existed'] }.each do |new_e|
         payload = Promiscuous::Subscriber::Operation::Regular.new(new_e)
-        new_e_instance = payload.model. __promiscuous_fetch_new(payload.id)
+        new_e_instance = payload.model.__promiscuous_fetch_new(payload.id)
         new_e_instance.__promiscuous_update(payload)
         options[:parent].__send__(old_embeddeds.metadata[:name]) << new_e_instance
       end
