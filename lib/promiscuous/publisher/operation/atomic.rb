@@ -41,7 +41,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
       # We don't stash the version in the document as we can't have races
       # on the same document.
     when :update
-      stash_version_in_document(@committed_write_deps.first.version)
+      increment_version_in_document
       # We are now in the possession of an instance that matches the original
       # selector. We need to make sure the db query will operate on it,
       # instead of the original selector.
@@ -160,9 +160,8 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     @instance = fetch_instance
   end
 
-  def stash_version_in_document(version)
-    # Overridden to update the query to set the version field with:
-    # instance[Promiscuous::Config.version_field] = version
+  def increment_version_in_document
+    # Overridden to increment version field in the query
   end
 
   def use_id_selector(options={})

@@ -157,9 +157,9 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       @query.selector = selector
     end
 
-    def stash_version_in_document(version)
-      @change['$set'] ||= {}
-      @change['$set'][Promiscuous::Config.version_field] = version
+    def increment_version_in_document
+      @change['$inc'] ||= {}
+      @change['$inc'][Promiscuous::Config.version_field] = 1
     end
 
     def execute_instrumented(query)
