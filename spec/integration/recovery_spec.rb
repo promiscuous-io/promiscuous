@@ -135,9 +135,9 @@ describe Promiscuous do
         op['id'].should == pub.id.to_s
         op['operation'].should == 'update'
         if ORM.has(:transaction)
-          op['attributes']['field_1'] == '2'
+          op['attributes']['field_1'].should == '2'
         else
-          op['attributes']['field_1'] == '1'
+          op['attributes']['field_1'].should == '1'
         end
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
@@ -352,11 +352,7 @@ describe Promiscuous do
         op = payload['operations'].first
         op['id'].should == pub.id.to_s
         op['operation'].should == 'update'
-        if ORM.has(:transaction)
-          op['attributes']['field_1'] == '2'
-        else
-          op['attributes']['field_1'] == '1'
-        end
+        op['attributes']['field_1'].should == '2'
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -434,21 +430,68 @@ describe Promiscuous do
 
     context 'when locks are expiring' do
       it 'republishes' do
-        stub_once_on(@operation_klass, :publish_payload_in_redis) { raise }
-        expect { Promiscuous.context { PublisherModel.create(:field_1 => '1') } }.to raise_error
-        pub = PublisherModel.first
-
+        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
+        payload = Promiscuous::AMQP::Fake.get_next_payload
+
+        stub_once_on_db_query do
+          Thread.new do
+            Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+          end
+          sleep 2
+        end
+
+        expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }
+          .to raise_error Promiscuous::Error::LostLock
+
+        eventually { Promiscuous::AMQP::Fake.num_messages.should == 2 }
+
+        pub.reload
+        pub.field_1.should == '3'
 
         message = Promiscuous::AMQP::Fake.get_next_message
         payload = JSON.parse(message[:payload])
         dep = payload['dependencies']
         dep['read'].should  == nil
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
+        op = payload['operations'].first
+        op['id'].should == pub.id.to_s
+        op['operation'].should == 'update'
+        if ORM.has(:transaction)
+          op['attributes']['field_1'].should == '2'
+        else
+          op['attributes']['field_1'].should == '1'
+        end
+
+        message = Promiscuous::AMQP::Fake.get_next_message
+        payload = JSON.parse(message[:payload])
+        dep = payload['dependencies']
+        dep['read'].should  == nil
+        dep['write'].should == hashed["publisher_models/id/#{pub.id}:3"]
+        op = payload['operations'].first
+        op['id'].should == pub.id.to_s
+        op['operation'].should == 'update'
+        op['attributes']['field_1'].should == '3'
+      end
+    end
+
+    context 'when the database starts non empty' do
+      it 'replicates' do
+        pub = without_promiscuous { PublisherModel.create(:field_1 => 'hello') }
+        Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') }
+
+        eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
+
+        payload = Promiscuous::AMQP::Fake.get_next_payload
+        dep = payload['dependencies']
+        dep['read'].should  == nil
         dep['write'].should == hashed["publisher_models/id/#{pub.id}:1"]
         op = payload['operations'].first
         op['id'].should == pub.id.to_s
-        op['operation'].should == 'create'
-        op['attributes']['field_1'].should == '1'
+        op['operation'].should == 'update'
+        op['attributes']['field_1'].should == 'ohai'
+
+        PublisherModel.first.field_1.should == 'ohai'
       end
     end
 
