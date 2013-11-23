@@ -153,6 +153,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
   def fetch_instance
     # This method is overridden to use the original query selector.
     # Should return nil if the instance is not found.
+    @instance.reload if @instance.respond_to?(:reload)
     @instance
   end
 

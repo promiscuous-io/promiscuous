@@ -11,13 +11,13 @@ if ORM.has(:mongoid)
 
       without_promiscuous { PublisherModel.first.update_attributes(:field_1 => 'hello') }
 
-      # no reload, that would incorrect
+      # no reload, that would be incorrect
 
       Promiscuous.context { pub.promiscuous.sync }
-      eventually { SubscriberModel.first.field_1 == 'hello' }
+      eventually { SubscriberModel.first.field_1.should == 'hello' }
 
       Promiscuous.context { PublisherModel.first.update_attributes(:field_1 => 'ohai') }
-      eventually { SubscriberModel.first.field_1 == 'ohai' }
+      eventually { SubscriberModel.first.field_1.should == 'ohai' }
     end
   end
 end
