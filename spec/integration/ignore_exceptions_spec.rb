@@ -22,7 +22,11 @@ describe Promiscuous do
     it 'blocks on the failed message' do
       sleep 1
 
-      SubscriberModel.first.field_1.should_not == 'ohai'
+      if ORM.has(:transaction)
+        SubscriberModel.count.should == 0
+      else
+        SubscriberModel.first.field_1.should_not == 'ohai'
+      end
     end
   end
 
