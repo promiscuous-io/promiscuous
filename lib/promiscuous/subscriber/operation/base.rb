@@ -53,7 +53,7 @@ class Promiscuous::Subscriber::Operation::Base
       instance.save!
     end
   rescue model.__promiscuous_missing_record_exception
-    warn "upserting #{message.payload}"
+    warn "upserting"
     create :on_already_created => proc { update(false) if should_create_on_failure }
   end
 
