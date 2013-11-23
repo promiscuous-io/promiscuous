@@ -5,6 +5,12 @@ class Promiscuous::Subscriber::Operation::Regular < Promiscuous::Subscriber::Ope
     when :update  then update  if model
     when :destroy then destroy if model
     end
+  rescue Exception => e
+    if Promiscuous::Config.ignore_exceptions
+      Promiscuous.warn "[receive] error while proceessing message but message still processed: #{e}\n#{e.backtrace.join("\n")}"
+    else
+      raise e
+    end
   end
 
   def message_processor

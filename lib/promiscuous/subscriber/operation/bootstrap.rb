@@ -46,6 +46,12 @@ class Promiscuous::Subscriber::Operation::Bootstrap < Promiscuous::Subscriber::O
     else
       raise "Invalid operation received: #{operation}"
     end
+  rescue Exception => e
+    if Promiscuous::Config.ignore_exceptions
+      Promiscuous.warn "[receive] error while proceessing message but message still processed: #{e}\n#{e.backtrace.join("\n")}"
+    else
+      raise e
+    end
   end
 
   def message_processor
