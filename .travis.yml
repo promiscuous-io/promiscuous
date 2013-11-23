@@ -9,8 +9,8 @@ env: JRUBY_OPTS="--server --debug -J-Xms512m -J-Xmx1024m" TIMEOUT=10
 rvm:
   - ruby-1.9.3
   - ruby-2.0.0
-  - jruby
-  - jruby-head
+  # - jruby
+  # - jruby-head
   - ruby-head
 gemfile:
   - gemfiles/mongoid3.gemfile
