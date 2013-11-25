@@ -46,7 +46,7 @@ class Promiscuous::Subscriber::Operation::Base
       # and there is no way to figure out what version is what for now.
       options = {}
       if message_processor.operations.size == 1
-        options[:version] = message.dependencies.first.version
+        options[:version] = message.dependencies.first.try(:version)
       end
 
       instance.__promiscuous_update(self, options)

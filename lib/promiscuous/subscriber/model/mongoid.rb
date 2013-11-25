@@ -4,7 +4,6 @@ module Promiscuous::Subscriber::Model::Mongoid
 
   def __promiscuous_update(payload, options={})
     if Promiscuous::Config.consistency == :eventual && !self.embedded?
-      raise "No version available" unless options[:version]
       @__promiscuous_version = options[:version]
       self.write_attribute(Promiscuous::Config.version_field, @__promiscuous_version.to_i)
     end
