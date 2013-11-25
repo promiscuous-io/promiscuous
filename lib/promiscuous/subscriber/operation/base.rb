@@ -26,9 +26,16 @@ class Promiscuous::Subscriber::Operation::Base
     Promiscuous.warn "[receive] #{msg} #{message.payload}"
   end
 
+  def message_options
+    {
+      :generation => message.generation,
+      :version    => message.dependencies.first.try(:version)
+    }
+  end
+
   def create(options={})
     model.__promiscuous_fetch_new(id).tap do |instance|
-      instance.__promiscuous_update(self, :version => 0)
+      instance.__promiscuous_update(self, message_options)
       instance.save!
     end
   rescue Exception => e
@@ -44,12 +51,7 @@ class Promiscuous::Subscriber::Operation::Base
     model.__promiscuous_fetch_existing(id).tap do |instance|
       # XXX With an ActiveRecord publisher, we may receive multiple operations,
       # and there is no way to figure out what version is what for now.
-      options = {}
-      if message_processor.operations.size == 1
-        options[:version] = message.dependencies.first.try(:version)
-      end
-
-      instance.__promiscuous_update(self, options)
+      instance.__promiscuous_update(self, message_options)
       instance.save!
     end
   rescue model.__promiscuous_missing_record_exception

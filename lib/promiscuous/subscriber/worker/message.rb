@@ -23,6 +23,10 @@ class Promiscuous::Subscriber::Worker::Message
     parsed_payload['timestamp'].to_i
   end
 
+  def generation
+    parsed_payload['generation']
+  end
+
   def dependencies
     @dependencies ||= begin
       dependencies = parsed_payload['dependencies'] || {}

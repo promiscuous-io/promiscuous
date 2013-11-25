@@ -4,8 +4,8 @@ module Promiscuous::Subscriber::Model::Mongoid
 
   def __promiscuous_update(payload, options={})
     if Promiscuous::Config.consistency == :eventual && !self.embedded?
-      @__promiscuous_version = options[:version]
-      self.write_attribute(Promiscuous::Config.version_field, @__promiscuous_version.to_i)
+      @__promiscuous_version = (options[:generation].to_i << 50) | options[:version].to_i
+      self.write_attribute(Promiscuous::Config.version_field, @__promiscuous_version)
     end
 
     super
