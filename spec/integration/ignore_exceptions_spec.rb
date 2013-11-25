@@ -1,8 +1,8 @@
 require 'spec_helper'
 
-describe Promiscuous do
+describe Promiscuous, 'persisted models' do
   before { load_models }
-  before { use_real_backend { |config| config.logger.level = Logger::FATAL } }
+  before { use_real_backend { |config| config.logger.level = Logger::FATAL; config.ignore_exceptions = ignore_exceptions } }
   before { run_subscriber_worker! }
   before do
     SubscriberModel.class_eval do
@@ -17,7 +17,7 @@ describe Promiscuous do
   end
 
   context 'when not ignoring exceptions' do
-    before { Promiscuous::Config.ignore_exceptions = false }
+    let(:ignore_exceptions) { false }
 
     it 'blocks on the failed message' do
       sleep 1
@@ -30,11 +30,59 @@ describe Promiscuous do
     end
   end
 
-  context 'when not ignoring exceptions' do
-    before { Promiscuous::Config.ignore_exceptions = true }
+  context 'when ignoring exceptions' do
+    let(:ignore_exceptions) { true }
 
     it "doesn't block on the failed message" do
       eventually { SubscriberModel.first.field_1.should == 'ohai' }
+    end
+  end
+end
+
+describe Promiscuous, 'observers' do
+  before { load_models }
+  before { load_observers }
+  before { use_real_backend { |config| config.logger.level = Logger::FATAL; config.ignore_exceptions = ignore_exceptions } }
+  before { run_subscriber_worker! }
+  before { $observer_counter = 0 }
+  before do
+    ModelObserver.class_eval do
+      after_save do
+        $observer_counter += 1
+        raise "Something bad"
+      end
+    end
+  end
+
+  context 'when not ignoring exceptions' do
+    let(:ignore_exceptions) { false }
+
+    before do
+      Promiscuous.context do
+        pub = PublisherModel.create(:field_1 => 'value')
+        pub.update_attributes(:field_1 => 'another value')
+      end
+    end
+
+    it 'blocks on the failed message' do
+      sleep 1
+
+      $observer_counter.should == 1
+    end
+  end
+
+  context 'when ignoring exceptions' do
+    let(:ignore_exceptions) { true }
+
+    before do
+      Promiscuous.context do
+        pub = PublisherModel.create(:field_1 => 'value')
+        pub.update_attributes(:field_1 => 'another value')
+      end
+    end
+
+    it "doesn't block on the failed message" do
+      eventually { $observer_counter.should == 2 }
     end
   end
 end

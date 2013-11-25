@@ -47,5 +47,9 @@ module Promiscuous::Subscriber::Model::Observer
       new.tap { |o| o.id = id }
     end
     alias __promiscuous_fetch_existing __promiscuous_fetch_new
+
+    def __promiscuous_duplicate_key_exception?(e)
+      false
+    end
   end
 end
