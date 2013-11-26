@@ -6,7 +6,7 @@ module Promiscuous::Config
                  :socket_timeout, :heartbeat, :no_deps, :hash_size,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
                  :version_field, :error_notifier, :recovery_on_boot,
-                 :on_stats, :ignore_exceptions, :consistency
+                 :on_stats, :ignore_exceptions, :consistency, :max_retries
 
   def self.backend=(value)
     @@backend = value
@@ -64,6 +64,7 @@ module Promiscuous::Config
     self.on_stats             ||= proc { |rate, latency| }
     self.ignore_exceptions    ||= false
     self.consistency          ||= :causal
+    self.max_retries          ||=  10
 
     if self.consistency == :eventual && !defined?(Mongoid)
       raise "Eventual consistency is only supported with Mongoid for the moment"
