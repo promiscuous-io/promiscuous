@@ -32,7 +32,7 @@ class Promiscuous::Subscriber::MessageProcessor::Base
     begin
       on_message
     rescue Exception => e
-      raise e if e.is_a?(Promiscuous::Error::AlreadyProcessed)
+      raise e if e.is_a?(Promiscuous::Error::AlreadyProcessed) || e.is_a?(NameError)
 
       @fail_count ||= 0;  @fail_count += 1
 
