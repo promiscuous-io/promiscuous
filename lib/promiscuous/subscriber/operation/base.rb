@@ -29,7 +29,7 @@ class Promiscuous::Subscriber::Operation::Base
   def message_options
     {
       :generation => message.generation,
-      :version    => message.dependencies.first.try(:version)
+      :version    => message.write_dependencies.first.try(:version)
     }
   end
 
