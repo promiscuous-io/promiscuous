@@ -5,8 +5,15 @@ if ORM.has(:mongoid)
     before { use_real_backend { |config| config.consistency = consistency } }
     before { load_models }
     before { run_subscriber_worker! }
+    before { $callback_counter = 0 }
+    before do
+      SubscriberModel.class_eval do
+        after_save { $callback_counter += 1 }
+      end
+    end
 
     context 'when updates are processed out of order' do
+      before { Promiscuous::Config.logger.level = logger_level }
       before do
         pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
         eventually { SubscriberModel.count.should == 1 }
@@ -21,20 +28,29 @@ if ORM.has(:mongoid)
 
         sleep 1
       end
+      let(:logger_level) { Logger::INFO }
 
       context 'when consistency is none' do
         let(:consistency) { :none }
 
         it 'subscribes to messages out of order' do
-          eventually { SubscriberModel.first.field_1.should be_in ['2','3'] }
+          eventually do
+            SubscriberModel.first.field_1.should be_in ['2','3']
+            $callback_counter.should be_in [2, 3]
+          end
         end
       end
 
       context 'when consistency is eventual' do
-        let(:consistency) { :eventual }
+        # We get some skipped message warning
+        let(:logger_level) { Logger::FATAL }
+        let(:consistency)  { :eventual }
 
         it 'subscribes to messages in the correct order (by dropping the last message)' do
-          eventually { SubscriberModel.first.field_1.should == '3' }
+          eventually do
+            SubscriberModel.first.field_1.should == '3'
+            $callback_counter.should == 2
+          end
         end
       end
 
@@ -42,7 +58,10 @@ if ORM.has(:mongoid)
         let(:consistency) { :causal }
 
         it 'subscribes to messages in the correct order (by waiting for lost message)' do
-          eventually { SubscriberModel.first.field_1.should == '3' }
+          eventually do
+            SubscriberModel.first.field_1.should == '3'
+            $callback_counter.should == 3
+          end
         end
       end
     end
@@ -67,7 +86,10 @@ if ORM.has(:mongoid)
         let(:consistency) { :none }
 
         it 'subscribes to messages out of order' do
-          eventually { SubscriberModel.first.field_1.should be_in ['1','2'] }
+          eventually do
+            SubscriberModel.first.field_1.should be_in ['1','2']
+            $callback_counter.should be_in [1, 2]
+          end
         end
       end
 
@@ -75,7 +97,10 @@ if ORM.has(:mongoid)
         let(:consistency) { :eventual }
 
         it 'subscribes to messages in the correct order (by dropping the last message)' do
-          eventually { SubscriberModel.first.field_1.should == '2' }
+          eventually do
+            SubscriberModel.first.field_1.should == '2'
+            $callback_counter.should == 1
+          end
         end
       end
 
@@ -83,7 +108,10 @@ if ORM.has(:mongoid)
         let(:consistency) { :causal }
 
         it 'subscribes to messages in the correct order (by waiting for lost message)' do
-          eventually { SubscriberModel.first.field_1.should == '2' }
+          eventually do
+            SubscriberModel.first.field_1.should == '2'
+            $callback_counter.should == 2
+          end
         end
       end
     end
