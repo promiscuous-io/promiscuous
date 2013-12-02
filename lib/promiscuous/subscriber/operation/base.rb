@@ -76,7 +76,7 @@ class Promiscuous::Subscriber::Operation::Base
 
       if lock.lock
         instance = model.__promiscuous_fetch_existing(id)
-        if instance.attributes[Promiscuous::Config.version_field].to_i < message_options[:version]
+        if instance.attributes[Promiscuous::Config.version_field].to_i <= message_options[:version]
           yield(instance)
         else
           Promiscuous.warn "[receive] Out of order #{model}/#{id}v#{message_options[:version]}"
