@@ -6,7 +6,7 @@ class Promiscuous::Subscriber::Operation::Regular < Promiscuous::Subscriber::Ope
     when :destroy then destroy if model
     end
   rescue Exception => e
-    if Promiscuous::Config.ignore_exceptions
+    if Promiscuous::Config.ignore_exceptions && !e.is_a?(NameError)
       Promiscuous.warn "[receive] error while proceessing message but message still processed: #{e}\n#{e.backtrace.join("\n")}"
     else
       raise e

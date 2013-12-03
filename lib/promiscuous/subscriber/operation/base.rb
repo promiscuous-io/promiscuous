@@ -28,7 +28,7 @@ class Promiscuous::Subscriber::Operation::Base
 
   def create(options={})
     model.__promiscuous_fetch_new(id).tap do |instance|
-      instance.__promiscuous_update(self, :version => 0)
+      instance.__promiscuous_update(self)
       instance.save!
     end
   rescue Exception => e
@@ -42,15 +42,10 @@ class Promiscuous::Subscriber::Operation::Base
 
   def update(should_create_on_failure=true)
     model.__promiscuous_fetch_existing(id).tap do |instance|
-      # XXX With an ActiveRecord publisher, we may receive multiple operations,
-      # and there is no way to figure out what version is what for now.
-      options = {}
-      if message_processor.operations.size == 1
-        options[:version] = message.dependencies.first.version
+      if instance.__promiscuous_eventual_consistency_update(self)
+        instance.__promiscuous_update(self)
+        instance.save!
       end
-
-      instance.__promiscuous_update(self, options)
-      instance.save!
     end
   rescue model.__promiscuous_missing_record_exception
     warn "upserting"

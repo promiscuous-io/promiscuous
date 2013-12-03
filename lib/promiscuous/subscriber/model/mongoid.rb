@@ -3,28 +3,9 @@ module Promiscuous::Subscriber::Model::Mongoid
   include Promiscuous::Subscriber::Model::Base
 
   def __promiscuous_update(payload, options={})
-    if Promiscuous::Config.consistency == :eventual && !self.embedded?
-      raise "No version available" unless options[:version]
-      @__promiscuous_version = options[:version]
-      self.write_attribute(Promiscuous::Config.version_field, @__promiscuous_version.to_i)
-    end
-
     super
     # The return value tells if the parent should assign the attribute
     !self.embedded? || options[:old_value] != self
-  end
-
-  def atomic_selector
-    selector = super
-
-    if @__promiscuous_version
-      selector = selector.merge({
-        '$or' => [{Promiscuous::Config.version_field => { '$lt' => @__promiscuous_version }},
-                  {Promiscuous::Config.version_field => nil}]
-      })
-    end
-
-    selector
   end
 
   module ClassMethods

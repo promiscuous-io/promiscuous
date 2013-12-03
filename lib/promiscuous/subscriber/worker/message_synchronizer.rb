@@ -73,7 +73,7 @@ class Promiscuous::Subscriber::Worker::MessageSynchronizer
   #    If not we bail out and rely on the subscription to kick the processing.
   # Because we subscribed in advanced, we will not miss the notification.
   def process_when_ready(msg)
-    unless msg.has_dependencies?
+    unless Promiscuous::Config.consistency == :causal && msg.has_dependencies?
       process_message!(msg)
       return
     end

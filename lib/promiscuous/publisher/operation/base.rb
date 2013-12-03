@@ -151,6 +151,7 @@ class Promiscuous::Publisher::Operation::Base
     payload[:context] = current_context.name
     payload[:current_user_id] = current_context.current_user.id if current_context.current_user
     payload[:timestamp] = @timestamp
+    payload[:generation] = Promiscuous::Config.generation
     payload[:host] = Socket.gethostname
     payload[:was_during_bootstrap] = true if @was_during_bootstrap
     payload[:recovered_operation] = true if recovering?

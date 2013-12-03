@@ -186,11 +186,13 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
                    :expire  => 1.minute }  # after one minute, we are considered dead
 
   def synchronize_and_update_dependencies
-    unless message.has_dependencies?
-      yield
-      message.ack
-      return
-    end
+    check_for_duplicated_message if message.has_dependencies?
+    yield
+    update_dependencies if message.has_dependencies?
+  end
+
+  def with_instance_locked(&block)
+    return yield unless message.has_dependencies?
 
     lock_options = LOCK_OPTIONS.merge(:node => master_node)
     mutex = Promiscuous::Redis::Mutex.new(instance_dep.key(:sub).to_s, lock_options)
@@ -200,10 +202,7 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
     end
 
     begin
-      check_for_duplicated_message
       yield
-      update_dependencies
-      message.ack
     ensure
       unless mutex.unlock
         # TODO Be safe in case we have a duplicate message and lost the lock on it
@@ -213,10 +212,19 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
     end
   end
 
+  def execute_operations
+    self.operations.each(&:execute)
+  end
+
   def on_message
-    self.synchronize_and_update_dependencies do
-      self.operations.each(&:execute)
+    with_instance_locked do
+      if Promiscuous::Config.consistency == :causal
+        self.synchronize_and_update_dependencies { execute_operations }
+      else
+        execute_operations
+      end
     end
+    message.ack
   end
 
   def operation_class
