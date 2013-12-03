@@ -189,7 +189,6 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
     check_for_duplicated_message if message.has_dependencies?
     yield
     update_dependencies if message.has_dependencies?
-    message.ack
   end
 
   def with_instance_locked(&block)
@@ -225,6 +224,7 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
         execute_operations
       end
     end
+    message.ack
   end
 
   def operation_class
