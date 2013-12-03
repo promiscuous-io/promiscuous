@@ -4,6 +4,7 @@ module Promiscuous::Subscriber::Model::Base
   def __promiscuous_eventual_consistency_update(operation)
     return true unless Promiscuous::Config.consistency == :eventual
     return true unless operation.message.has_dependencies?
+    return true unless self.respond_to?(:attributes) && self.respond_to?(:write_attribute)
 
     version = operation.message_processor.instance_dep.version
     generation = operation.message.generation
