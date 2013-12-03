@@ -32,18 +32,11 @@ class Promiscuous::Subscriber::MessageProcessor::Base
     begin
       on_message
     rescue Exception => e
-      raise e if e.is_a?(Promiscuous::Error::AlreadyProcessed) || e.is_a?(NameError)
-
       @fail_count ||= 0;  @fail_count += 1
 
       if @fail_count <= Promiscuous::Config.max_retries
+        Promiscuous.warn("[recieve] #{e.message} #{@fail_count.ordinalize} retry: #{@message}")
         sleep @fail_count ** 2
-
-        unless e.is_a?(Promiscuous::Error::Retry)
-          Promiscuous::Config.error_notifier.call(e) if @fail_count == 1
-        end
-        Promiscuous.warn("[recieve] retry [#{@fail_count}]: #{@message}")
-
         process_message
       else
         raise e

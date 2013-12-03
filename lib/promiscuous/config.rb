@@ -64,7 +64,7 @@ module Promiscuous::Config
     self.on_stats             ||= proc { |rate, latency| }
     self.ignore_exceptions    ||= false
     self.consistency          ||= :causal
-    self.max_retries          ||=  10
+    self.max_retries          ||= 10
     self.generation           ||= 1
 
     if self.consistency == :eventual && !defined?(Mongoid)
