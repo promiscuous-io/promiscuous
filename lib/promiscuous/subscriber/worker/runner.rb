@@ -43,7 +43,11 @@ class Promiscuous::Subscriber::Worker::Runner
     end
 
     def stop
-      @kill_lock.synchronize { @thread.kill }
+      if @kill_lock.locked? && @thread.status == 'sleep'
+        @thread.kill
+      else
+        @kill_lock.synchronize { @thread.kill }
+      end
     end
 
     def show_stop_status(num_requests)

@@ -1,6 +1,5 @@
 module Promiscuous::Error
   extend Promiscuous::Autoload
   autoload :Base, :Connection, :Publisher, :Subscriber, :Recovery,
-           :Dependency, :MissingContext, :AlreadyProcessed,
-           :LockUnavailable, :LostLock
+           :Dependency, :MissingContext, :LockUnavailable, :LostLock
 end
