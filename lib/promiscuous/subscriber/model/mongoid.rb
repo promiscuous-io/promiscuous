@@ -3,10 +3,6 @@ module Promiscuous::Subscriber::Model::Mongoid
   include Promiscuous::Subscriber::Model::Base
 
   def __promiscuous_update(payload, options={})
-    if !self.embedded? && options[:version].present?
-      self.write_attribute(Promiscuous::Config.version_field, options[:version])
-    end
-
     super
     # The return value tells if the parent should assign the attribute
     !self.embedded? || options[:old_value] != self

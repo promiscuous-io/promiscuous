@@ -26,19 +26,9 @@ class Promiscuous::Subscriber::Operation::Base
     Promiscuous.warn "[receive] #{msg} #{message.payload}"
   end
 
-  def message_options
-    if Promiscuous::Config.consistency == :eventual
-      version = message.write_dependencies.first.try(:version).to_i
-      version = (message.generation.to_i << 50) | version
-      { :version => version }
-    else
-      {}
-    end
-  end
-
   def create(options={})
     model.__promiscuous_fetch_new(id).tap do |instance|
-      instance.__promiscuous_update(self, message_options)
+      instance.__promiscuous_update(self)
       instance.save!
     end
   rescue Exception => e
@@ -51,44 +41,15 @@ class Promiscuous::Subscriber::Operation::Base
   end
 
   def update(should_create_on_failure=true)
-    fetch_and_lock_if_consistency_eventual do |instance|
-      # XXX With an ActiveRecord publisher, we may receive multiple operations,
-      # and there is no way to figure out what version is what for now.
-      instance.__promiscuous_update(self, message_options)
-      instance.save!
+    model.__promiscuous_fetch_existing(id).tap do |instance|
+      if instance.__promiscuous_eventual_consistency_update(self)
+        instance.__promiscuous_update(self)
+        instance.save!
+      end
     end
   rescue model.__promiscuous_missing_record_exception
     warn "upserting"
     create :on_already_created => proc { update(false) if should_create_on_failure }
-  end
-
-  def fetch_and_lock_if_consistency_eventual
-    lock = nil
-    if Promiscuous::Config.consistency == :eventual
-      lock_options = {
-        :timeout  => 10.seconds,
-        :sleep    => 0.01.seconds,
-        :expire   => 5.minutes,
-        :node     => Promiscuous::Redis.master.nodes.first
-      }
-      key  = Promiscuous::Key.new(:pub).join('update').join(model).join(id)
-      lock = Promiscuous::Redis::Mutex.new(key, lock_options)
-
-      if lock.lock
-        instance = model.__promiscuous_fetch_existing(id)
-        if instance.attributes[Promiscuous::Config.version_field].to_i <= message_options[:version]
-          yield(instance)
-        else
-          Promiscuous.warn "[receive] Out of order #{model}/#{id}v#{message_options[:version]}"
-        end
-      else
-        raise Promiscuous::Error::LockUnavailable.new(lock)
-      end
-    else
-      yield model.__promiscuous_fetch_existing(id)
-    end
-  ensure
-    lock.unlock if lock
   end
 
   def destroy

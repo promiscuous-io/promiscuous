@@ -1,6 +1,23 @@
 module Promiscuous::Subscriber::Model::Base
   extend ActiveSupport::Concern
 
+  def __promiscuous_eventual_consistency_update(operation)
+    return true unless Promiscuous::Config.consistency == :eventual
+    return true unless operation.message.has_dependencies?
+
+    version = operation.message_processor.instance_dep.version
+    generation = operation.message.generation
+    version = (generation << 50) | version
+
+    if self.attributes[Promiscuous::Config.version_field].to_i <= version
+      self.write_attribute(Promiscuous::Config.version_field, version)
+      true
+    else
+      Promiscuous.debug "[receive] out of order message #{self.class}/#{id}/g:#{generation},v:#{version}"
+      false
+    end
+  end
+
   def __promiscuous_update(payload, options={})
     self.class.subscribed_attrs.map(&:to_s).each do |attr|
       unless payload.attributes.has_key?(attr)

@@ -57,7 +57,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def has_dependencies?
-    Promiscuous::Config.consistency == :causal && dependencies.present?
+    dependencies.present?
   end
 
   def was_during_bootstrap?
