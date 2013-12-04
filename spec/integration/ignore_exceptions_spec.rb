@@ -1,8 +1,14 @@
 require 'spec_helper'
 
 describe Promiscuous, 'persisted models' do
+  before do
+    use_real_backend do |config|
+      config.logger.level = Logger::FATAL
+      config.ignore_exceptions = ignore_exceptions
+      config.max_retries = 0
+    end
+  end
   before { load_models }
-  before { use_real_backend { |config| config.logger.level = Logger::FATAL; config.ignore_exceptions = ignore_exceptions } }
   before { run_subscriber_worker! }
   before do
     SubscriberModel.class_eval do
@@ -40,9 +46,15 @@ describe Promiscuous, 'persisted models' do
 end
 
 describe Promiscuous, 'observers' do
+  before do
+    use_real_backend do |config|
+      config.logger.level = Logger::FATAL
+      config.ignore_exceptions = ignore_exceptions
+      config.max_retries = 0
+    end
+  end
   before { load_models }
   before { load_observers }
-  before { use_real_backend { |config| config.logger.level = Logger::FATAL; config.ignore_exceptions = ignore_exceptions } }
   before { run_subscriber_worker! }
   before { $observer_counter = 0 }
   before do

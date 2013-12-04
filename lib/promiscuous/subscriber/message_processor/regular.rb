@@ -155,7 +155,7 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
     cleanup_dependency_secondaries
   end
 
-  def check_for_duplicated_message
+  def duplicate_message?
     unless instance_dep.version >= get_current_instance_version + 1
       # We happen to get a duplicate message, or we are recovering a dead
       # worker. During regular operations, we just need to cleanup the 2pc (from
@@ -175,9 +175,9 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
       # but before the message acking).
       update_dependencies if message.was_during_bootstrap?
 
-      message.ack
-
-      raise Promiscuous::Error::AlreadyProcessed
+      true
+    else
+      false
     end
   end
 
@@ -185,10 +185,15 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
                    :sleep   => 0.1,        # polling every 100ms.
                    :expire  => 1.minute }  # after one minute, we are considered dead
 
-  def synchronize_and_update_dependencies
-    check_for_duplicated_message if message.has_dependencies?
+  def check_duplicate_and_update_dependencies
+    if duplicate_message?
+      Promiscuous.debug "[receive] Skipping message (already processed) #{message}"
+      return
+    end
+
     yield
-    update_dependencies if message.has_dependencies?
+
+    update_dependencies
   end
 
   def with_instance_locked(&block)
@@ -218,8 +223,8 @@ class Promiscuous::Subscriber::MessageProcessor::Regular < Promiscuous::Subscrib
 
   def on_message
     with_instance_locked do
-      if Promiscuous::Config.consistency == :causal
-        self.synchronize_and_update_dependencies { execute_operations }
+      if Promiscuous::Config.consistency == :causal && message.has_dependencies?
+        self.check_duplicate_and_update_dependencies { execute_operations }
       else
         execute_operations
       end
