@@ -35,7 +35,7 @@ class Promiscuous::Subscriber::MessageProcessor::Base
       @fail_count ||= 0;  @fail_count += 1
 
       if @fail_count <= Promiscuous::Config.max_retries
-        Promiscuous.warn("[recieve] #{e.message} #{@fail_count.ordinalize} retry: #{@message}")
+        Promiscuous.warn("[receive] #{e.message} #{@fail_count.ordinalize} retry: #{@message}")
         sleep @fail_count ** 2
         process_message
       else
