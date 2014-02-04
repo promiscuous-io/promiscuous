@@ -5,7 +5,8 @@ module BackendHelper
   def reconfigure_backend(&block)
     Promiscuous.configure do |config|
       config.reset
-      config.redis_urls = NUM_SHARDS.times.map { |i| "redis://localhost/#{i}" }
+      config.amqp_url = amqp_url
+      config.redis_urls = NUM_SHARDS.times.map { |i| "#{redis_url}#{i}" }
       config.app = 'test'
       config.queue_options = {:auto_delete => true}
       config.hash_size = HASH_SIZE
@@ -49,6 +50,16 @@ module BackendHelper
       block.call(config) if block
     end
     Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
+  end
+
+  private
+
+  def redis_url
+    ENV["BOXEN_REDIS_URL"] || "redis://localhost/"
+  end
+
+  def amqp_url
+    ENV['BOXEN_RABBITMQ_URL'] || 'amqp://guest:guest@localhost:5672'
   end
 end
 

@@ -3,8 +3,6 @@ require 'rubygems'
 require 'bundler'
 Bundler.require
 
-MONGOID_HOST = ENV['MONGOID_SPEC_HOST'] || 'localhost'
-MONGOID_PORT = ENV['MONGOID_SPEC_PORT'] || '27017'
 DATABASE = 'promiscuous_test'
 
 gemfile = File.basename(File.realpath(Bundler.default_gemfile), '.gemfile')
