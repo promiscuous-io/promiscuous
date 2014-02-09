@@ -1,6 +1,6 @@
 Mongoid.configure do |config|
   uri = ENV['BOXEN_MONGODB_URL']
-  uri ||= "mongodb://guest:guest@localhost:27017/"
+  uri ||= "mongodb://localhost:27017/"
   uri += "#{DATABASE}"
 
   config.sessions = { :default => { :uri => uri, :options => { :safe => true } } }
