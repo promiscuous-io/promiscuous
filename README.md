@@ -6,6 +6,7 @@
 
 [![Gem Version](https://badge.fury.io/rb/promiscuous.png)](http://rubygems.org/gems/promiscuous)
 [![Build Status](https://travis-ci.org/promiscuous-io/promiscuous.png?branch=master)](https://travis-ci.org/promiscuous-io/promiscuous)
+[![Code Climate](https://codeclimate.com/github/promiscuous-io/promiscuous.png)](https://codeclimate.com/github/promiscuous-io/promiscuous)
 <!-- [![Dependency Status](https://gemnasium.com/promiscuous-io/promiscuous.png)](https://gemnasium.com/promiscuous-io/promiscuous) -->
 <!-- [![Coverage Status](https://coveralls.io/repos/promiscuous-io/promiscuous/badge.png)](https://coveralls.io/r/promiscuous-io/promiscuous) -->
 
