@@ -63,13 +63,9 @@ module Promiscuous::Config
     self.recovery_on_boot     = true if self.recovery_on_boot.nil?
     self.on_stats             ||= proc { |rate, latency| }
     self.ignore_exceptions    ||= false
-    self.consistency          ||= :causal
+    self.consistency          ||= :eventual
     self.max_retries          ||= 10
     self.generation           ||= 1
-
-    if self.consistency == :eventual && !defined?(Mongoid)
-      raise "Eventual consistency is only supported with Mongoid for the moment"
-    end
   end
 
   def self.configure(&block)

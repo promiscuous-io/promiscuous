@@ -8,6 +8,10 @@ module Promiscuous::Subscriber::Model::Mongoid
     !self.embedded? || options[:old_value] != self
   end
 
+  included do
+    field :_v if Promiscuous::Config.consistency == :eventual
+  end
+
   module ClassMethods
     def subscribe(*args, &block)
       super

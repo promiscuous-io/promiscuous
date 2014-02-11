@@ -19,7 +19,7 @@ class Promiscuous::Subscriber::Worker::EventualDestroyer
   def main_loop
     loop do
       begin
-        PendingDestroy.where(:created_at.gt => self.class.destroy_timeout.ago.utc).each(&:perform)
+        PendingDestroy.next(self.class.destroy_timeout).each(&:perform)
       rescue Exception => e
         Promiscuous.warn "[eventual destroyer] #{e}\n#{e.backtrace.join("\n")}"
         Promiscuous::Config.error_notifier.call(e)
@@ -34,12 +34,7 @@ class Promiscuous::Subscriber::Worker::EventualDestroyer
   end
 
   class PendingDestroy
-    include Mongoid::Document
-    store_in :collection => "promiscuous_pending_destroy"
-
-    field :created_at, :default => ->{ Time.now.utc }
-    field :class_name
-    field :instance_id
+    attr_accessor :class_name, :instance_id
 
     def perform
       model = class_name.constantize
@@ -47,7 +42,44 @@ class Promiscuous::Subscriber::Worker::EventualDestroyer
         model.__promiscuous_fetch_existing(instance_id).destroy
       rescue model.__promiscuous_missing_record_exception
       end
+
       self.destroy
+    end
+
+    def destroy
+      self.class.redis.zrem(self.class.key, @raw)
+    end
+
+    def initialize(raw)
+      params = MultiJson.load(raw).with_indifferent_access
+
+      @class_name  = params[:class_name]
+      @instance_id = params[:instance_id]
+      @raw         = raw
+    end
+
+    def self.next(timeout)
+      redis.zrangebyscore(key, 0, timeout.ago.utc.to_i).map do |raw|
+        self.new(raw)
+      end
+    end
+
+    def self.create(options)
+      redis.zadd(key, Time.now.utc.to_i, options.to_json)
+    end
+
+    def self.count
+      redis.zcard(key)
+    end
+
+    private
+
+    def self.redis
+      Promiscuous::Redis.master.nodes.first
+    end
+
+    def self.key
+      Promiscuous::Key.new(:sub).join('eventualdestroyer:jobs')
     end
   end
 end

@@ -38,6 +38,7 @@ class PromiscuousMigration < ActiveRecord::Migration
         t.string :child_field_2
         t.string :child_field_3
         t.integer :publisher_id
+        t.integer :_v, :limit => 8 if table.to_s.include?('subscriber')
       end
 
       create_table :publisher_model_belongs_tos, :force => true do |t|
@@ -46,6 +47,7 @@ class PromiscuousMigration < ActiveRecord::Migration
 
       create_table :subscriber_model_belongs_tos, :force => true do |t|
         t.integer :publisher_model_id
+        t.integer :_v, :limit => 8
       end
     end
   end
