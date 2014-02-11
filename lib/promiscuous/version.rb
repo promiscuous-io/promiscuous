@@ -1,3 +1,3 @@
 module Promiscuous
-  VERSION = '0.91.0'
+  VERSION = '0.92.0'
 end
