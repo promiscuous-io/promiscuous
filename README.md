@@ -5,11 +5,12 @@ Promiscuous is a **pub-sub framework** for easily replicating data
 across your Ruby applications. Promiscuous guarantees that a subscriber
 never sees out of order updates and that all updates are eventually replicated.
 
-**Difference from traditional replication**
+**Benefits over database replication**
 
-* Enables hetrogenous replication: e.g. replicate from Mongo -> Postgres
-* Enables "remote observers": The ability to observe model changes in one
-  application from another.
+* Hetrogenous replication. e.g. replicate from Mongo -> Postgres | ElasticSearch
+  | Redis ...
+* "Remote observers". The ability to observe model changes in one application from another.
+* Publish [virtual attributes](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-attributes)
 
 
 Rails Quick Tutorial
@@ -85,9 +86,6 @@ Promiscuous in Depth
 * [Foreign Keys](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-foreign-keys)
 * [Namespace Mapping](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-namespace-mapping)
 * [Promiscuous DSL](https://github.com/promiscuous-io/promiscuous/wiki/Features-and-Recipes#wiki-promiscuous-dsl)
-
-### The Replication Mechanism
-* [Pipeline Description](https://github.com/promiscuous-io/promiscuous/wiki/The-Replication-Mechanism#wiki-pipeline-description)
 
 ### Configuration
 * [Configuration Options](https://github.com/promiscuous-io/promiscuous/wiki/Configuration#wiki-configuration-options)
