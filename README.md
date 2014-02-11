@@ -1,54 +1,16 @@
-<p align="center">
-  <a href="https://github.com/promiscuous-io/promiscuous/#introduction">
-    <img src="https://github.com/promiscuous-io/promiscuous/wiki/promiscuous.png">
-  </a>
-</p>
+Promiscuous [![Gem Version](https://badge.fury.io/rb/promiscuous.png)](http://rubygems.org/gems/promiscuous) [![Build Status](https://travis-ci.org/promiscuous-io/promiscuous.png?branch=master)](https://travis-ci.org/promiscuous-io/promiscuous)
+==========
 
-[![Gem Version](https://badge.fury.io/rb/promiscuous.png)](http://rubygems.org/gems/promiscuous)
-[![Build Status](https://travis-ci.org/promiscuous-io/promiscuous.png?branch=master)](https://travis-ci.org/promiscuous-io/promiscuous)
-<!-- [![Dependency Status](https://gemnasium.com/promiscuous-io/promiscuous.png)](https://gemnasium.com/promiscuous-io/promiscuous) -->
-<!-- [![Coverage Status](https://coveralls.io/repos/promiscuous-io/promiscuous/badge.png)](https://coveralls.io/r/promiscuous-io/promiscuous) -->
-
-Introduction
-------------
-
-Promiscuous is a **publisher-subscriber framework** for easily replicating data
-across your Ruby applications.
-
-**Motivation**
-
-> If you hit the Amazon.com gateway page, the application calls more than 100
-> services to collect data and construct the page for you.
-
-— _Werner Vogels, CTO, Amazon.com, 2006_
-
-When it comes to scaling a team, having just one codebase adversely impacts productivity
-and performance.  A more sustainable approach is to adopt a [service-oriented
-architecture](http://en.wikipedia.org/wiki/Service-oriented_architecture) (SOA),
-with a system composed of several *loosely coupled* applications, each existing in isolation
-with its own database.  In this manner, each service can be tested separately,
-deployed separately and even owned separately by developers.  Unfortunately, it
-has not always been easy to achieve this with Ruby.
-
-Promiscuous facilitates designing Ruby based SOA services. It does this by
-watching models in publisher applications and sending corresponding model operations
-on a common message bus powered by [RabbitMQ](http://www.rabbitmq.com/).
-Each subscriber has its own queue to receive messages asynchronously.
-
-**Role in our Infrastructure**
-
-At Crowdtap, we use Promiscuous as the central tier of our system.  It
-replicates a subset of our core models backed by [MongoDB](http://www.mongodb.org/) to
-internal services, such as our e-commerce store on
-[PostgreSQL](http://www.postgresql.org/) and our analytics engine on
-[ElasticSearch](www.elasticsearch.org).
+Promiscuous is a **pub-sub framework** for easily replicating data
+across your Ruby applications. Promiscuous guarantees that a subscriber
+never sees out of order updates and that all updates are eventually replicated.
 
 **Difference from traditional replication**
 
-By using [Redis](http://redis.io) to synchronize and order operations,
-Promiscuous guarantees that a subscriber never sees out of order updates,
-even when using shards. This guarantee considerably reduces the complexity of
-an application, while improving its robustness.
+* Enables hetrogenous replication: e.g. replicate from Mongo -> Postgres
+* Enables "remote observers": The ability to observe model changes in one
+  application from another.
+
 
 Rails Quick Tutorial
 --------------------
