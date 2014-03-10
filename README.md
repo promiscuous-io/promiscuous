@@ -18,7 +18,7 @@ Rails Quick Tutorial
 
 ### 1. Preparation
 
-We need to few things for the promiscuous tutorial:
+We need a few things for the promiscuous tutorial:
 
 * The AMQP broker [RabbitMQ](http://www.rabbitmq.com/) up and running.
 * The key-value storage system [Redis](http://redis.io/) (at least 2.6) up and running.
