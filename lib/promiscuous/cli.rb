@@ -1,3 +1,5 @@
+require 'ruby-progressbar'
+
 class Promiscuous::CLI
   attr_accessor :options
 
