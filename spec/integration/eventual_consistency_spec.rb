@@ -11,6 +11,18 @@ describe Promiscuous do
     end
   end
 
+  context 'when subscribing to an observer with eventual consistency' do
+    let(:consistency)  { :eventual }
+    before { load_observers }
+
+    it "subscribes" do
+      define_callback(:update)
+      Promiscuous.context { PublisherModel.create(:field_1 => '1').update_attributes(:field_1 => '2') }
+
+      eventually { ModelObserver.update_instance.should be_present }
+    end
+  end
+
   context 'when updates are processed out of order' do
     before { Promiscuous::Config.logger.level = logger_level }
     before do
@@ -227,5 +239,12 @@ describe Promiscuous do
         SubscriberModel.count.should == 1
       end
     end
+  end
+end
+
+def define_callback(cb)
+  ModelObserver.class_eval do
+    cattr_accessor "#{cb}_instance"
+    __send__("after_#{cb}", proc { self.class.send("#{cb}_instance=", self) })
   end
 end
