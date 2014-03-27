@@ -11,10 +11,6 @@ class Promiscuous::Subscriber::Worker::Message
     @parsed_payload ||= MultiJson.load(payload)
   end
 
-  def context
-    parsed_payload['context']
-  end
-
   def app
     parsed_payload['app']
   end
@@ -30,19 +26,18 @@ class Promiscuous::Subscriber::Worker::Message
   def dependencies
     @dependencies ||= begin
       dependencies = parsed_payload['dependencies'] || {}
-      deps = dependencies['read'].to_a.map  { |dep| Promiscuous::Dependency.parse(dep, :type => :read, :owner => app) } +
-             dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write, :owner => app) }
+      deps = dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write, :owner => app) }
 
       deps
     end
   end
 
-  def write_dependencies
-    @write_dependencies ||= dependencies.select(&:write?)
+  def types
+    @parsed_payload['types']
   end
 
-  def read_dependencies
-    @read_dependencies ||= dependencies.select(&:read?)
+  def write_dependencies
+    @write_dependencies ||= dependencies.select(&:write?)
   end
 
   def happens_before_dependencies
@@ -60,12 +55,8 @@ class Promiscuous::Subscriber::Worker::Message
     dependencies.present?
   end
 
-  def was_during_bootstrap?
-    !!parsed_payload['was_during_bootstrap']
-  end
-
   def to_s
-    "#{app}/#{context} -> #{happens_before_dependencies.join(', ')}"
+    "#{app} -> #{write_dependencies.join(', ')}"
   end
 
   def ack
@@ -79,34 +70,15 @@ class Promiscuous::Subscriber::Worker::Message
     Promiscuous::Config.error_notifier.call(e)
   end
 
-  def postpone
-    # Only used during bootstrapping
-    @metadata.postpone
-  rescue Exception => e
-    # We don't care if we fail
-    Promiscuous.warn "[receive] (postpone) Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
-    Promiscuous::Config.error_notifier.call(e)
-  end
-
-  def unit_of_work(type, &block)
-    Promiscuous.context { yield }
-  ensure
-    if defined?(ActiveRecord)
-      ActiveRecord::Base.clear_active_connections!
-    end
-  end
-
   def process
-    unit_of_work(context) do
-      if Promiscuous::Config.bootstrap
-        Promiscuous::Subscriber::MessageProcessor::Bootstrap.process(self)
-      else
-        Promiscuous::Subscriber::MessageProcessor::Regular.process(self)
-      end
-    end
+    Promiscuous::Subscriber::MessageProcessor.process(self)
   rescue Exception => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
     Promiscuous.warn "[receive] #{payload} #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.call(e)
+  ensure
+    if defined?(ActiveRecord)
+      ActiveRecord::Base.clear_active_connections!
+    end
   end
 end

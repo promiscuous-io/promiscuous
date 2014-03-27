@@ -3,7 +3,7 @@ module Promiscuous::Subscriber::Model::ActiveRecord
   include Promiscuous::Subscriber::Model::Base
 
   included do
-    if Promiscuous::Config.consistency == :eventual && !self.columns.collect(&:name).include?("_v")
+    if !self.columns.collect(&:name).include?("_v")
       raise <<-help
       #{self} must include a _v column.  Create the following migration:
         change_table :#{self.table_name} do |t|

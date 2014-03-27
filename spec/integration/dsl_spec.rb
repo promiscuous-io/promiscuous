@@ -9,10 +9,8 @@ describe Promiscuous do
     context 'when creating' do
       it 'replicates' do
         pub = nil
-        Promiscuous.context do
-          pub = PublisherModelOther.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-          pub.save
-        end
+        pub = PublisherModelOther.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+        pub.save
 
         eventually do
           sub = SubscriberModelOther.first
@@ -28,10 +26,8 @@ describe Promiscuous do
   shared_examples_for "replication" do
     it 'replicates' do
       pub = nil
-      Promiscuous.context do
-        pub = PublisherDslModel.new(:field_1 => '1', :field_2 => '2')
-        pub.save
-      end
+      pub = PublisherDslModel.new(:field_1 => '1', :field_2 => '2')
+      pub.save
 
       eventually do
         sub = SubscriberDslModel.first
@@ -98,11 +94,8 @@ describe Promiscuous do
     end
 
     it 'replicates' do
-      pub = nil
-      Promiscuous.context do
-        pub = PublisherDslModel.new(:field_1 => '1', :field_2 => '2')
-        pub.save
-      end
+      pub = PublisherDslModel.new(:field_1 => '1', :field_2 => '2')
+      pub.save
 
       eventually do
         sub = SubscriberDslModel.first

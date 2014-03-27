@@ -231,40 +231,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
   # Moped::Query
 
-  def count(*args)
-    promiscuous_read_operation(:operation_ext => :count).execute { super }.to_i
-  end
-
-  def distinct(key)
-    promiscuous_read_operation(:operation_ext => :distinct).execute { super }
-  end
-
-  def each
-    # The TLS is used to pass arguments to the Cursor so we don't hijack more than
-    # necessary.
-    old_moped_query, Thread.current[:moped_query] = Thread.current[:moped_query], self
-    super
-  ensure
-    Thread.current[:moped_query] = old_moped_query
-  end
-  alias :cursor :each
-
-  def first
-    # FIXME If the the user is using something like .only(), we need to make
-    # sure that we add the id, otherwise we are screwed.
-    op = promiscuous_read_operation
-
-    op.execute do |query|
-      query.non_instrumented { super }
-      query.instrumented do
-        super.tap do |doc|
-          op.instances = doc ? [Mongoid::Factory.from_db(op.model, doc)] : []
-        end
-      end
-    end
-  end
-  alias :one :first
-
   def update(change, flags=nil)
     update_op = promiscuous_write_operation(:update, :change => change)
 
@@ -303,37 +269,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   end
 end
 
-class Moped::PromiscuousCursorWrapper < Moped::Cursor
-  # Moped::Cursor
-  def promiscuous_read_each(&block)
-    op = Moped::PromiscuousQueryWrapper::PromiscuousReadOperation.new(
-           :query => @query, :operation_ext => :each)
-
-    op.execute do |query|
-      query.non_instrumented { block.call.to_a }
-      query.instrumented do
-        block.call.to_a.tap do |docs|
-          op.instances = docs.map { |doc| Mongoid::Factory.from_db(op.model, doc) }
-        end
-      end
-    end
-  end
-
-  def load_docs
-    promiscuous_read_each { super }
-  end
-
-  def get_more
-    # TODO support batch_size
-    promiscuous_read_each { super }
-  end
-
-  def initialize(session, query_operation)
-    super
-    @query = Thread.current[:moped_query]
-  end
-end
-
 class Moped::PromiscuousDatabase < Moped::Database
   # TODO it might be safer to use the alias attribute method because promiscuous
   # may come late in the loading.
@@ -364,7 +299,5 @@ Moped.__send__(:remove_const, :Collection)
 Moped.__send__(:const_set,    :Collection, Moped::PromiscuousCollectionWrapper)
 Moped.__send__(:remove_const, :Query)
 Moped.__send__(:const_set,    :Query, Moped::PromiscuousQueryWrapper)
-Moped.__send__(:remove_const, :Cursor)
-Moped.__send__(:const_set,    :Cursor, Moped::PromiscuousCursorWrapper)
 Moped.__send__(:remove_const, :Database)
 Moped.__send__(:const_set,    :Database, Moped::PromiscuousDatabase)

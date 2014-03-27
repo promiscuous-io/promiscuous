@@ -10,13 +10,10 @@ describe Promiscuous do
 
   context 'when creating' do
     it 'replicates' do
-      pub = nil
-      Promiscuous.context do
-        pub_id = ORM.generate_id
-        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.id = pub_id
-        pub.save
-      end
+      pub_id = ORM.generate_id
+      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.id = pub_id
+      pub.save
 
       eventually do
         sub = SubscriberModel.first
@@ -30,14 +27,11 @@ describe Promiscuous do
 
   context 'when updating' do
     it 'replicates' do
-      pub = nil
-      Promiscuous.context do
-        pub_id = ORM.generate_id
-        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.id = pub_id
-        pub.save
-        pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
-      end
+      pub_id = ORM.generate_id
+      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.id = pub_id
+      pub.save
+      pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
       eventually do
         sub = SubscriberModel.first
@@ -51,13 +45,10 @@ describe Promiscuous do
 
   context 'when updating (upsert)' do
     it 'replicates' do
-      pub = nil
-      Promiscuous.context do
-        pub_id = ORM.generate_id
-        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.id = pub_id
-        pub.save
-      end
+      pub_id = ORM.generate_id
+      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.id = pub_id
+      pub.save
 
       eventually { SubscriberModel.first.should_not == nil }
 
@@ -80,16 +71,13 @@ describe Promiscuous do
 
   context 'when destroying' do
     it 'replicates' do
-      pub = nil
-      Promiscuous.context do
-        pub_id = ORM.generate_id
-        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.id = pub_id
-        pub.save
-      end
+      pub_id = ORM.generate_id
+      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.id = pub_id
+      pub.save
 
       eventually { SubscriberModel.count.should == 1 }
-      Promiscuous.context { pub.destroy }
+      pub.destroy
       eventually { SubscriberModel.count.should == 0 }
     end
   end

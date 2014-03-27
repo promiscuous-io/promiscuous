@@ -7,16 +7,16 @@ if ORM.has(:mongoid)
     before { run_subscriber_worker! }
 
     it 'synchronize records manually' do
-      pub = Promiscuous.context { PublisherModel.create }
+      pub = PublisherModel.create
 
       without_promiscuous { PublisherModel.first.update_attributes(:field_1 => 'hello') }
 
       # no reload, that would be incorrect
 
-      Promiscuous.context { pub.promiscuous.sync }
+      pub.promiscuous.sync
       eventually { SubscriberModel.first.field_1.should == 'hello' }
 
-      Promiscuous.context { PublisherModel.first.update_attributes(:field_1 => 'ohai') }
+      PublisherModel.first.update_attributes(:field_1 => 'ohai')
       eventually { SubscriberModel.first.field_1.should == 'ohai' }
     end
   end

@@ -1,20 +1,18 @@
 class Promiscuous::Subscriber::Worker
   extend Promiscuous::Autoload
-  autoload :Message, :Pump, :MessageSynchronizer, :Runner, :Stats, :Recorder,
+  autoload :Message, :Pump, :Runner, :Stats, :Recorder,
            :EventualDestroyer
 
-  attr_accessor :message_synchronizer, :pump, :runner, :stats, :eventual_destroyer
+  attr_accessor :pump, :runner, :stats, :eventual_destroyer
 
   def initialize
-    @message_synchronizer = MessageSynchronizer.new(self)
     @pump = Pump.new(self)
     @runner = Runner.new(self)
     @stats = Stats.new
-    @eventual_destroyer = EventualDestroyer.new if Promiscuous::Config.consistency == :eventual
+    @eventual_destroyer = EventualDestroyer.new
   end
 
   def start
-    @message_synchronizer.connect
     @pump.connect
     @runner.start
     @stats.connect
@@ -25,7 +23,6 @@ class Promiscuous::Subscriber::Worker
     @stats.disconnect
     @runner.stop
     @pump.disconnect
-    @message_synchronizer.disconnect
     @eventual_destroyer.try(:stop)
   end
 

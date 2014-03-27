@@ -25,12 +25,10 @@ module Promiscuous::Publisher::Model::Mock
   def save_operation(operation)
     payload = nil
 
-    Promiscuous::Publisher::Context::Middleware.with_context("mocking #{self.class}") do
-      op = Promiscuous::Publisher::Operation::Ephemeral.new(:instance => self, :operation => operation)
-      # TODO FIX the mocks to populate app name, also we need to hook before the
-      # json dump.
-      payload = op.generate_payload
-    end
+    op = Promiscuous::Publisher::Operation::Ephemeral.new(:instance => self, :operation => operation)
+    # TODO FIX the mocks to populate app name, also we need to hook before the
+    # json dump.
+    payload = op.generate_payload
 
     Promiscuous::Subscriber::Worker::Message.new(payload).process
   end

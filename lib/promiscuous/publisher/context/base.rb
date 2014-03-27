@@ -2,44 +2,13 @@ class Promiscuous::Publisher::Context::Base
   # XXX Context are not sharable among threads
 
   def self.current
-    Thread.current[:promiscuous_context]
+    Thread.current[:promiscuous_context] ||= self.new
   end
 
-  def self.current=(value)
-    Thread.current[:promiscuous_context] = value
-  end
-
-  def self.with_context(*args, &block)
-    raise "You cannot nest contexts" if self.current
-
-    self.current = new(*args)
-    begin
-      self.current.trace "<<< open <<<", :level => 1
-      yield
-    ensure
-      self.current.trace "<<< close <<<", :level => 1
-      self.current = nil
-
-      ActiveRecord::Base.clear_active_connections! if defined?(ActiveRecord::Base)
-    end
-  end
-
-  attr_accessor :name, :read_operations, :extra_dependencies, :current_user
-
-  def initialize(name=nil, options={})
-    @name = name.try(:to_s) || 'anonymous'
-    @current_user = options[:current_user]
-    @read_operations = []
-    @extra_dependencies = []
-    @transaction_managers = {}
-
-    Promiscuous::AMQP.ensure_connected
-
-    Mongoid::IdentityMap.clear if defined?(Mongoid::IdentityMap)
-    ActiveRecord::IdentityMap.clear if defined?(ActiveRecord::IdentityMap)
-  end
+  attr_accessor :current_user
 
   def transaction_context_of(driver)
+    @transaction_managers ||= {}
     @transaction_managers[driver] ||= Promiscuous::Publisher::Context::Transaction.new(driver)
   end
 

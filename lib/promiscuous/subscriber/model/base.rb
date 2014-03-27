@@ -2,7 +2,6 @@ module Promiscuous::Subscriber::Model::Base
   extend ActiveSupport::Concern
 
   def __promiscuous_eventual_consistency_update(operation)
-    return true unless Promiscuous::Config.consistency == :eventual
     return true unless self.respond_to?(:attributes)
     return true unless operation.message.has_dependencies?
 
@@ -31,7 +30,7 @@ module Promiscuous::Subscriber::Model::Base
       value = payload.attributes[attr]
       update = true
 
-      attr_payload = Promiscuous::Subscriber::Operation::Regular.new(value)
+      attr_payload = Promiscuous::Subscriber::Operation.new(value)
       if model = attr_payload.model
         # Nested subscriber
         old_value =  __send__(attr)

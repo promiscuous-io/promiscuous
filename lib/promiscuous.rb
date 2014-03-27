@@ -20,9 +20,6 @@ module Promiscuous
            :CLI, :Error, :Loader, :AMQP, :Redis, :ZK, :Config, :DSL, :Key,
            :Convenience, :Dependency, :Timer
 
-  # Shortcut for the middleware, TODO make load on demand
-  Middleware = Publisher::Context::Middleware
-
   extend Promiscuous::DSL
 
   Object.__send__(:include, Promiscuous::Convenience)
@@ -82,8 +79,8 @@ module Promiscuous
       !!Thread.current[:promiscuous_disabled]
     end
 
-    def context(*args, &block)
-      Publisher::Context::Base.with_context(*args, &block)
+    def context
+      Publisher::Context::Base.current
     end
   end
 

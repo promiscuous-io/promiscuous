@@ -40,7 +40,6 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
 
   def execute_instrumented(query)
     unless self.recovering?
-      generate_read_dependencies
       acquire_op_lock
 
       # As opposed to atomic operations, we know the values of the instances
@@ -67,7 +66,6 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
     ensure_op_still_locked
 
     generate_payload
-    clear_previous_dependencies
 
     publish_payload_in_redis
     release_op_lock

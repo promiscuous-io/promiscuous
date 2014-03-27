@@ -1,12 +1,12 @@
 module Promiscuous::Config
-  mattr_accessor :app, :bootstrap, :bootstrap_chunk_size, :backend, :amqp_url,
+  mattr_accessor :app, :backend, :amqp_url,
                  :publisher_amqp_url, :subscriber_amqp_url, :publisher_exchange,
                  :subscriber_exchanges, :queue_name, :queue_options, :redis_url,
                  :redis_urls, :redis_stats_url, :stats_interval,
                  :socket_timeout, :heartbeat, :no_deps, :hash_size,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
                  :version_field, :error_notifier, :recovery_on_boot,
-                 :on_stats, :ignore_exceptions, :consistency, :max_retries, :generation
+                 :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval
 
   def self.backend=(value)
     @@backend = value
@@ -35,8 +35,6 @@ module Promiscuous::Config
     block.call(self) if block
 
     self.app                  ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
-    self.bootstrap            ||= false
-    self.bootstrap_chunk_size ||= 10000
     self.backend              ||= best_amqp_backend
     self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
     self.publisher_amqp_url   ||= self.amqp_url
@@ -54,7 +52,7 @@ module Promiscuous::Config
     self.heartbeat            ||= 60
     self.no_deps              ||= false
     self.hash_size            ||= 2**20 # one million keys ~ 200Mb.
-    self.prefetch             ||= self.bootstrap ? 10000000 : 1000
+    self.prefetch             ||= 1000
     self.recovery_timeout     ||= 10
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10
@@ -62,10 +60,10 @@ module Promiscuous::Config
     self.version_field        ||= '_v'
     self.recovery_on_boot     = true if self.recovery_on_boot.nil?
     self.on_stats             ||= proc { |rate, latency| }
-    self.ignore_exceptions    ||= false
-    self.consistency          ||= :eventual
     self.max_retries          ||= 10
     self.generation           ||= 1
+    self.destroy_timeout      ||= 1.hour
+    self.destroy_check_interval ||= 10.minutes
   end
 
   def self.configure(&block)

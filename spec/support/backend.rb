@@ -13,7 +13,8 @@ module BackendHelper
       config.logger = Logger.new(STDERR)
       config.logger.level = ENV["LOGGER_LEVEL"] ? ENV["LOGGER_LEVEL"].to_i : Logger::WARN
       config.stats_interval = 0
-      config.consistency = :causal
+      config.destroy_timeout = 0
+      config.destroy_check_interval = 0
       block.call(config) if block
     end
     Promiscuous.connect

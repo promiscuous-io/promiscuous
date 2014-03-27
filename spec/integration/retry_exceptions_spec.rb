@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models }
-  before { use_real_backend { |config| config.logger.level = Logger::FATAL } }
+  before { use_real_backend { |config| config.logger.level = Logger::FATAL; config.max_retries = 10 } }
   before { run_subscriber_worker! }
   before { $raise = true }
 
@@ -15,9 +15,7 @@ describe Promiscuous do
       end
     end
     before do
-      Promiscuous.context do
-        PublisherModel.create(:field_1 => 'value')
-      end
+      PublisherModel.create(:field_1 => 'value')
     end
 
     it "retries when an exception is raised" do
@@ -27,7 +25,7 @@ describe Promiscuous do
 
       $raise = false
 
-      eventually(:timeout => 2.seconds) do
+      eventually(:timeout => 5.seconds) do
         SubscriberModel.count.should == 1
       end
     end

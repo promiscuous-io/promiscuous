@@ -11,11 +11,9 @@ describe Promiscuous do
       pub_id = ORM.generate_id
       SubscriberModel.new.tap { |sub| sub.id = pub_id }.save
 
-      Promiscuous.context do
-        PublisherModel.new.tap { |_pub| _pub.id = pub_id }.save
-        pub = PublisherModel.first
-        pub.update_attributes(:field_1 => 'ohai')
-      end
+      PublisherModel.new.tap { |_pub| _pub.id = pub_id }.save
+      pub = PublisherModel.first
+      pub.update_attributes(:field_1 => 'ohai')
 
       eventually { SubscriberModel.first.field_1.should == 'ohai' }
     end
@@ -23,20 +21,15 @@ describe Promiscuous do
 
   context 'when updating' do
     it 'replicates' do
-      pub = nil
-      Promiscuous.context do
-        pub_id = ORM.generate_id
-        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.id = pub_id
-        pub.save
-      end
+      pub_id = ORM.generate_id
+      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.id = pub_id
+      pub.save
 
       eventually { SubscriberModel.first.should_not == nil }
 
       SubscriberModel.first.destroy
-      Promiscuous.context do
-        pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
-      end
+      pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
       eventually do
         sub = SubscriberModel.first
@@ -50,16 +43,13 @@ describe Promiscuous do
 
   context 'when destroying' do
     it 'replicates' do
-      pub1 = pub2 = nil
-      Promiscuous.context do
-        pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-      end
+      pub1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
       eventually { SubscriberModel.first.should_not == nil }
 
       SubscriberModel.first.destroy
 
-      Promiscuous.context { pub1.destroy }
-      Promiscuous.context { pub2 = PublisherModel.create }
+      pub1.destroy
+      pub2 = PublisherModel.create
 
       eventually do
         SubscriberModel.where(ORM::ID => pub1.id).count.should == 0

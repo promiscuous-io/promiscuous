@@ -19,14 +19,6 @@ class Promiscuous::CLI
             print_status "Thread #{thread} #{thread['label']} -- no backtrace"
           end
         end
-
-        if @worker && @worker.respond_to?(:message_synchronizer)
-          if blocked_messages = @worker.message_synchronizer.try(:blocked_messages)
-            print_status  '----[ Pending Dependencies ]----' + '-' * (100-32)
-            blocked_messages.reverse_each { |msg| print_status msg }
-          end
-          print_status  '-' * 100
-        end
       end
     end
   end
@@ -63,7 +55,7 @@ class Promiscuous::CLI
       bar = ProgressBar.create(:format => '%t |%b>%i| %c/%C %e', :title => title, :total => criteria.count)
       criteria.each do |doc|
         break if @stop
-        Promiscuous.context("cli/sync") { doc.promiscuous.sync }
+        doc.promiscuous.sync
         bar.increment
       end
     end
@@ -102,16 +94,6 @@ class Promiscuous::CLI
     print_status "Replayed #{@num_msg} messages"
   end
 
-  def bootstrap
-    phase = options[:criterias][0].to_sym
-    raise "Subscriber bootstrap must be one of [setup|run|finalize|status]" unless [:setup, :run, :finalize, :status].include?(phase)
-    if phase == :setup && criteria = options[:bootstrap_criteria]
-      Promiscuous::Publisher::Bootstrap.setup(:models => eval(criteria).to_a)
-    else
-      Promiscuous::Publisher::Bootstrap.__send__(phase)
-    end
-  end
-
   def subscribe
     @worker = Promiscuous::Subscriber::Worker.new
     @worker.start
@@ -145,7 +127,6 @@ class Promiscuous::CLI
       opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" [Model2 Model3...]"
       opts.separator "    promiscuous publisher_recovery"
       opts.separator "    promiscuous subscribe"
-      opts.separator "    promiscuous bootstrap phase"
       opts.separator "    promiscuous mocks"
       opts.separator "    promiscuous record logfile"
       opts.separator "    promiscuous replay logfile"
@@ -154,10 +135,6 @@ class Promiscuous::CLI
 
       opts.on "-d", "--no-deps", "Skip dependency tracking (subscribe only option)" do
         Promiscuous::Config.no_deps = true
-      end
-
-      opts.on "-x", "--ignore-exceptions", "Ignore exceptions and continue to process messages" do
-        Promiscuous::Config.ignore_exceptions = true
       end
 
       opts.on "-l", "--require FILE", "File to require to load your app. Don't worry about it with rails" do |file|
@@ -175,20 +152,6 @@ class Promiscuous::CLI
 
       opts.on "-s", "--stat-interval [DURATION]", "Stats refresh rate (0 to disable)" do |duration|
         Promiscuous::Config.stats_interval = duration.to_f
-      end
-
-      opts.on "-b", "--bootstrap [pass1|pass2]", "Run subscriber in bootstrap mode" do |mode|
-        mode = mode.to_sym
-        raise "Subscriber bootstrap must be run in pass1 or pass2 mode" unless [:pass1, :pass2].include?(mode)
-        Promiscuous::Config.bootstrap = mode.to_sym
-      end
-
-      opts.on "-t", "--threads [NUM]", "Number of subscriber worker threads to run. Defaults to 10." do |threads|
-        Promiscuous::Config.subscriber_threads = threads.to_i
-      end
-
-      opts.on "-c", "--criteria FILE", "Criteria to bootstrap a subset of data" do |criteria|
-        options[:bootstrap_criteria] = criteria
       end
 
       opts.on "-D", "--daemonize", "Daemonize process" do
@@ -212,15 +175,12 @@ class Promiscuous::CLI
     options[:action] = args.shift.try(:to_sym)
     options[:criterias] = args
     options[:log_file] = args.first
-    options[:publisher_bootstrap] = args.first
 
     case options[:action]
     when :publish             then raise "Please specify one or more criterias" unless options[:criterias].present?
     when :subscribe           then raise "Why are you specifying a criteria?"   if     options[:criterias].present?
-    when :bootstrap           then raise "You must specify one of [setup|start|finalize]" unless options[:criterias].present?
     when :record              then raise "Please specify a log file to record"  unless options[:log_file].present?
     when :replay              then raise "Please specify a log file to replay"  unless options[:log_file].present?
-    when :publisher_bootstrap then raise "Please specify 'on' or 'off'" unless options[:publisher_bootstrap].present?
     when :publisher_recovery
     when :mocks
     else puts parser; exit 1
@@ -272,12 +232,10 @@ class Promiscuous::CLI
     case options[:action]
     when :publish   then publish
     when :subscribe then subscribe
-    when :bootstrap then bootstrap
     when :record    then record
     when :replay    then replay
     when :mocks     then generate_mocks
     when :publisher_recovery  then publisher_recovery
-    when :publisher_bootstrap then set_publisher_bootstrap
     end
   end
 

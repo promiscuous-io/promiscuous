@@ -10,10 +10,7 @@ if ORM.has(:polymorphic)
 
       context 'when creating' do
         it 'replicates the parent' do
-          pub = nil
-          Promiscuous.context do
-            pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-          end
+          pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
 
           eventually do
             sub = SubscriberModel.find(pub.id)
@@ -25,11 +22,8 @@ if ORM.has(:polymorphic)
         end
 
         it 'replicates the child' do
-          pub = nil
-          Promiscuous.context do
-            pub = PublisherModelChild.create(:field_1 => '1', :field_2 => '2', :field_3 => '3',
-                                             :child_field_1 => 'child_1')
-          end
+          pub = PublisherModelChild.create(:field_1 => '1', :field_2 => '2', :field_3 => '3',
+                                           :child_field_1 => 'child_1')
 
           eventually do
             sub = SubscriberModelChild.find(pub.id)
@@ -45,11 +39,8 @@ if ORM.has(:polymorphic)
 
       context 'when updating' do
         it 'replicates the parent' do
-          pub = nil
-          Promiscuous.context do
-            pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-            pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
-          end
+          pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+          pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
           eventually do
             sub = SubscriberModel.find(pub.id)
@@ -61,13 +52,10 @@ if ORM.has(:polymorphic)
         end
 
         it 'replicates the child' do
-          pub = nil
-          Promiscuous.context do
-            pub = PublisherModelChild.create(:field_1 => '1', :field_2 => '2', :field_3 => '3',
-                                             :child_field_1 => 'child_1')
-            pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated',
-                                  :child_field_1 => 'child_1_updated')
-          end
+          pub = PublisherModelChild.create(:field_1 => '1', :field_2 => '2', :field_3 => '3',
+                                           :child_field_1 => 'child_1')
+          pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated',
+                                :child_field_1 => 'child_1_updated')
 
           eventually do
             sub = SubscriberModelChild.find(pub.id)
@@ -82,25 +70,19 @@ if ORM.has(:polymorphic)
 
       context 'when destroying' do
         it 'replicates the parent' do
-          pub = nil
-          Promiscuous.context do
-            pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-          end
+          pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
 
           eventually { SubscriberModel.count.should == 1 }
-          Promiscuous.context { pub.destroy }
+          pub.destroy
           eventually { SubscriberModel.count.should == 0 }
         end
 
         it 'replicates the child' do
-          pub = nil
-          Promiscuous.context do
-            pub = PublisherModelChild.create(:field_1 => '1', :field_2 => '2', :field_3 => '3',
-                                             :child_field_1 => 'child_1')
-          end
+          pub = PublisherModelChild.create(:field_1 => '1', :field_2 => '2', :field_3 => '3',
+                                           :child_field_1 => 'child_1')
 
           eventually { SubscriberModelChild.count.should == 1 }
-          Promiscuous.context { pub.destroy }
+          pub.destroy
           eventually { SubscriberModelChild.count.should == 0 }
         end
       end
@@ -143,12 +125,9 @@ if ORM.has(:polymorphic)
       before { run_subscriber_worker! }
 
       it 'replicates' do
-        pub1 = pub2 = pub3 = nil
-        Promiscuous.context do
-          pub1 = Publisher1.create(:field_1 => '11')
-          pub2 = Publisher2.create(:field_1 => '21', :field_2 => '22')
-          pub3 = Publisher3.create(:field_1 => '31', :field_2 => '32', :field_3 => '33')
-        end
+        pub1 = Publisher1.create(:field_1 => '11')
+        pub2 = Publisher2.create(:field_1 => '21', :field_2 => '22')
+        pub3 = Publisher3.create(:field_1 => '31', :field_2 => '32', :field_3 => '33')
 
         eventually do
           Subscriber1.find(pub1.id).tap do |sub1|
@@ -210,11 +189,8 @@ if ORM.has(:polymorphic)
 
       context 'when creating' do
         it 'replicates both child models' do
-          pub1 = pub2 = nil
-          Promiscuous.context do
-            pub1 = PublisherModelChildRoot.create(:field_1 => '1', :child_field_1 => '2')
-            pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
-          end
+          pub1 = PublisherModelChildRoot.create(:field_1 => '1', :child_field_1 => '2')
+          pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
 
           eventually do
             sub1 = SubscriberModelChildRoot.find(pub1.id)
@@ -232,14 +208,11 @@ if ORM.has(:polymorphic)
 
       context 'when updating' do
         it 'replicates both child models' do
-          pub1 = pub2 = nil
-          Promiscuous.context do
-            pub1 = PublisherModelChildRoot.create(:field_1 => '1', :child_field_1 => '2')
-            pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
+          pub1 = PublisherModelChildRoot.create(:field_1 => '1', :child_field_1 => '2')
+          pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
 
-            pub1.update_attributes(:field_1 => '1_updated', :child_field_1 => '2_updated')
-            pub2.update_attributes(:field_1 => '1_updated', :another_child_field_1 => '2_updated')
-          end
+          pub1.update_attributes(:field_1 => '1_updated', :child_field_1 => '2_updated')
+          pub2.update_attributes(:field_1 => '1_updated', :another_child_field_1 => '2_updated')
 
           eventually do
             sub1 = SubscriberModelChildRoot.find(pub1.id)
@@ -257,20 +230,16 @@ if ORM.has(:polymorphic)
 
       context 'when destroying' do
         it 'replicates the parent' do
-          pub1 = pub2 = nil
-          Promiscuous.context do
-            pub1 = PublisherModelChildRoot.create(:field_1 => '1', :child_field_1 => '2')
-            pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
-          end
+          pub1 = PublisherModelChildRoot.create(:field_1 => '1', :child_field_1 => '2')
+          pub2 = PublisherModelAnotherChildRoot.create(:field_1 => '1', :another_child_field_1 => '2')
 
           eventually do
             SubscriberModelChildRoot.count.should == 1
             SubscriberModelAnotherChildRoot.count.should == 1
           end
-          Promiscuous.context do
-            pub1.destroy
-            pub2.destroy
-          end
+          pub1.destroy
+          pub2.destroy
+
           eventually do
             SubscriberModelChildRoot.count.should == 0
             SubscriberModelAnotherChildRoot.count.should == 0

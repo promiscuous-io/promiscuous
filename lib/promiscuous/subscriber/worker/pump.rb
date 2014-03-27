@@ -14,21 +14,12 @@ class Promiscuous::Subscriber::Worker::Pump
       options[:bindings][exchange] = ['*']
     end
 
-    if Promiscuous::Config.bootstrap
-      options[:bindings][Promiscuous::AMQP::BOOTSTRAP_EXCHANGE] = ['*']
-    end
-
     subscribe(options, &method(:on_message))
   end
 
   def on_message(metadata, payload)
     msg = Promiscuous::Subscriber::Worker::Message.new(payload, :metadata => metadata, :root_worker => @root)
-    if Promiscuous::Config.bootstrap
-      # Bootstrapping doesn't require synchronzation
-      @root.runner.messages_to_process << msg
-    else
-      @root.message_synchronizer.process_when_ready(msg)
-    end
+    @root.runner.messages_to_process << msg
   rescue Exception => e
     Promiscuous.warn "[receive] cannot process message: #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.call(e)

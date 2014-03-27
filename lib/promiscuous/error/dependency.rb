@@ -1,9 +1,8 @@
 class Promiscuous::Error::Dependency < Promiscuous::Error::Base
-  attr_accessor :dependency_solutions, :operation, :context
+  attr_accessor :dependency_solutions, :operation
 
   def initialize(options={})
     self.operation = options[:operation]
-    self.context = Promiscuous::Publisher::Context.current
   end
 
   # TODO Convert all that with Erb
@@ -69,7 +68,6 @@ class Promiscuous::Error::Dependency < Promiscuous::Error::Base
     when :update    then msg += 'multi update'
     when :destroy   then msg += 'multi destroy'
     end
-    msg += " in the '#{context.name}' context:\n\n"
     msg += "  #{self.class.explain_operation(self.operation)}"
     msg += "\n\nProTip: Try again with TRACE=2 in the shell or ENV['TRACE']='2' in the console.\n" unless ENV['TRACE']
     msg

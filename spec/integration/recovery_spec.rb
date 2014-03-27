@@ -40,13 +40,13 @@ describe Promiscuous do
 
   context 'when the publisher dies right before doing increments' do
     it 'recovers' do
-      pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+      pub = PublisherModel.create(:field_1 => '1')
       Promiscuous::AMQP::Fake.get_next_message
 
       stub_once_on(@operation_klass, :increment_read_and_write_dependencies) { raise }
-      expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
+      expect { pub.update_attributes(:field_1 => '2') }.to raise_error
 
-      Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+      pub.update_attributes(:field_1 => '3')
 
       payload = Promiscuous::AMQP::Fake.get_next_payload
       dep = payload['dependencies']
@@ -59,45 +59,11 @@ describe Promiscuous do
     end
   end
 
-  context 'when the subscriber dies in the middle of doing the increments' do
-    it 'recovers' do
-      PublisherModel.track_dependencies_of :field_2
-      pub = Promiscuous.context { PublisherModel.create(:field_2 => 'hello') }
-      Promiscuous::AMQP::Fake.get_next_message
-
-      NUM_DEPS = 10
-
-      # Raising on version= will simulate a failure right after the master node
-      # access.
-      stub_once_on(Promiscuous::Dependency, :version=) { raise }
-      expect { Promiscuous.context do
-        NUM_DEPS.times.map { |i| PublisherModel.where(:field_2 => i.to_s).count }
-        pub.update_attributes(:field_1 => '1')
-      end }.to raise_error
-
-      eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
-
-      payload = Promiscuous::AMQP::Fake.get_next_payload
-      dep = payload['dependencies']
-      dep['read'].should  =~ hashed[*NUM_DEPS.times.map { |i| "publisher_models/field_2/#{i}:0" }]
-      dep['write'].should =~ hashed["publisher_models/id/#{pub.id}:2", "publisher_models/field_2/hello:2"]
-
-      op = payload['operations'].first
-      op['id'].should == pub.id.to_s
-      op['operation'].should == 'update'
-      if ORM.has(:transaction)
-        op['attributes']['field_1'].should == '1'
-      else
-        op['attributes']['field_1'].should == nil
-      end
-    end
-  end
-
   context 'when the publisher dies right after the increments' do
     context 'when doing a create' do
       it 'recovers' do
         stub_once_on_db_query { raise }
-        expect { Promiscuous.context { PublisherModel.create(:field_1 => '1') } }.to raise_error
+        expect { PublisherModel.create(:field_1 => '1') }.to raise_error
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
@@ -117,15 +83,15 @@ describe Promiscuous do
 
     context 'when doing an update' do
       it 'recovers' do
-        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = PublisherModel.create(:field_1 => '1')
         Promiscuous::AMQP::Fake.get_next_message
 
         stub_once_on_db_query { raise }
-        expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
+        expect { pub.update_attributes(:field_1 => '2') }.to raise_error
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 } if ORM.has(:transaction)
 
-        Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+        pub.update_attributes(:field_1 => '3')
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -156,14 +122,14 @@ describe Promiscuous do
         it 'recovers without an operation' do
           Promiscuous::Config.logger.level = Logger::FATAL
 
-          pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+          pub = PublisherModel.create(:field_1 => '1')
           Promiscuous::AMQP::Fake.get_next_message
 
           stub_once_on_db_query do
             without_promiscuous { pub.delete }
             raise
           end
-          expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
+          expect { pub.update_attributes(:field_1 => '2') }.to raise_error
 
           PublisherModel.count.should == 0
 
@@ -180,13 +146,13 @@ describe Promiscuous do
 
     context 'when doing a destroy' do
       it 'recovers' do
-        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = PublisherModel.create(:field_1 => '1')
         Promiscuous::AMQP::Fake.get_next_message
 
         stub_once_on_db_query { raise }
-        expect { Promiscuous.context { pub.destroy } }.to raise_error
+        expect { pub.destroy }.to raise_error
 
-        Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+        pub.update_attributes(:field_1 => '3')
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
@@ -208,7 +174,7 @@ describe Promiscuous do
 
         stub_once_on_db_query { sleep 2 }
         expect do
-          Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+          PublisherModel.create(:field_1 => '1')
         end.to raise_error(Promiscuous::Error::LostLock)
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
@@ -216,7 +182,7 @@ describe Promiscuous do
         pub = PublisherModel.first
         pub.field_1.should == '1'
 
-        Promiscuous.context { pub.update_attributes(:field_1 => '2') }
+        pub.update_attributes(:field_1 => '2')
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -240,15 +206,15 @@ describe Promiscuous do
 
     context 'when doing an update' do
       it 'recovers' do
-        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = PublisherModel.create(:field_1 => '1')
         Promiscuous::AMQP::Fake.get_next_message
 
         stub_once_on_db_query { sleep 2 }
         expect do
-          Promiscuous.context { pub.update_attributes(:field_1 => '2') }
+          pub.update_attributes(:field_1 => '2')
         end.to raise_error(Promiscuous::Error::LostLock)
 
-        Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+        pub.update_attributes(:field_1 => '3')
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -277,15 +243,15 @@ describe Promiscuous do
 
     context 'when doing a destroy' do
       it 'recovers' do
-        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = PublisherModel.create(:field_1 => '1')
         Promiscuous::AMQP::Fake.get_next_message
 
         stub_once_on_db_query { sleep 2 }
         expect do
-          Promiscuous.context { pub.destroy }
+          pub.destroy
         end.to raise_error(Promiscuous::Error::LostLock)
 
-        Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+        pub.update_attributes(:field_1 => '3')
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
@@ -306,12 +272,12 @@ describe Promiscuous do
       it 'recovers' do
         stub_once_on(@operation_klass, :publish_payload_in_redis) { raise }
 
-        expect { Promiscuous.context { PublisherModel.create(:field_1 => '1') } }.to raise_error
+        expect { PublisherModel.create(:field_1 => '1') }.to raise_error
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 } if ORM.has(:transaction)
 
         pub = PublisherModel.first
-        Promiscuous.context { pub.update_attributes(:field_1 => '2') }
+        pub.update_attributes(:field_1 => '2')
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -335,15 +301,15 @@ describe Promiscuous do
 
     context 'when doing an update' do
       it 'recovers' do
-        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = PublisherModel.create(:field_1 => '1')
         Promiscuous::AMQP::Fake.get_next_message
 
         stub_once_on(@operation_klass, :publish_payload_in_redis) { raise }
-        expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
+        expect { pub.update_attributes(:field_1 => '2') }.to raise_error
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 } if ORM.has(:transaction)
 
-        Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+        pub.update_attributes(:field_1 => '3')
 
         payload = Promiscuous::AMQP::Fake.get_next_payload
         dep = payload['dependencies']
@@ -367,11 +333,11 @@ describe Promiscuous do
 
     context 'when doing a destroy' do
       it 'recovers' do
-        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = PublisherModel.create(:field_1 => '1')
         Promiscuous::AMQP::Fake.get_next_message
 
         stub_once_on(@operation_klass, :publish_payload_in_redis) { raise }
-        expect { Promiscuous.context { pub.destroy } }.to raise_error
+        expect { pub.destroy }.to raise_error
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
@@ -388,7 +354,7 @@ describe Promiscuous do
 
     context 'when the lock times out' do
       it 'the app instance throws an exception' do
-        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = PublisherModel.create(:field_1 => '1')
         Promiscuous::AMQP::Fake.get_next_message
 
         @operation_klass.stubs(:lock_options).returns(
@@ -400,10 +366,10 @@ describe Promiscuous do
 
         stub_once_on(@operation_klass, :increment_read_and_write_dependencies) { raise }
 
-        expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }.to raise_error
+        expect { pub.update_attributes(:field_1 => '2') }.to raise_error
 
         expect do
-          Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+          pub.update_attributes(:field_1 => '3')
         end.to raise_error(Promiscuous::Error::LockUnavailable)
       end
     end
@@ -411,7 +377,7 @@ describe Promiscuous do
     context 'when the publish to rabbitmq fails' do
       it 'republishes' do
         stub_once_on(@operation_klass, :publish_payload_in_rabbitmq_async) { raise }
-        expect { Promiscuous.context { PublisherModel.create(:field_1 => '1') } }.to raise_error
+        expect { PublisherModel.create(:field_1 => '1') }.to raise_error
         pub = PublisherModel.first
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
@@ -430,18 +396,18 @@ describe Promiscuous do
 
     context 'when locks are expiring' do
       it 'republishes' do
-        pub = Promiscuous.context { PublisherModel.create(:field_1 => '1') }
+        pub = PublisherModel.create(:field_1 => '1')
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
         payload = Promiscuous::AMQP::Fake.get_next_payload
 
         stub_once_on_db_query do
           Thread.new do
-            Promiscuous.context { pub.update_attributes(:field_1 => '3') }
+            pub.update_attributes(:field_1 => '3')
           end
           sleep 2
         end
 
-        expect { Promiscuous.context { pub.update_attributes(:field_1 => '2') } }
+        expect { pub.update_attributes(:field_1 => '2') }
           .to raise_error Promiscuous::Error::LostLock
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 2 }
@@ -478,7 +444,7 @@ describe Promiscuous do
     context 'when the database starts non empty' do
       it 'replicates' do
         pub = without_promiscuous { PublisherModel.create(:field_1 => 'hello') }
-        Promiscuous.context { pub.update_attributes(:field_1 => 'ohai') }
+        pub.update_attributes(:field_1 => 'ohai')
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 
@@ -499,7 +465,7 @@ describe Promiscuous do
       before { load_ephemerals }
       it 'replicates' do
         stub_once_on_db_query { raise }
-        expect { Promiscuous.context { ModelEphemeral.create(:field_1 => '1') } }.to raise_error
+        expect { ModelEphemeral.create(:field_1 => '1') }.to raise_error
 
         eventually { Promiscuous::AMQP::Fake.num_messages.should == 1 }
 

@@ -16,20 +16,8 @@ class Promiscuous::Publisher::Operation::Base
     @operation = options[:operation]
   end
 
-  def read?
-    @operation == :read
-  end
-
-  def write?
-    !read?
-  end
-
   def recovering?
     !!@recovery_data
-  end
-
-  def current_context
-    @current_context ||= Promiscuous::Publisher::Context.current
   end
 
   def record_timestamp
@@ -96,7 +84,6 @@ class Promiscuous::Publisher::Operation::Base
 
   def publish_payload_in_redis
     # TODO Optimize and DRY this up
-    r = @committed_read_deps
     w = @committed_write_deps
 
     # We identify a payload with a unique key (id:id_value:current_version:payload_recovery)
@@ -132,7 +119,7 @@ class Promiscuous::Publisher::Operation::Base
     # secondary_operation_recovery_key is unique to the operation.
     # XXX The caveat is that if we die here, the
     # secondary_operation_recovery_key will never be cleaned up.
-    (w+r).map(&:redis_node).uniq
+    w.map(&:redis_node).uniq
       .reject { |node| node == master_node }
       .each   { |node| node.del(versions_recovery_key) }
   end
@@ -148,28 +135,20 @@ class Promiscuous::Publisher::Operation::Base
     payload = {}
     payload[:operations] = operation_payloads
     payload[:app] = Promiscuous::Config.app
-    payload[:context] = current_context.name
-    payload[:current_user_id] = current_context.current_user.id if current_context.current_user
+    payload[:current_user_id] = Promiscuous.context.current_user.id if Promiscuous.context.current_user
     payload[:timestamp] = @timestamp
     payload[:generation] = Promiscuous::Config.generation
     payload[:host] = Socket.gethostname
-    payload[:was_during_bootstrap] = true if @was_during_bootstrap
     payload[:recovered_operation] = true if recovering?
     payload[:dependencies] = {}
-    payload[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
     payload[:dependencies][:write] = @committed_write_deps
 
     @payload = MultiJson.dump(payload)
   end
 
-  def clear_previous_dependencies
-    current_context.read_operations.clear
-    current_context.extra_dependencies = [@committed_write_deps.first]
-  end
-
   def self.recover_operation_from_lock(lock)
     # We happen to have acquired a never released lock.
-    # The database instance is thus still prestine.
+    # The database instance is thus still pristine.
 
     master_node = lock.node
     recovery_data = master_node.get("#{lock.key}:operation_recovery")
@@ -181,11 +160,9 @@ class Promiscuous::Publisher::Operation::Base
 
     Promiscuous.info "[operation recovery] #{lock.key} -> #{recovery_data}"
 
-    op_klass, operation, read_dependencies,
-      write_dependencies, recovery_arguments = *MultiJson.load(recovery_data)
+    op_klass, operation, write_dependencies, recovery_arguments = *MultiJson.load(recovery_data)
 
     operation = operation.to_sym
-    read_dependencies.map!  { |k| Promiscuous::Dependency.parse(k.to_s, :type => :read) }
     write_dependencies.map! { |k| Promiscuous::Dependency.parse(k.to_s, :type => :write) }
 
     begin
@@ -196,22 +173,19 @@ class Promiscuous::Publisher::Operation::Base
 
     Thread.new do
       # We run the recovery in another thread to ensure that we get a new
-      # database connection to avoid tempering with the current state of the
+      # database connection to avoid tampering with the current state of the
       # connection, which can be in an open transaction.
       # Thankfully, we are not in a fast path.
       # Note that any exceptions will be passed through the thread join() method.
-      Promiscuous.context :operation_recovery do
-        op.instance_eval do
-          @operation = operation
-          @read_dependencies  = read_dependencies
-          @write_dependencies = write_dependencies
-          @op_lock = lock
-          @recovery_data = recovery_data
+      op.instance_eval do
+        @operation = operation
+        @write_dependencies = write_dependencies
+        @op_lock = lock
+        @recovery_data = recovery_data
 
-          query = Promiscuous::Publisher::Operation::ProxyForQuery.new(self) { recover_db_operation }
-          self.execute_instrumented(query)
-          query.result
-        end
+        query = Promiscuous::Publisher::Operation::ProxyForQuery.new(self) { recover_db_operation }
+        self.execute_instrumented(query)
+        query.result
       end
     end.join
 
@@ -225,28 +199,21 @@ class Promiscuous::Publisher::Operation::Base
     # We collapse all operations, ignoring the read/write interleaving.
     # It doesn't matter since all write operations are serialized, so the first
     # write in the transaction can have all the read dependencies.
-    r = read_dependencies
     w = write_dependencies
-
-    # We don't need to do a read dependency if we are writing to it, so we
-    # prune them. The subscriber assumes the pruning (i.e. the intersection of
-    # r and w is empty) when it calculates the happens before relationships.
-    r -= w
 
     master_node = @op_lock.node
     operation_recovery_key = "#{@op_lock.key}:operation_recovery"
 
     # We group all the dependencies by their respective shards
-    # The master node will have the responsability to hold the recovery data.
-    # We do the master node first. The seconaries can be done in parallel.
-    @committed_read_deps  = []
+    # The master node will have the responsibility to hold the recovery data.
+    # We do the master node first. The secondaries can be done in parallel.
     @committed_write_deps = []
 
     # We need to do the increments always in the same node order, otherwise.
     # the subscriber can deadlock. But we must always put the recovery payload
     # on the master before touching anything.
-    nodes_deps = (w+r).group_by(&:redis_node)
-                      .sort_by { |node, deps| -Promiscuous::Redis.master.nodes.index(node) }
+    nodes_deps = w.group_by(&:redis_node)
+                  .sort_by { |node, deps| -Promiscuous::Redis.master.nodes.index(node) }
     if nodes_deps.first[0] != master_node
       nodes_deps = [[master_node, []]] + nodes_deps
     end
@@ -256,12 +223,6 @@ class Promiscuous::Publisher::Operation::Base
       argv << Promiscuous::Key.new(:pub) # key prefixes
       argv << operation_recovery_key
 
-      # The index of the first write is then used to pass to redis along with the
-      # dependencies. This is done because arguments to redis LUA scripts cannot
-      # accept complex data types.
-      first_read_index = deps.index(&:read?) || deps.length
-      argv << first_read_index
-
       # Each shard have their own recovery payload. The master recovery node
       # has the full operation recovery, and the others just have their versions.
       # Note that the operation_recovery_key on the secondaries have the current
@@ -269,7 +230,7 @@ class Promiscuous::Publisher::Operation::Base
       # locks get lost.
       if node == master_node && !self.recovering?
         # We are on the master node, which holds the recovery payload
-        argv << MultiJson.dump([self.class.name, operation, r, w, self.recovery_payload])
+        argv << MultiJson.dump([self.class.name, operation, w, self.recovery_payload])
       end
 
       # FIXME If the lock is lost, we need to backoff
@@ -281,18 +242,12 @@ class Promiscuous::Publisher::Operation::Base
         local prefix = ARGV[1] .. ':'
         local operation_recovery_key = ARGV[2]
         local versions_recovery_key = operation_recovery_key .. ':versions'
-        local first_read_index = tonumber(ARGV[3]) + 1
-        local operation_recovery_payload = ARGV[4]
+        local operation_recovery_payload = ARGV[3]
         local deps = KEYS
 
         local versions = {}
 
         if redis.call('exists', versions_recovery_key) == 1 then
-          first_read_index = tonumber(redis.call('hget', versions_recovery_key, 'read_index'))
-          if not first_read_index then
-            return redis.error_reply('Failed to read dependency index during recovery')
-          end
-
           for i, dep in ipairs(deps) do
             versions[i] = tonumber(redis.call('hget', versions_recovery_key, dep))
             if not versions[i] then
@@ -300,26 +255,14 @@ class Promiscuous::Publisher::Operation::Base
             end
           end
 
-          return { first_read_index-1, versions }
-        end
-
-        if redis.call('exists', prefix .. 'bootstrap') == 1 then
-          first_read_index = #deps + 1
-        end
-
-        if #deps ~= 0 then
-          redis.call('hset', versions_recovery_key, 'read_index', first_read_index)
+          return { versions }
         end
 
         for i, dep in ipairs(deps) do
           local key = prefix .. dep
           local rw_version = redis.call('incr', key .. ':rw')
-          if i < first_read_index then
-            redis.call('set', key .. ':w', rw_version)
-            versions[i] = rw_version
-          else
-            versions[i] = tonumber(redis.call('get', key .. ':w')) or 0
-          end
+          redis.call('set', key .. ':w', rw_version)
+          versions[i] = rw_version
           redis.call('hset', versions_recovery_key, dep, versions[i])
         end
 
@@ -327,16 +270,14 @@ class Promiscuous::Publisher::Operation::Base
           redis.call('set', operation_recovery_key, operation_recovery_payload)
         end
 
-        return { first_read_index-1, versions }
+        return { versions }
       SCRIPT
 
-      received_first_read_index, versions = @@increment_script.eval(node, :argv => argv, :keys => deps)
+      versions = @@increment_script.eval(node, :argv => argv, :keys => deps)
 
       deps.zip(versions).each  { |dep, version| dep.version = version }
 
-      @committed_write_deps += deps[0...received_first_read_index]
-      @committed_read_deps  += deps[received_first_read_index..-1]
-      @was_during_bootstrap = true if first_read_index != received_first_read_index
+      @committed_write_deps += deps
     end
 
     # The instance version must to be the first in the list to allow atomic
@@ -417,54 +358,24 @@ class Promiscuous::Publisher::Operation::Base
   def dependencies_for(instance, options={})
     return [] if instance.nil?
 
-    if read?
-      # We want to use the smallest subset that we can depend on when doing
-      # reads. tracked_dependencies comes sorted from the smallest subset to
-      # the largest. For maximum performance on the subscriber side, we thus
-      # pick the first one. In most cases, it should resolve to the id
-      # dependency.
-      # If we don't have any, the driver should track individual instances.
-      best_dependency = instance.promiscuous.tracked_dependencies(:allow_missing_attributes => true).first
-      [best_dependency].compact
-    else
-      # Note that tracked_dependencies will not return the id dependency if it
-      # doesn't exist which can only happen for create operations and auto
-      # generated ids.
-      instance.promiscuous.tracked_dependencies
-    end
+    # Note that tracked_dependencies will not return the id dependency if it
+    # doesn't exist which can only happen for create operations and auto
+    # generated ids.
+    [instance.promiscuous.get_dependency]
   end
-
-  def read_dependencies
-    # We memoize the read dependencies not just for performance, but also
-    # because we store the versions once incremented in these.
-    return @read_dependencies if @read_dependencies
-    read_dependencies = current_context.read_operations.map(&:query_dependencies).flatten
-
-    # We add extra_dependencies, which can contain the latest write, or user
-    # context, etc.
-    current_context.extra_dependencies.each do |dep|
-      dep.version = nil
-      read_dependencies << dep
-    end
-
-    @read_dependencies = read_dependencies.uniq.each { |d| d.type = :read }
-  end
-  alias generate_read_dependencies read_dependencies
 
   def write_dependencies
     @write_dependencies ||= self.query_dependencies.uniq.each { |d| d.type = :write }
   end
 
   def should_instrument_query?
-    # current_context is later enforced for writes.
-    !Promiscuous.disabled? && (current_context || write?)
+    !Promiscuous.disabled?
   end
 
   def execute(&query_config)
     query = Promiscuous::Publisher::Operation::ProxyForQuery.new(self, &query_config)
 
     if should_instrument_query?
-      raise Promiscuous::Error::MissingContext if !current_context && write?
       execute_instrumented(query)
     else
       query.call_and_remember_result(:non_instrumented)
@@ -507,7 +418,7 @@ class Promiscuous::Publisher::Operation::Base
   def trace_operation
     if ENV['TRACE']
       msg = self.explain_operation(70)
-      current_context.trace(msg, :color => self.read? ? '0;32' : '1;31')
+      Promiscuous.context.trace(msg, :color => '1;31')
     end
   end
 

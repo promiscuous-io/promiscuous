@@ -76,7 +76,6 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
       # this is a problem, but we need to publish.
       yell_about_missing_instance if @instance.nil?
     else
-      generate_read_dependencies
       acquire_op_lock
 
       if @instance.nil?
@@ -123,7 +122,6 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     ensure_op_still_locked
 
     generate_payload
-    clear_previous_dependencies
 
     # As soon as we unlock the locks, the rescuer will not be able to assume
     # that the database instance is still pristine, and so we need to stash the

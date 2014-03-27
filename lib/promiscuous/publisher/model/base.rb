@@ -2,12 +2,10 @@ module Promiscuous::Publisher::Model::Base
   extend ActiveSupport::Concern
 
   included do
-    class_attribute :published_attrs, :tracked_attrs
+    class_attribute :published_attrs
     cattr_accessor  :published_db_fields # There is one on each root class, none on the subclasses
     self.published_attrs = []
-    self.tracked_attrs = []
     self.published_db_fields = []
-    track_dependencies_of :id
     Promiscuous::Publisher::Model.publishers[self.promiscuous_collection_name] = self
   end
 
@@ -38,26 +36,13 @@ module Promiscuous::Publisher::Model::Base
       value
     end
 
-    def get_dependency(attr, value)
-      return nil unless value
+    def get_dependency
       @collection ||= @instance.class.promiscuous_collection_name
-      Promiscuous::Dependency.new(@collection, attr, value)
+      Promiscuous::Dependency.new(@collection, :id, id)
     end
 
-    def tracked_dependencies(options={})
-      # FIXME This is not sufficient, we need to consider the previous and next
-      # values in case of an update.
-      # Note that the caller expect the id dependency to come first
-      @instance.class.tracked_attrs.map do |attr|
-        begin
-          [attr, @instance.__send__(attr)]
-        rescue Exception => e
-          # Don't care about missing attributes for read dependencies.
-          raise e unless options[:allow_missing_attributes] && e.is_a?(ActiveModel::MissingAttributeError)
-        end
-      end
-      .map { |attr, value| get_dependency(attr, value) }
-      .compact
+    def id
+      @instance.id
     end
   end
 
@@ -110,10 +95,6 @@ module Promiscuous::Publisher::Model::Base
       @in_publish_block.to_i > 0
     end
 
-    def track_dependencies_of(*attributes)
-      ([self] + descendants).each { |klass| klass.tracked_attrs |= attributes.map(&:to_sym) }
-    end
-
     def promiscuous_collection_name
       self.name.pluralize.underscore
     end
@@ -129,7 +110,6 @@ module Promiscuous::Publisher::Model::Base
     def inherited(subclass)
       super
       subclass.published_attrs = self.published_attrs.dup
-      subclass.tracked_attrs   = self.tracked_attrs.dup
       # no copy for published_db_fields
     end
   end

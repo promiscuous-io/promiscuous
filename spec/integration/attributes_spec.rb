@@ -26,11 +26,8 @@ describe Promiscuous do
     end
 
     it 'replicates' do
-      pub = nil
-      Promiscuous.context do
-        pub = PublisherModel.create(:field_1 => '1')
-        pub.update_attributes(:field_1 => 'super')
-      end
+      pub = PublisherModel.create(:field_1 => '1')
+      pub.update_attributes(:field_1 => 'super')
 
       eventually do
         SubscriberModel.vattr_value.should == 'super!'

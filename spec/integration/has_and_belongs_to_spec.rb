@@ -7,10 +7,8 @@ describe Promiscuous, 'belongs_to relationships' do
 
   context 'when creating' do
     it 'replicates' do
-      pub = Promiscuous.context do
-        publisher_model = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        PublisherModelBelongsTo.create(:publisher_model => publisher_model)
-      end
+      publisher_model = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub = PublisherModelBelongsTo.create(:publisher_model => publisher_model)
       pub.reload
 
       eventually do
@@ -23,13 +21,10 @@ describe Promiscuous, 'belongs_to relationships' do
 
   context 'when updating' do
     it 'replicates' do
-      pub = nil
-      Promiscuous.context do
-        publisher_model_1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        publisher_model_2 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub = PublisherModelBelongsTo.create(:publisher_model => publisher_model_1)
-        pub.update_attributes(:publisher_model => publisher_model_2)
-      end
+      publisher_model_1 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      publisher_model_2 = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub = PublisherModelBelongsTo.create(:publisher_model => publisher_model_1)
+      pub.update_attributes(:publisher_model => publisher_model_2)
       pub.reload
 
       eventually do

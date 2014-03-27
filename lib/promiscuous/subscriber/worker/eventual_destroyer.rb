@@ -8,18 +8,14 @@ class Promiscuous::Subscriber::Worker::EventualDestroyer
     @thread = nil
   end
 
-  def self.destroy_timeout
-    1.hour
-  end
-
   def self.check_every
-    (10 + rand(10)).minutes
+    Promiscuous::Config.destroy_check_interval + rand(Promiscuous::Config.destroy_check_interval)
   end
 
   def main_loop
     loop do
       begin
-        PendingDestroy.next(self.class.destroy_timeout).each(&:perform)
+        PendingDestroy.next(Promiscuous::Config.destroy_timeout).each(&:perform)
       rescue Exception => e
         Promiscuous.warn "[eventual destroyer] #{e}\n#{e.backtrace.join("\n")}"
         Promiscuous::Config.error_notifier.call(e)

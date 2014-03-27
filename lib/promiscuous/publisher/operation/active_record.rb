@@ -64,8 +64,7 @@ class ActiveRecord::Base
             alias_method :release_savepoint_without_promiscuous,       :release_savepoint
 
             def with_promiscuous_transaction_context(&block)
-              ctx = Promiscuous::Publisher::Context.current
-              block.call(ctx.transaction_context_of(:active_record)) if ctx
+              block.call(Promiscuous::Publisher::Context.current.transaction_context_of(:active_record))
             end
 
             def begin_db_transaction
@@ -106,23 +105,9 @@ class ActiveRecord::Base
               with_promiscuous_transaction_context { |tx| tx.commit }
             end
 
-            alias_method :select_all_without_promiscuous, :select_all
-            alias_method :select_values_without_promiscuous, :select_values
             alias_method :insert_without_promiscuous, :insert
             alias_method :update_without_promiscuous, :update
             alias_method :delete_without_promiscuous, :delete
-
-            def select_all(arel, name = nil, binds = [])
-              PromiscuousSelectOperation.new(arel, name, binds, :connection => self).execute do
-                select_all_without_promiscuous(arel, name, binds)
-              end
-            end
-
-            def select_values(arel, name = nil)
-              PromiscuousSelectOperation.new(arel, name, [], :connection => self).execute do
-                select_values_without_promiscuous(arel, name)
-              end
-            end
 
             def insert(arel, name = nil, pk = nil, id_value = nil, sequence_name = nil, binds = [])
               PromiscuousInsertOperation.new(arel, name, pk, id_value, sequence_name, binds, :connection => self).execute do
@@ -157,11 +142,11 @@ class ActiveRecord::Base
     end
 
     def transaction_context
-      current_context.transaction_context_of(:active_record)
+      Promiscuous::Publisher::Context.current.transaction_context_of(:active_record)
     end
 
     def ensure_transaction!
-      if current_context && write? && !transaction_context.in_transaction?
+      if !transaction_context.in_transaction?
         raise "You need to write to the database within an ActiveRecord transaction"
       end
     end
@@ -180,7 +165,7 @@ class ActiveRecord::Base
         query.non_instrumented { db_operation.call }
         query.instrumented do
           db_operation_and_select.tap do
-            transaction_context.add_write_operation(self) if write? && !@instances.empty?
+            transaction_context.add_write_operation(self) if !@instances.empty?
           end
         end
       end
@@ -274,56 +259,6 @@ class ActiveRecord::Base
       @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
         @instances = result.map { |row| model.instantiate(row) }
       end.rows.size
-    end
-  end
-
-  class PromiscuousSelectOperation < PromiscousOperation
-    def initialize(arel, name, binds, options={})
-      super
-      @operation = :read
-      @result = []
-    end
-
-    def model
-      @model ||= begin
-        case @arel
-        when Arel::SelectManager
-          raise "SQL statement too complicated (joins?)" if @arel.ast.cores.size != 1
-          model = @arel.ast.cores.first.source.left.engine
-        when ActiveRecord::Relation
-          return nil # TODO
-        else
-          raise "What is this query?" unless @arel.is_a?(Arel::SelectManager)
-        end
-
-        model = nil unless model < Promiscuous::Publisher::Model::ActiveRecord
-        model
-      end
-    rescue
-      # TODO Track dependencies of complex queries properly...
-      nil
-    end
-
-    def get_selector_instance
-      attrs = @arel.ast.cores.first.wheres.map { |w| [w.children.first.left.name, w.children.first.right] }
-      model.instantiate(Hash[attrs])
-    end
-
-    def query_dependencies
-      deps = dependencies_for(get_selector_instance)
-      deps.empty? ? super : deps
-    end
-
-    def execute(&db_operation)
-      # We dup because ActiveRecord modifies our return value
-      super.tap { @result = @result.dup }
-    end
-
-    def db_operation_and_select
-      # XXX This is only supported by Postgres.
-      @connection.exec_query("#{@connection.to_sql(@arel, @binds)}", @operation_name, @binds).to_a.tap do |result|
-        @instances = result.map { |row| model.instantiate(row) }
-      end
     end
   end
 

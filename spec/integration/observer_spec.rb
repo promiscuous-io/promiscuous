@@ -9,11 +9,8 @@ describe Promiscuous do
   context 'when creating' do
     it 'triggers the create callbacks' do
       define_callback(:create)
-      pub = nil
-      Promiscuous.context do
-        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.save
-      end
+      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.save
 
       eventually do
         obs = ModelObserver.create_instance
@@ -27,11 +24,8 @@ describe Promiscuous do
 
     it 'triggers the save callbacks' do
       define_callback(:save)
-      pub = nil
-      Promiscuous.context do
-        pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.save
-      end
+      pub = PublisherModel.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.save
 
       eventually do
         obs = ModelObserver.save_instance
@@ -47,11 +41,8 @@ describe Promiscuous do
   context 'when updating' do
     it 'triggers the update callbacks' do
       define_callback(:update)
-      pub = nil
-      Promiscuous.context do
-        pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
-      end
+      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
       eventually do
         obs = ModelObserver.update_instance
@@ -64,11 +55,8 @@ describe Promiscuous do
 
     it 'triggers the save callbacks' do
       define_callback(:save)
-      pub = nil
-      Promiscuous.context do
-        pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
-      end
+      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.update_attributes(:field_1 => '1_updated', :field_2 => '2_updated')
 
       eventually do
         obs = ModelObserver.save_instance
@@ -83,11 +71,8 @@ describe Promiscuous do
   context 'when destroying' do
     it 'triggers the destroy callbacks' do
       define_callback(:destroy)
-      pub = nil
-      Promiscuous.context do
-        pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
-        pub.destroy
-      end
+      pub = PublisherModel.create(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      pub.destroy
 
       eventually { ModelObserver.destroy_instance.id.to_s.should == pub.id.to_s }
     end

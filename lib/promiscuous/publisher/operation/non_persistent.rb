@@ -12,7 +12,6 @@ class Promiscuous::Publisher::Operation::NonPersistent < Promiscuous::Publisher:
     db_operation.call_and_remember_result(:instrumented)
 
     unless db_operation.failed?
-      current_context.read_operations << self if read?
       trace_operation
     end
   end
