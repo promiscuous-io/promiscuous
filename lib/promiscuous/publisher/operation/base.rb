@@ -138,6 +138,7 @@ class Promiscuous::Publisher::Operation::Base
     payload[:current_user_id] = Promiscuous.context.current_user.id if Promiscuous.context.current_user
     payload[:timestamp] = @timestamp
     payload[:generation] = Promiscuous::Config.generation
+    payload[:context] = "DEPRECATED"
     payload[:host] = Socket.gethostname
     payload[:recovered_operation] = true if recovering?
     payload[:dependencies] = {}
@@ -195,7 +196,7 @@ class Promiscuous::Publisher::Operation::Base
     raise Promiscuous::Error::Recovery.new(message, e)
   end
 
-  def increment_read_and_write_dependencies
+  def increment_dependencies
     # We collapse all operations, ignoring the read/write interleaving.
     # It doesn't matter since all write operations are serialized, so the first
     # write in the transaction can have all the read dependencies.
@@ -260,9 +261,7 @@ class Promiscuous::Publisher::Operation::Base
 
         for i, dep in ipairs(deps) do
           local key = prefix .. dep
-          local rw_version = redis.call('incr', key .. ':rw')
-          redis.call('set', key .. ':w', rw_version)
-          versions[i] = rw_version
+          versions[i] = redis.call('incr', key .. ':w')
           redis.call('hset', versions_recovery_key, dep, versions[i])
         end
 

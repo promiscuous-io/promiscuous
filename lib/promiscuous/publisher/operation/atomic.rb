@@ -92,7 +92,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     # old instance. This is a race that we tolerate.
     # XXX We also stash the document for create operations, so the recovery can
     # redo the create to avoid races when instances are getting partitioned.
-    increment_read_and_write_dependencies
+    increment_dependencies
 
     # From this point, if we die, the one expiring our write locks must finish
     # the publish, either by sending a dummy, or by sending the real instance.

@@ -43,7 +43,7 @@ describe Promiscuous do
       pub = PublisherModel.create(:field_1 => '1')
       Promiscuous::AMQP::Fake.get_next_message
 
-      stub_once_on(@operation_klass, :increment_read_and_write_dependencies) { raise }
+      stub_once_on(@operation_klass, :increment_dependencies) { raise }
       expect { pub.update_attributes(:field_1 => '2') }.to raise_error
 
       pub.update_attributes(:field_1 => '3')
@@ -364,7 +364,7 @@ describe Promiscuous do
           :lock_set => Promiscuous::Key.new(:pub).join('lock_set').to_s
         )
 
-        stub_once_on(@operation_klass, :increment_read_and_write_dependencies) { raise }
+        stub_once_on(@operation_klass, :increment_dependencies) { raise }
 
         expect { pub.update_attributes(:field_1 => '2') }.to raise_error
 

@@ -50,7 +50,7 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
       query.call_and_remember_result(:prepare)
     end
 
-    self.increment_read_and_write_dependencies
+    self.increment_dependencies
 
     query.call_and_remember_result(:instrumented)
 
