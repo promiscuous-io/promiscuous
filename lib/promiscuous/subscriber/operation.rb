@@ -53,7 +53,11 @@ class Promiscuous::Subscriber::Operation
   end
 
   def destroy
-    Promiscuous::Subscriber::Worker::EventualDestroyer.postpone_destroy(model, id)
+    if message.dependencies.present?
+      Promiscuous::Subscriber::Worker::EventualDestroyer.postpone_destroy(model, id)
+    else
+      model.__promiscuous_fetch_existing(id).destroy
+    end
   end
 
   def execute
