@@ -6,6 +6,10 @@ class Promiscuous::Subscriber::MessageProcessor
     self.message = message
   end
 
+  def app
+    message.parsed_payload['app']
+  end
+
   def operations
     message.parsed_payload['operations'].map { |op| Promiscuous::Subscriber::Operation.new(op) }
   end
@@ -78,13 +82,13 @@ class Promiscuous::Subscriber::MessageProcessor
     end
   end
 
-  def execute_operations
-    self.operations.each(&:execute)
+  def execute_operation(operation)
+    operation.execute
   end
 
   def on_message
     with_instance_locked do
-      execute_operations
+      self.operations.each { |op| execute_operation(op) }
     end
     message.ack
   end
