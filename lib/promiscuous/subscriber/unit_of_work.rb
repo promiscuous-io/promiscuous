@@ -82,13 +82,14 @@ class Promiscuous::Subscriber::UnitOfWork
     end
   end
 
+  # XXX Used for hooking into e.g. by promiscuous-newrelic
   def execute_operation(operation)
     operation.execute
   end
 
   def on_message
     with_instance_locked do
-      self.operations.each { |op| execute_operation(op) }
+      self.operations.each { |op| execute_operation(op) if op.model }
     end
     message.ack
   end

@@ -62,12 +62,10 @@ class Promiscuous::Subscriber::Operation
 
   def execute
     case operation
-    when :create  then create  if model
-    when :update  then update  if model
-    when :destroy then destroy if model
+    when :create  then create
+    when :update  then update
+    when :destroy then destroy
     end
-  rescue Exception => e
-    raise e
   end
 
   def unit_of_work
