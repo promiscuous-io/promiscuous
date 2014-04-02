@@ -20,7 +20,7 @@ class Promiscuous::Subscriber::Message
   end
 
   def generation
-    parsed_payload['generation']
+    parsed_payload['generation'] || 0
   end
 
   def dependencies

@@ -29,6 +29,7 @@ class Promiscuous::Subscriber::Operation
 
   def create(options={})
     model.__promiscuous_fetch_new(id).tap do |instance|
+      instance.__promiscuous_eventual_consistency_update(self)
       instance.__promiscuous_update(self)
       instance.save!
     end

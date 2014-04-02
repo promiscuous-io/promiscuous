@@ -30,6 +30,16 @@ describe Promiscuous do
     end
   end
 
+  context 'with create operations' do
+    before do
+      PublisherModel.create(:field_1 => '1')
+    end
+
+    it "stores the version number" do
+      eventually { SubscriberModel.first._v.should_not == nil }
+    end
+  end
+
   context 'when updates are processed out of order' do
     before { Promiscuous::Config.logger.level = Logger::FATAL }
     before do
