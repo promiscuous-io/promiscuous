@@ -28,6 +28,11 @@ module ModelsHelper
       end
     end
 
+    define_constant :PublisherModelWithoutSubscriber, ActiveRecord::Base do
+      include Promiscuous::Publisher
+      publish :field_1
+    end
+
     ##############################################
 
     define_constant :SubscriberModel, ActiveRecord::Base do

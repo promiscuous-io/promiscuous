@@ -1,5 +1,5 @@
 class Promiscuous::Subscriber::Operation
-  attr_accessor :model, :id, :operation, :attributes
+  attr_accessor :model, :id, :operation, :attributes, :version
   delegate :message, :to => :unit_of_work
 
   def initialize(payload)
@@ -7,6 +7,7 @@ class Promiscuous::Subscriber::Operation
       self.id         = payload['id']
       self.operation  = payload['operation'].try(:to_sym)
       self.attributes = payload['attributes']
+      self.version    = payload['version']
       self.model      = self.get_subscribed_model(payload) if payload['types']
     end
   end

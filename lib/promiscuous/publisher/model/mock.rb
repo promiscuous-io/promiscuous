@@ -30,7 +30,7 @@ module Promiscuous::Publisher::Model::Mock
     # json dump.
     payload = op.generate_payload
 
-    Promiscuous::Subscriber::Worker::Message.new(payload).process
+    Promiscuous::Subscriber::Message.new(payload).process
   end
 
   module ClassMethods

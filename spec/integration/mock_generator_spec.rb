@@ -108,6 +108,16 @@ if ORM.has(:mongoid)
 
           publish :publisher_model_id
         end
+
+        # ------------------------------------------------------------------
+
+        class PublisherModelWithoutSubscriber
+          include Promiscuous::Publisher::Model::Mock
+          mock :from => 'test_publisher'
+          mock :id => :bson
+
+          publish :field_1
+        end
       end
       MOCKS
     end

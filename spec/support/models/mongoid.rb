@@ -113,6 +113,15 @@ module ModelsHelper
       field :field_2
     end
 
+    define_constant :PublisherModelWithoutSubscriber do
+      include Mongoid::Document
+      include Promiscuous::Publisher
+
+      publish do
+        field :field_1
+      end
+    end
+
     ##############################################
 
     define_constant :SubscriberModel do

@@ -10,16 +10,9 @@ describe Promiscuous do
 
   context 'with a published model without a subscription' do
     before do
-      define_constant :PublisherWithoutSubscriber do
-        include Mongoid::Document
-        include Promiscuous::Publisher
-        publish do
-          field :field_1
-        end
-      end
     end
     it "doesn't throw an error" do
-      PublisherWithoutSubscriber.create(:field_1 => "field1")
+      PublisherModelWithoutSubscriber.create(:field_1 => "field1")
 
       sleep 1
 

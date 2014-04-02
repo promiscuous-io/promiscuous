@@ -1,6 +1,6 @@
 class Promiscuous::Subscriber::UnitOfWork
   attr_accessor :message
-  delegate :write_dependencies, :dependencies, :to => :message
+  delegate :dependencies, :to => :message
 
   def initialize(message)
     self.message = message
@@ -11,7 +11,9 @@ class Promiscuous::Subscriber::UnitOfWork
   end
 
   def operations
-    message.parsed_payload['operations'].map { |op| Promiscuous::Subscriber::Operation.new(op) }
+    message.parsed_payload['operations'].
+      each_with_index.
+      map { |op, i| Promiscuous::Subscriber::Operation.new(op.merge('version' => message.dependencies[i].try(&:version))) }
   end
 
   def self.process(*args)
@@ -50,7 +52,7 @@ class Promiscuous::Subscriber::UnitOfWork
   end
 
   def instance_dep
-    @instance_dep ||= write_dependencies.first
+    @instance_dep ||= dependencies.first
   end
 
   def master_node
@@ -89,8 +91,20 @@ class Promiscuous::Subscriber::UnitOfWork
 
   def on_message
     with_instance_locked do
-      self.operations.each { |op| execute_operation(op) if op.model }
+      with_transaction do
+        self.operations.each { |op| execute_operation(op) if op.model }
+      end
     end
     message.ack
+  end
+
+  private
+
+  def with_transaction(&block)
+    if defined?(ActiveRecord::Base)
+      ActiveRecord::Base.transaction { yield }
+    else
+      yield
+    end
   end
 end
