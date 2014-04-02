@@ -1,12 +1,7 @@
 class Promiscuous::Railtie < Rails::Railtie
   initializer 'load promiscuous' do
-    config.before_initialize do
-      Promiscuous.configure do |config|
-        config.max_retries = 0 unless Rails.env.production?
-      end
-    end
-
     config.after_initialize do
+      Promiscuous::Config.configure unless Promiscuous::Config.configured?
       Promiscuous::Loader.prepare
 
       ActionDispatch::Reloader.to_prepare do

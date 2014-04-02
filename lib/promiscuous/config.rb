@@ -60,7 +60,7 @@ module Promiscuous::Config
     self.version_field        ||= '_v'
     self.recovery_on_boot     = true if self.recovery_on_boot.nil?
     self.on_stats             ||= proc { |rate, latency| }
-    self.max_retries          ||= 10
+    self.max_retries          ||= defined?(Rails) ? Rails.env.production? ? 10 : 0 : 10
     self.generation           ||= 1
     self.destroy_timeout      ||= 1.hour
     self.destroy_check_interval ||= 10.minutes
