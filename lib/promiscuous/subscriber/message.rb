@@ -1,4 +1,4 @@
-class Promiscuous::Subscriber::Worker::Message
+class Promiscuous::Subscriber::Message
   attr_accessor :payload, :parsed_payload
 
   def initialize(payload, options={})
@@ -71,7 +71,7 @@ class Promiscuous::Subscriber::Worker::Message
   end
 
   def process
-    Promiscuous::Subscriber::MessageProcessor.process(self)
+    Promiscuous::Subscriber::UnitOfWork.process(self)
   rescue Exception => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
     Promiscuous.warn "[receive] #{payload} #{e}\n#{e.backtrace.join("\n")}"

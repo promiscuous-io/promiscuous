@@ -1,6 +1,6 @@
 class Promiscuous::Subscriber::Operation
   attr_accessor :model, :id, :operation, :attributes
-  delegate :message, :to => :message_processor
+  delegate :message, :to => :unit_of_work
 
   def initialize(payload)
     if payload.is_a?(Hash)
@@ -70,7 +70,7 @@ class Promiscuous::Subscriber::Operation
     raise e
   end
 
-  def message_processor
-    @message_processor ||= Promiscuous::Subscriber::MessageProcessor.current
+  def unit_of_work
+    @unit_of_work ||= Promiscuous::Subscriber::UnitOfWork.current
   end
 end

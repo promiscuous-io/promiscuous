@@ -18,7 +18,7 @@ class Promiscuous::Subscriber::Worker::Pump
   end
 
   def on_message(metadata, payload)
-    msg = Promiscuous::Subscriber::Worker::Message.new(payload, :metadata => metadata, :root_worker => @root)
+    msg = Promiscuous::Subscriber::Message.new(payload, :metadata => metadata, :root_worker => @root)
     @root.runner.messages_to_process << msg
   rescue Exception => e
     Promiscuous.warn "[receive] cannot process message: #{e}\n#{e.backtrace.join("\n")}"

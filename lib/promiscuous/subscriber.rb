@@ -1,6 +1,6 @@
 module Promiscuous::Subscriber
   extend Promiscuous::Autoload
-  autoload :Worker, :MessageProcessor, :Model, :Operation
+  autoload :Worker, :UnitOfWork, :Message, :Model, :Operation, :Message
 
   extend ActiveSupport::Concern
 

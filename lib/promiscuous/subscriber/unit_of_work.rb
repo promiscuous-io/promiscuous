@@ -1,4 +1,4 @@
-class Promiscuous::Subscriber::MessageProcessor
+class Promiscuous::Subscriber::UnitOfWork
   attr_accessor :message
   delegate :write_dependencies, :dependencies, :to => :message
 

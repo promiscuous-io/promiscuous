@@ -5,7 +5,7 @@ module Promiscuous::Subscriber::Model::Base
     return true unless self.respond_to?(:attributes)
     return true unless operation.message.has_dependencies?
 
-    version = operation.message_processor.instance_dep.version
+    version = operation.unit_of_work.instance_dep.version
     generation = operation.message.generation
     version = (generation << 50) | version
 
