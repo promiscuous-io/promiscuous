@@ -3,9 +3,9 @@ module Promiscuous::Subscriber::Model::Base
 
   def __promiscuous_eventual_consistency_update(operation)
     return true unless self.respond_to?(:attributes)
-    return true unless operation.version
+    return true unless operation.dependency.try(&:version)
 
-    version = operation.version
+    version = operation.dependency.version
     generation = operation.message.generation
     version = (generation << 50) | version
 

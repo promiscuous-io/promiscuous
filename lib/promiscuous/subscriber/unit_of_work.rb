@@ -13,7 +13,7 @@ class Promiscuous::Subscriber::UnitOfWork
   def operations
     message.parsed_payload['operations'].
       each_with_index.
-      map { |op, i| Promiscuous::Subscriber::Operation.new(op.merge('version' => message.dependencies[i].try(&:version))) }
+      map { |op, i| Promiscuous::Subscriber::Operation.new(op.merge('dependency' => message.dependencies[i])) }
   end
 
   def self.process(*args)
@@ -51,23 +51,15 @@ class Promiscuous::Subscriber::UnitOfWork
     end
   end
 
-  def instance_dep
-    @instance_dep ||= dependencies.first
-  end
-
-  def master_node
-    @master_node ||= instance_dep.redis_node
-  end
-
   LOCK_OPTIONS = { :timeout => 1.5.minute, # after 1.5 minute, we give up
                    :sleep   => 0.1,        # polling every 100ms.
                    :expire  => 1.minute }  # after one minute, we are considered dead
 
-  def with_instance_locked(&block)
-    return yield unless message.has_dependencies?
+  def with_instance_locked_for(operation, &block)
+    return yield unless operation.dependency
 
-    lock_options = LOCK_OPTIONS.merge(:node => master_node)
-    mutex = Promiscuous::Redis::Mutex.new(instance_dep.key(:sub).to_s, lock_options)
+    lock_options = LOCK_OPTIONS.merge(:node => operation.dependency.redis_node)
+    mutex = Promiscuous::Redis::Mutex.new(operation.dependency.key(:sub).to_s, lock_options)
 
     unless mutex.lock
       raise Promiscuous::Error::LockUnavailable.new(mutex.key)
@@ -86,14 +78,15 @@ class Promiscuous::Subscriber::UnitOfWork
 
   # XXX Used for hooking into e.g. by promiscuous-newrelic
   def execute_operation(operation)
-    operation.execute
+    with_instance_locked_for(operation) do
+      operation.execute
+    end
   end
 
   def on_message
-    with_instance_locked do
-      with_transaction do
-        self.operations.each { |op| execute_operation(op) if op.model }
-      end
+    # XXX This needs to be done for each operation
+    with_transaction do
+      self.operations.each { |op| execute_operation(op) if op.model }
     end
     message.ack
   end
