@@ -138,7 +138,6 @@ class Promiscuous::Publisher::Operation::Base
     payload[:current_user_id] = Promiscuous.context.current_user.id if Promiscuous.context.current_user
     payload[:timestamp] = @timestamp
     payload[:generation] = Promiscuous::Config.generation
-    payload[:context] = "DEPRECATED"
     payload[:host] = Socket.gethostname
     payload[:recovered_operation] = true if recovering?
     payload[:dependencies] = {}
