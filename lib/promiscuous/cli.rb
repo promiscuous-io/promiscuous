@@ -133,10 +133,6 @@ class Promiscuous::CLI
       opts.separator ""
       opts.separator "Options:"
 
-      opts.on "-d", "--no-deps", "Skip dependency tracking (subscribe only option)" do
-        Promiscuous::Config.no_deps = true
-      end
-
       opts.on "-l", "--require FILE", "File to require to load your app. Don't worry about it with rails" do |file|
         options[:require] = file
       end
@@ -152,6 +148,10 @@ class Promiscuous::CLI
 
       opts.on "-s", "--stat-interval [DURATION]", "Stats refresh rate (0 to disable)" do |duration|
         Promiscuous::Config.stats_interval = duration.to_f
+      end
+
+      opts.on "-t", "--threads [NUM]", "Number of subscriber worker threads to run. Defaults to 10." do |threads|
+        Promiscuous::Config.subscriber_threads = threads.to_i
       end
 
       opts.on "-D", "--daemonize", "Daemonize process" do
