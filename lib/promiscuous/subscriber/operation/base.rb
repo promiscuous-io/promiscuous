@@ -1,4 +1,5 @@
 class Promiscuous::Subscriber::Operation::Base
+  include Promiscuous::Instrumentation
   attr_accessor :model, :id, :operation, :attributes
   delegate :message, :to => :message_processor
 
@@ -28,8 +29,10 @@ class Promiscuous::Subscriber::Operation::Base
 
   def create(options={})
     model.__promiscuous_fetch_new(id).tap do |instance|
-      instance.__promiscuous_update(self)
-      instance.save!
+      instrument :app_callbacks do
+        instance.__promiscuous_update(self)
+        instance.save!
+      end
     end
   rescue Exception => e
     if model.__promiscuous_duplicate_key_exception?(e)
@@ -43,8 +46,10 @@ class Promiscuous::Subscriber::Operation::Base
   def update(should_create_on_failure=true)
     model.__promiscuous_fetch_existing(id).tap do |instance|
       if instance.__promiscuous_eventual_consistency_update(self)
-        instance.__promiscuous_update(self)
-        instance.save!
+        instrument :app_callbacks do
+          instance.__promiscuous_update(self)
+          instance.save!
+        end
       end
     end
   rescue model.__promiscuous_missing_record_exception
@@ -58,7 +63,9 @@ class Promiscuous::Subscriber::Operation::Base
     end
 
     model.__promiscuous_fetch_existing(id).tap do |instance|
-      instance.destroy
+      instrument :app_callbacks do
+        instance.destroy
+      end
     end
   rescue model.__promiscuous_missing_record_exception
     warn "ignoring missing record"

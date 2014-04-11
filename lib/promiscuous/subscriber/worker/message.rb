@@ -1,4 +1,5 @@
 class Promiscuous::Subscriber::Worker::Message
+  include Promiscuous::Instrumentation
   attr_accessor :payload, :parsed_payload
 
   def initialize(payload, options={})
@@ -101,7 +102,9 @@ class Promiscuous::Subscriber::Worker::Message
       if Promiscuous::Config.bootstrap
         Promiscuous::Subscriber::MessageProcessor::Bootstrap.process(self)
       else
-        Promiscuous::Subscriber::MessageProcessor::Regular.process(self)
+        instrument(:subscribe, :desc => payload) do
+          Promiscuous::Subscriber::MessageProcessor::Regular.process(self)
+        end
       end
     end
   rescue Exception => orig_e

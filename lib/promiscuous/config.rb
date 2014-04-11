@@ -6,7 +6,8 @@ module Promiscuous::Config
                  :socket_timeout, :heartbeat, :no_deps, :hash_size,
                  :prefetch, :recovery_timeout, :logger, :subscriber_threads,
                  :version_field, :error_notifier, :recovery_on_boot,
-                 :on_stats, :ignore_exceptions, :consistency, :max_retries, :generation
+                 :on_stats, :ignore_exceptions, :consistency, :max_retries, :generation,
+                 :intrumentation_file
 
   def self.backend=(value)
     @@backend = value
@@ -66,6 +67,7 @@ module Promiscuous::Config
     self.consistency          ||= :eventual
     self.max_retries          ||= 10
     self.generation           ||= 1
+    self.intrumentation_file  ||= ENV['INSTRUMENTATION_FILE']
   end
 
   def self.configure(&block)

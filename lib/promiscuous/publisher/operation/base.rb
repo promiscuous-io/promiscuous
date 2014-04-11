@@ -1,4 +1,6 @@
 class Promiscuous::Publisher::Operation::Base
+  include Promiscuous::Instrumentation
+
   mattr_accessor :recovery_mechanisms
   self.recovery_mechanisms = []
 
@@ -465,7 +467,9 @@ class Promiscuous::Publisher::Operation::Base
 
     if should_instrument_query?
       raise Promiscuous::Error::MissingContext if !current_context && write?
-      execute_instrumented(query)
+      instrument :publish, :desc => proc { @payload }, :if => proc { !!@payload } do
+        execute_instrumented(query)
+      end
     else
       query.call_and_remember_result(:non_instrumented)
     end

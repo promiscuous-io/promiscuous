@@ -1,4 +1,5 @@
 class Promiscuous::Publisher::Operation::ProxyForQuery
+  include Promiscuous::Instrumentation
   attr_accessor :exception, :result
 
   def initialize(operation, &block)

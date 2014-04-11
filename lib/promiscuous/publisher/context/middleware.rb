@@ -1,4 +1,6 @@
 class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Context::Base
+  extend Promiscuous::Instrumentation
+
   module Controller
     extend ActiveSupport::Concern
 
@@ -9,11 +11,11 @@ class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Cont
     end
   end
 
-  def self.with_context(*args, &block)
+  def self.with_context(name, options={}, &block)
     # XXX We turn off the disabled flag when entering a middleware.
     # It has priority because it's much simpler to use for testing.
     old_disabled, Promiscuous.disabled = Promiscuous.disabled?, false
-    super
+    instrument(:app_controller, :desc => name) { super }
   rescue Exception => e
     $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
     pretty_print_exception(e) unless e.is_a? ActionView::MissingTemplate

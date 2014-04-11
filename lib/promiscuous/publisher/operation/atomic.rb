@@ -54,7 +54,9 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     end
 
     # The driver is responsible to set instance to the appropriate value.
-    query.call_and_remember_result(:instrumented)
+    instrument :db_instrumented do
+      query.call_and_remember_result(:instrumented)
+    end
 
     if query.failed?
       # If we get an network failure, we should retry later.

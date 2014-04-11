@@ -53,7 +53,9 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
 
     self.increment_read_and_write_dependencies
 
-    query.call_and_remember_result(:instrumented)
+    instrument :db_instrumented do
+      query.call_and_remember_result(:instrumented)
+    end
 
     # We can't do anything if the prepared commit doesn't go through.
     # Either it's a network failure, or the database is having some real
