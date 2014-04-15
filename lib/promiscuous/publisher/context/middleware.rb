@@ -18,7 +18,7 @@ class Promiscuous::Publisher::Context::Middleware < Promiscuous::Publisher::Cont
     instrument(:app_controller, :desc => name) { super }
   rescue Exception => e
     $promiscuous_last_exception = e if e.is_a? Promiscuous::Error::Base
-    pretty_print_exception(e) unless e.is_a? ActionView::MissingTemplate
+    pretty_print_exception(e) unless defined?(ActionView::MissingTemplate) && e.is_a?(ActionView::MissingTemplate)
     raise e
   ensure
     Promiscuous.disabled = old_disabled

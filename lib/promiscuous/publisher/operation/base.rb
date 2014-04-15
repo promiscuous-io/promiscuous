@@ -161,6 +161,10 @@ class Promiscuous::Publisher::Operation::Base
     payload[:dependencies][:read]  = @committed_read_deps if @committed_read_deps.present?
     payload[:dependencies][:write] = @committed_write_deps
 
+    payload[:real_deps] = {}
+    payload[:real_deps][:read] = current_context.read_operations.map { |op| op.query_dependencies.flatten.map(&:real_key) }
+    payload[:real_deps][:write] = self.query_dependencies.map(&:real_key)
+
     @payload = MultiJson.dump(payload)
   end
 

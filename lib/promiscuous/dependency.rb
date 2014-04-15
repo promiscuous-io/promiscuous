@@ -1,7 +1,7 @@
 require 'fnv'
 
 class Promiscuous::Dependency
-  attr_accessor :internal_key, :version, :type
+  attr_accessor :internal_key, :version, :type, :real_key
 
   def initialize(*args)
     options = args.extract_options!
@@ -9,7 +9,7 @@ class Promiscuous::Dependency
     @owner = options[:owner]
     @dont_hash = options[:dont_hash]
 
-    @internal_key = args.join('/')
+    @real_key = @internal_key = args.join('/')
 
     if @internal_key =~ /^[0-9]+$/
       @internal_key = @internal_key.to_i
