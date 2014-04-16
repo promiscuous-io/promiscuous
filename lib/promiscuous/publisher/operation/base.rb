@@ -319,12 +319,12 @@ class Promiscuous::Publisher::Operation::Base
 
         for i, dep in ipairs(deps) do
           local key = prefix .. dep
-          local rw_version = redis.call('incr', key .. ':rw')
+          local rw_version = redis.call('incr', key .. ':w')
           if i < first_read_index then
-            redis.call('set', key .. ':w', rw_version)
+            redis.call('set', key .. ':rw', rw_version)
             versions[i] = rw_version
           else
-            versions[i] = tonumber(redis.call('get', key .. ':w')) or 0
+            versions[i] = tonumber(redis.call('get', key .. ':rw')) or 0
           end
           redis.call('hset', versions_recovery_key, dep, versions[i])
         end
