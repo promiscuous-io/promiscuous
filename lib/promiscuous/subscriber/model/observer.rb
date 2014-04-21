@@ -8,6 +8,10 @@ module Promiscuous::Subscriber::Model::Observer
     define_model_callbacks :save, :create, :update, :destroy, :only => :after
   end
 
+  def __promiscuous_eventual_consistency_update(operation)
+    true
+  end
+
   def __promiscuous_update(payload, options={})
     super
     case payload.operation

@@ -2,7 +2,6 @@ module Promiscuous::Subscriber::Model::Base
   extend ActiveSupport::Concern
 
   def __promiscuous_eventual_consistency_update(operation)
-    return true unless self.respond_to?(:attributes)
     return true unless operation.dependency.try(&:version)
 
     version = operation.dependency.version
