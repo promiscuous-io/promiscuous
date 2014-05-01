@@ -23,9 +23,6 @@ module Promiscuous::Subscriber::Model::Observer
       run_callbacks :save
     when :destroy
       run_callbacks :destroy
-    when :bootstrap_data
-      run_callbacks :create
-      run_callbacks :save
     else
       raise "Unknown operation #{payload.operation}"
     end
