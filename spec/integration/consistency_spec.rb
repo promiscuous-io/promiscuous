@@ -137,6 +137,20 @@ describe Promiscuous do
     end
   end
 
+  context 'when a destroy is processed in order' do
+    let(:destroy_timeout)        { 10.seconds }
+    let(:destroy_check_interval) { 1.seconds }
+
+    before do
+      pub = PublisherModel.create(:field_1 => '1')
+      pub.destroy
+    end
+
+    it "deletes the message instantly" do
+      eventually(:timeout => 1.second) { SubscriberModel.count.should == 0 }
+    end
+  end
+
   context 'when a message is lost' do
     before do
       pub = PublisherModel.create(:field_1 => '1')
