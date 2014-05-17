@@ -1,4 +1,4 @@
-Promiscuous [![Gem Version](https://badge.fury.io/rb/promiscuous.png)](http://rubygems.org/gems/promiscuous) [![Build Status](https://travis-ci.org/promiscuous-io/promiscuous.png?branch=master)](https://travis-ci.org/promiscuous-io/promiscuous)
+Promiscuous [![Gem Version](https://badge.fury.io/rb/promiscuous.png)](http://rubygems.org/gems/promiscuous) [![Build Status](https://travis-ci.org/promiscuous-io/promiscuous.png?branch=master)](https://travis-ci.org/promiscuous-io/promiscuous) [![Code Climate](https://codeclimate.com/github/promiscuous-io/promiscuous.png)](https://codeclimate.com/github/promiscuous-io/promiscuous)
 ==========
 
 Promiscuous is a **pub-sub framework** for easily replicating data
