@@ -28,9 +28,9 @@ module Promiscuous::Publisher::Model::Mock
     op = Promiscuous::Publisher::Operation::Ephemeral.new(:instance => self, :operation => operation)
     # TODO FIX the mocks to populate app name, also we need to hook before the
     # json dump.
-    payload = op.generate_payload
+    batch = op.create_transport_batch([op])
 
-    Promiscuous::Subscriber::Message.new(payload).process
+    Promiscuous::Subscriber::Message.new(batch.payload).process
   end
 
   module ClassMethods
