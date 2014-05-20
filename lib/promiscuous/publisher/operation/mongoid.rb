@@ -186,7 +186,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
       query.instrumented do |op|
         raise "You can only use find_and_modify() with :new => true" if !options[:new]
         super.tap do |raw_instance|
-          raw_instance.delete(Promiscuous::Config.version_field.to_s)
           if raw_instance
             op.instance = Mongoid::Factory.from_db(op.model, raw_instance) 
           else

@@ -36,11 +36,6 @@ module Promiscuous::Publisher::Model::Base
       value
     end
 
-    def get_dependency
-      @collection ||= @instance.class.promiscuous_collection_name
-      Promiscuous::Dependency.new(@collection, :id, id)
-    end
-
     def id
       @instance.id
     end

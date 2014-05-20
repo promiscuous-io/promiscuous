@@ -13,6 +13,11 @@ module Promiscuous::Redis
     @master
   end
 
+  def self.node_for(key)
+    distributed_redis ||= Promiscuous::Redis.master
+    distributed_redis.nodes[FNV.new.fnv1a_32(key) % @master.nodes.size]
+  end
+
   def self.slave
     ensure_connected unless @slave
     @slave

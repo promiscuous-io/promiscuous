@@ -23,40 +23,12 @@ class Promiscuous::Subscriber::Message
     parsed_payload['generation'] || 0
   end
 
-  def dependencies
-    @dependencies ||= begin
-      dependencies = parsed_payload['dependencies'] || {}
-      deps = dependencies['write'].to_a.map { |dep| Promiscuous::Dependency.parse(dep, :type => :write, :owner => app) }
-
-      deps
-    end
-  end
-
   def types
     @parsed_payload['types']
   end
 
-  def write_dependencies
-    @write_dependencies ||= dependencies.select(&:write?)
-  end
-
-  def happens_before_dependencies
-    @happens_before_dependencies ||= begin
-      deps = []
-      deps += read_dependencies
-      deps += write_dependencies.map { |dep| dep.dup.tap { |d| d.version -= 1 } }
-
-      # We return the most difficult condition to satisfy first
-      deps.uniq.reverse
-    end
-  end
-
-  def has_dependencies?
-    dependencies.present?
-  end
-
   def to_s
-    "#{app} -> #{write_dependencies.join(', ')}"
+    "#{app} -> #{types}"
   end
 
   def ack

@@ -1,5 +1,5 @@
 class Promiscuous::Subscriber::Operation
-  attr_accessor :model, :id, :operation, :attributes, :dependency
+  attr_accessor :model, :id, :operation, :attributes, :version
   delegate :message, :to => :unit_of_work
 
   def initialize(payload)
@@ -7,9 +7,13 @@ class Promiscuous::Subscriber::Operation
       self.id         = payload['id']
       self.operation  = payload['operation'].try(:to_sym)
       self.attributes = payload['attributes']
-      self.dependency = payload['dependency']
+      self.version    = payload['version']
       self.model      = self.get_subscribed_model(payload) if payload['types']
     end
+  end
+
+  def key
+    "#{self.model}:#{self.id}"
   end
 
   def get_subscribed_model(payload)
@@ -55,7 +59,7 @@ class Promiscuous::Subscriber::Operation
   end
 
   def destroy
-    Promiscuous::Subscriber::Worker::EventualDestroyer.postpone_destroy(model, id) if message.dependencies.present?
+    Promiscuous::Subscriber::Worker::EventualDestroyer.postpone_destroy(model, id)
     model.__promiscuous_fetch_existing(id).destroy
   rescue model.__promiscuous_missing_record_exception
     warn "record doesn't exist"

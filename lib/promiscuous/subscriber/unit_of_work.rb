@@ -1,6 +1,7 @@
+require 'fnv'
+
 class Promiscuous::Subscriber::UnitOfWork
   attr_accessor :message
-  delegate :dependencies, :to => :message
 
   def initialize(message)
     self.message = message
@@ -11,9 +12,7 @@ class Promiscuous::Subscriber::UnitOfWork
   end
 
   def operations
-    message.parsed_payload['operations'].
-      each_with_index.
-      map { |op, i| Promiscuous::Subscriber::Operation.new(op.merge('dependency' => message.dependencies[i])) }
+    message.parsed_payload['operations'].map { |op| Promiscuous::Subscriber::Operation.new(op) }
   end
 
   def self.process(*args)
@@ -56,10 +55,11 @@ class Promiscuous::Subscriber::UnitOfWork
                    :expire  => 1.minute }  # after one minute, we are considered dead
 
   def with_instance_locked_for(operation, &block)
-    return yield unless operation.dependency
+    return yield unless operation.version
 
-    lock_options = LOCK_OPTIONS.merge(:node => operation.dependency.redis_node)
-    mutex = Promiscuous::Redis::Mutex.new(operation.dependency.key(:sub).to_s, lock_options)
+    key = "#{app}:#{operation.key}"
+    lock_options = LOCK_OPTIONS.merge(:node => Promiscuous::Redis.node_for(key))
+    mutex = Promiscuous::Redis::Mutex.new(key, lock_options)
 
     unless mutex.lock
       raise Promiscuous::Error::LockUnavailable.new(mutex.key)
