@@ -25,10 +25,7 @@ module Promiscuous::Publisher::Model::Mongoid
 
     def sync(options={}, &block)
       raise "Use promiscuous.sync on the parent instance" if @instance.embedded?
-      raise "Model cannot be dirty (have changes) when syncing" if @instance.changed?
-
-      # We can use the ephemeral because both are mongoid and ephemerals are atomic operations.
-      Promiscuous::Publisher::Operation::Ephemeral.new(:instance => @instance, :operation => :update).execute
+      super
     end
 
     def attribute(attr)

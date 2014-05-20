@@ -44,6 +44,14 @@ module Promiscuous::Publisher::Model::Base
     def id
       @instance.id
     end
+
+    def sync(options={}, &block)
+      raise "Model cannot be dirty (have changes) when syncing" if @instance.changed?
+
+      # We can use the ephemeral because both are mongoid and ephemerals are atomic operations.
+      Promiscuous::Publisher::Operation::Ephemeral.new(:instance => @instance, :operation => :update).execute
+    end
+
   end
 
   class PromiscuousMethods
