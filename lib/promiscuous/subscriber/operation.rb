@@ -57,6 +57,8 @@ class Promiscuous::Subscriber::Operation
   def destroy
     Promiscuous::Subscriber::Worker::EventualDestroyer.postpone_destroy(model, id) if message.dependencies.present?
     model.__promiscuous_fetch_existing(id).destroy
+  rescue model.__promiscuous_missing_record_exception
+    warn "record doesn't exist"
   end
 
   def execute

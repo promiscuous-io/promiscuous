@@ -1,15 +1,17 @@
 class Promiscuous::Publisher::Operation::ProxyForQuery
-  attr_accessor :exception, :result
+  attr_accessor :exception, :result, :operation
 
   def initialize(operation, &block)
     @operation = operation
     @queries = {}
 
-    if block.arity == 1
-      block.call(self)
-    else
-      self.non_instrumented { block.call }
-      self.instrumented { block.call }
+    if block
+      if block.arity == 1
+        block.call(self)
+      else
+        self.non_instrumented { block.call }
+        self.instrumented { block.call }
+      end
     end
   end
 

@@ -4,8 +4,12 @@ require 'multi_json'
 
 module Promiscuous
   def self.require_for(gem, file)
+    only_for(gem) { require file }
+  end
+
+  def self.only_for(gem, &block)
     require gem
-    require file
+    block.call
   rescue LoadError
   end
 

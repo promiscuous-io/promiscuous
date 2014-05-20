@@ -39,7 +39,6 @@ module Promiscuous::Subscriber::Model::Observer
     def subscribe(*args)
       super
       subscribed_attrs.each do |attr|
-        # TODO do not overwrite existing methods
         attr_accessor attr
       end
     end

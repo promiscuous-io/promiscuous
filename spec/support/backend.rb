@@ -40,6 +40,12 @@ module BackendHelper
     @worker.start
   end
 
+  def run_recovery_worker!
+    @recovery_worker.stop if @recovery_worker
+    @recovery_worker = Promiscuous::Publisher::Transport::Worker.new
+    @recovery_worker.start
+  end
+
   def use_null_backend(&block)
     reconfigure_backend do |config|
       config.backend = :null
@@ -68,9 +74,9 @@ end
 
 RSpec.configure do |config|
   config.after do
-    if @worker
-      @worker.stop
-      @worker = nil
+    [@recovery_worker, @worker].compact.each do |worker|
+      worker.stop
+      worker = nil
     end
   end
 end

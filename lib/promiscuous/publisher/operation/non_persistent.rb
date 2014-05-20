@@ -15,13 +15,4 @@ class Promiscuous::Publisher::Operation::NonPersistent < Promiscuous::Publisher:
       trace_operation
     end
   end
-
-  def operation_payloads
-    return [] if self.failed?
-    @instances.map { |instance| payloads_for(instance) }
-  end
-
-  def query_dependencies
-    @instances.map { |instance| dependencies_for(instance) }
-  end
 end

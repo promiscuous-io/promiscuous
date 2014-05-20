@@ -55,12 +55,6 @@ module Promiscuous::Publisher::Model::Base
     @promiscuous ||= self.class.const_get(:PromiscuousMethods).new(self)
   end
 
-  def valid?(*args)
-    # Validations are not dependencies
-    # TODO we should yell if the user is trying to write
-    without_promiscuous { super }
-  end
-
   module ClassMethods
     # all methods are virtual
 

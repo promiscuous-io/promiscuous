@@ -36,7 +36,7 @@ describe Promiscuous do
     end
 
     it "stores the version number" do
-      eventually { SubscriberModel.first._v.should_not == nil }
+      eventually { SubscriberModel.first.attributes[Promiscuous::Config.version_field].should_not == nil }
     end
   end
 
@@ -46,15 +46,16 @@ describe Promiscuous do
       pub = PublisherModel.create(:field_1 => '1')
       eventually { SubscriberModel.count.should == 1 }
 
-      stub_before_hook(Promiscuous::Publisher::Operation::Base, :publish_payload_in_rabbitmq_async) do |control|
-        control.unstub!
-        Thread.new { pub.update_attributes(:field_1 => '3') }.join
-        sleep 0.1
-      end
+      amqp_delayed!
 
       pub.update_attributes(:field_1 => '2')
 
-      sleep 1
+      amqp_up!
+
+      pub.update_attributes(:field_1 => '3')
+      sleep 0.1
+
+      amqp_process_delayed!
     end
 
     it 'subscribes to messages in the correct order (by dropping the last message)' do
@@ -70,15 +71,18 @@ describe Promiscuous do
     before { Promiscuous::Config.logger.level = Logger::FATAL }
 
     before do
-      stub_before_hook(Promiscuous::Publisher::Operation::Base, :publish_payload_in_rabbitmq_async) do |control|
-        control.unstub!
-        Thread.new { PublisherModel.first.update_attributes(:field_1 => '2') }.join
-        sleep 0.1
-      end
+      amqp_delayed!
 
-      PublisherModel.create(:field_1 => '1')
+      pub = PublisherModel.create(:field_1 => '1')
 
-      sleep 1
+      amqp_up!
+
+      pub.update_attributes(:field_1 => '2')
+      sleep 0.1
+
+      amqp_process_delayed!
+
+      sleep 0.1
     end
 
     it 'subscribes to messages in the correct order (by dropping the last message)' do
@@ -93,15 +97,17 @@ describe Promiscuous do
     before { Promiscuous::Config.logger.level = Logger::FATAL }
 
     before do
-      stub_before_hook(Promiscuous::Publisher::Operation::Base, :publish_payload_in_rabbitmq_async) do |control|
-        control.unstub!
-        Thread.new { PublisherModel.first.destroy }.join
-        sleep 0.1
-      end
+      amqp_delayed!
 
-      PublisherModel.create(:field_1 => '1')
+      pub = PublisherModel.create(:field_1 => '1')
 
-      sleep 1
+      amqp_up!
+
+      pub.destroy
+      sleep 0.1
+
+      amqp_process_delayed!
+      sleep 0.1
     end
 
     context 'within the timeout' do
@@ -152,16 +158,18 @@ describe Promiscuous do
   end
 
   context 'when a message is lost' do
+    before { Promiscuous::Config.logger.level = Logger::FATAL }
+
     before do
       pub = PublisherModel.create(:field_1 => '1')
       eventually { SubscriberModel.count.should == 1 }
 
-      stub_before_hook(Promiscuous::Publisher::Operation::Base, :publish_payload_in_rabbitmq_async) do |control|
-        control.unstub!
-        control.skip_next_call!
-      end
+      amqp_down!
 
       pub.update_attributes(:field_1 => '2') # this payload will never be sent
+
+      amqp_up!
+
       pub.update_attributes(:field_1 => '3')
     end
 

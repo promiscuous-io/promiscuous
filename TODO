@@ -1,0 +1,3 @@
+* Remove redis for versions on publisher & requirement for two-phase commit with rabbit
+* Rails 4 & mongoid 4 support
+* ActiveRecord sync support

@@ -4,8 +4,8 @@ module Promiscuous::Config
                  :subscriber_exchanges, :queue_name, :queue_options, :redis_url,
                  :redis_urls, :redis_stats_url, :stats_interval,
                  :socket_timeout, :heartbeat, :hash_size,
-                 :prefetch, :recovery_timeout, :logger, :subscriber_threads,
-                 :version_field, :error_notifier, :recovery_on_boot,
+                 :prefetch, :recovery_timeout, :recovery_interval, :logger, :subscriber_threads,
+                 :version_field, :error_notifier, :transport_collection,
                  :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval
 
   def self.backend=(value)
@@ -52,15 +52,16 @@ module Promiscuous::Config
     self.heartbeat            ||= 60
     self.hash_size            ||= 2**20 # one million keys ~ 200Mb.
     self.prefetch             ||= 1000
-    self.recovery_timeout     ||= 10
+    self.recovery_timeout     ||= 10.seconds
+    self.recovery_interval    ||= 5.seconds
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10
     self.error_notifier       ||= proc {}
     self.version_field        ||= '_v'
-    self.recovery_on_boot     = true if self.recovery_on_boot.nil?
+    self.transport_collection ||= '_promiscuous'
     self.on_stats             ||= proc { |rate, latency| }
     self.max_retries          ||= defined?(Rails) ? Rails.env.production? ? 10 : 0 : 10
-    self.generation           ||= 1
+    self.generation           ||= 0
     self.destroy_timeout      ||= 1.hour
     self.destroy_check_interval ||= 10.minutes
   end

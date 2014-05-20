@@ -1,14 +1,18 @@
-class Promiscuous::Publisher::Operation::Ephemeral < Promiscuous::Publisher::Operation::Atomic
-  def execute
-    super {}
+class Promiscuous::Publisher::Operation::Ephemeral < Promiscuous::Publisher::Operation::Base
+  def initialize(options={})
+    super
+    @instance = options[:instance]
   end
 
-  def yell_about_missing_instance
-    # don't yell :)
+  def instances
+    [@instance].compact
   end
 
-  def self.recover_operation(*recovery_payload)
-    # no instance when we recover, it's okay
-    new(:instance => nil)
+  def execute_instrumented(query)
+    create_transport_batch([self]).publish(true)
+  end
+
+  def increment_version_in_document
+    # No op
   end
 end

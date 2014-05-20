@@ -15,6 +15,8 @@ module Promiscuous::Publisher::Model::Mongoid
       raise "Please include Promiscuous::Publisher in the root class of #{self}"
     end
 
+    field Promiscuous::Config.version_field
+
     Promiscuous::Publisher::Model::Mongoid.collection_mapping[self.collection.name] = self
   end
 
@@ -23,6 +25,7 @@ module Promiscuous::Publisher::Model::Mongoid
 
     def sync(options={}, &block)
       raise "Use promiscuous.sync on the parent instance" if @instance.embedded?
+      raise "Model cannot be dirty (have changes) when syncing" if @instance.changed?
 
       # We can use the ephemeral because both are mongoid and ephemerals are atomic operations.
       Promiscuous::Publisher::Operation::Ephemeral.new(:instance => @instance, :operation => :update).execute
@@ -41,7 +44,6 @@ module Promiscuous::Publisher::Model::Mongoid
   end
 
   module ClassMethods
-    # TODO DRY this up with the publisher side
     def self.publish_on(method, options={})
       define_method(method) do |name, *args, &block|
         super(name, *args, &block)

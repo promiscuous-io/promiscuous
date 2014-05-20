@@ -9,8 +9,8 @@ require 'spec_helper'
       it 'publishes proper dependencies' do
         pub = PublisherModel.create(:field_1 => '1')
 
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['write'].should == hashed["publisher_models/id/#{pub.id}:1"]
+        op = Promiscuous::AMQP::Fake.get_next_payload['operations'].first
+        op['version'].should == 1
       end
     end
 
@@ -34,33 +34,13 @@ require 'spec_helper'
         pub.update_attributes(:publisher_id => 123)
         pub.update_attributes(:field_1 => 'ohai')
 
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['write'].should == hashed["publisher_models/id/#{pub.id}:1"]
+        op = Promiscuous::AMQP::Fake.get_next_payload['operations'].first
+        op['version'].should == 1
 
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['write'].should == hashed["publisher_models/id/#{pub.id}:2"]
+        op = Promiscuous::AMQP::Fake.get_next_payload['operations'].first
+        op['version'].should == 2
 
         Promiscuous::AMQP::Fake.get_next_message.should == nil
-      end
-    end
-
-    context 'when using hashing' do
-      before { Promiscuous::Config.hash_size = 1 }
-
-      it 'collides properly' do
-        pub1 = pub2 = pub3 = nil
-        pub1 = PublisherModel.create(:field_1 => '123')
-        pub2 = PublisherModel.create(:field_1 => '456')
-        pub3 = PublisherModel.create(:field_1 => '456')
-
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['write'].should == ["0:1"]
-
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['write'].should == ["0:2"]
-
-        dep = Promiscuous::AMQP::Fake.get_next_payload['dependencies']
-        dep['write'].should == ["0:3"]
       end
     end
 

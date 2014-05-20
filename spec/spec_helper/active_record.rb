@@ -18,11 +18,6 @@ ActiveRecord::Base.establish_connection(db_settings.merge('database' => 'postgre
 ActiveRecord::Base.connection.drop_database(db_settings[:database]) rescue nil
 ActiveRecord::Base.connection.create_database(db_settings[:database])
 
-ActiveRecord::Base.establish_connection(db_settings)
-ActiveRecord::Base.connection.execute("select gid from pg_prepared_xacts").column_values(0).each do |xid|
-  ActiveRecord::Base.connection.execute("ROLLBACK PREPARED '#{xid}'")
-end
-
 
 class PromiscuousMigration < ActiveRecord::Migration
   def change
@@ -39,16 +34,22 @@ class PromiscuousMigration < ActiveRecord::Migration
         t.string :child_field_2
         t.string :child_field_3
         t.integer :publisher_id
-        t.integer :_v, :limit => 8 if table.to_s.include?('subscriber')
+        t.integer :_v, :limit => 8, :default => 1
       end
 
       create_table :publisher_model_belongs_tos, :force => true do |t|
         t.integer :publisher_model_id
+        t.integer :_v, :limit => 8, :default => 1
       end
 
       create_table :subscriber_model_belongs_tos, :force => true do |t|
         t.integer :publisher_model_id
         t.integer :_v, :limit => 8
+      end
+
+      create_table :_promiscuous, :force => true do |t|
+        t.string    :batch
+        t.timestamp :at, :default => :now
       end
     end
   end

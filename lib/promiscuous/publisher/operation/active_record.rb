@@ -1,46 +1,4 @@
 class ActiveRecord::Base
-  module PostgresSQL2PCExtensions
-    extend ActiveSupport::Concern
-
-    def prepare_db_transaction
-      execute("PREPARE TRANSACTION '#{quote_string(@current_transaction_id)}'")
-    end
-
-    def commit_prepared_db_transaction(xid)
-      # We might always be racing with another instance, these sort of errors
-      # are spurious.
-      execute("COMMIT PREPARED '#{quote_string(xid)}'")
-    rescue Exception => e
-      raise unless e.message =~ /^PG::UndefinedObject/
-    end
-
-    def rollback_prepared_db_transaction(xid, options={})
-      execute("ROLLBACK PREPARED '#{quote_string(xid)}'")
-    rescue Exception => e
-      raise unless e.message =~ /^PG::UndefinedObject/
-    end
-
-    included do
-      # We want to make sure that we never block the database by having
-      # uncommitted transactions.
-      Promiscuous::Publisher::Operation::Base.register_recovery_mechanism do
-        connection = ActiveRecord::Base.connection
-        db_name = connection.current_database
-
-        # We wait twice the time of expiration, to allow a better recovery scenario.
-        expire_duration = 2 * Promiscuous::Publisher::Operation::Base.lock_options[:expire]
-
-        q = "SELECT gid FROM pg_prepared_xacts " +
-            "WHERE database = '#{db_name}' " +
-            "AND prepared < current_timestamp + #{expire_duration} * interval '1 second'"
-
-        connection.exec_query(q, "Promiscuous Recovery").each do |tx|
-          ActiveRecord::Base::PromiscuousTransaction.recover_transaction(connection, tx['gid'])
-        end
-      end
-    end
-  end
-
   class << self
     alias_method :connection_without_promiscuous, :connection
 
@@ -49,10 +7,6 @@ class ActiveRecord::Base
         unless defined?(connection.promiscuous_hook)
           connection.class.class_eval do
             attr_accessor :current_transaction_id
-
-            if self.name == "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
-              include ActiveRecord::Base::PostgresSQL2PCExtensions
-            end
 
             def promiscuous_hook; end
 
@@ -165,7 +119,7 @@ class ActiveRecord::Base
         query.non_instrumented { db_operation.call }
         query.instrumented do
           db_operation_and_select.tap do
-            transaction_context.add_write_operation(self) if !@instances.empty?
+            transaction_context.add_write_operation(self) if @instances.present?
           end
         end
       end
@@ -178,7 +132,8 @@ class ActiveRecord::Base
     def operation_payloads
       @instances.map do |instance|
         instance.promiscuous.payload(:with_attributes => self.operation.in?([:create, :update])).tap do |payload|
-          payload[:operation] = self.operation
+          payload[:operation]  = self.operation
+          payload[:version]    = instance.__send__(Promiscuous::Config.version_field)
         end
       end
     end
@@ -196,9 +151,13 @@ class ActiveRecord::Base
 
     def db_operation_and_select
       # XXX This is only supported by Postgres and should be in the postgres driver
-
-      @connection.exec_insert("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
-        @instances = result.map { |row| model.instantiate(row) }
+      @connection.transaction do
+        @connection.exec_insert("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
+          @instances = result.map do |row|
+            instance = model.instantiate(row)
+            instance
+          end
+        end
       end
       # TODO Use correct primary key
       @instances.first.id
@@ -234,6 +193,8 @@ class ActiveRecord::Base
 
     def db_operation_and_select
       # TODO this should be in the postgres driver (to also leverage the cache)
+      @arel.ast.values << Arel::Nodes::SqlLiteral.new("\"#{Promiscuous::Config.version_field}\" = COALESCE(\"#{Promiscuous::Config.version_field}\", 0) + 1")
+
       @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
         @instances = result.map { |row| model.instantiate(row) }
       end.rows.size
@@ -254,7 +215,6 @@ class ActiveRecord::Base
     end
 
     def db_operation_and_select
-      # TODO We only need the tracked attributes really (most likely, we just need ID)
       # XXX This is only supported by Postgres.
       @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
         @instances = result.map { |row| model.instantiate(row) }
@@ -272,24 +232,8 @@ class ActiveRecord::Base
     end
 
     def execute_instrumented(query)
-      query.prepare      { @connection.prepare_db_transaction }
-      query.instrumented { @connection.commit_prepared_db_transaction(@transaction_id) }
+      query.instrumented { @connection.commit_db_transaction_without_promiscuous }
       super
-    end
-
-    def self.recover_transaction(connection, transaction_id)
-      op = new(:connection => connection, :transaction_id => transaction_id)
-      # Getting the lock will trigger the real recovery mechanism
-      if op.acquire_op_lock
-        op.release_op_lock
-      end
-
-      # In the event where the recovery payload wasn't found, we must roll back.
-      # If the operation was recoverable, but couldn't be recovered, an
-      # exception would be thrown, so we won't roll it back by mistake.
-      # If the operation was recovered, the roll back will result in an error,
-      # which is fine.
-      connection.rollback_prepared_db_transaction(transaction_id)
     end
   end
 end
