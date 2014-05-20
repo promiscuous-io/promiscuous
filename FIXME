@@ -1,4 +1,0 @@
-rspec ./spec/integration/ephemeral_spec.rb:10 # Promiscuous when creating with save replicates
-rspec ./spec/integration/ephemeral_spec.rb:24 # Promiscuous when creating with create replicates
-rspec ./spec/integration/versioning_spec.rb:9 # Promiscuous when using only writes that hits publishes proper dependencies
-rspec ./spec/integration/versioning_spec.rb:32 # Promiscuous when updating a field that is not published doesn't track the write
