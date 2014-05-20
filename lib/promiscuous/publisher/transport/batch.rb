@@ -35,6 +35,8 @@ class Promiscuous::Publisher::Transport::Batch
   end
 
   def publish(raise_error=false)
+    Promiscuous::AMQP.ensure_connected
+
     begin
       if self.operations.present?
         Promiscuous::AMQP.publish(:key => Promiscuous::Config.app, :payload => self.payload,
