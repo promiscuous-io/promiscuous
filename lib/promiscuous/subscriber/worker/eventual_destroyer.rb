@@ -55,7 +55,7 @@ class Promiscuous::Subscriber::Worker::EventualDestroyer
     end
 
     def self.next(timeout)
-      redis.zrangebyscore(key, 0, timeout.ago.utc.to_i).map do |raw|
+      redis.zrangebyscore(key, 0, timeout.seconds.ago.utc.to_i).map do |raw|
         self.new(raw)
       end
     end

@@ -11,7 +11,12 @@ module Promiscuous::Publisher::Model::ActiveRecord
 
     def belongs_to(*args, &block)
       super.tap do |association|
-        publish(association.foreign_key) if self.in_publish_block?
+        fk = if association.is_a?(Hash)
+               association.values.first.foreign_key  # ActiveRecord 4x
+             else
+               association.foreign_key  # ActiveRecord 3x
+             end
+        publish(fk) if self.in_publish_block?
       end
     end
   end

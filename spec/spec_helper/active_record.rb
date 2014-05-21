@@ -18,7 +18,6 @@ ActiveRecord::Base.establish_connection(db_settings.merge('database' => 'postgre
 ActiveRecord::Base.connection.drop_database(db_settings[:database]) rescue nil
 ActiveRecord::Base.connection.create_database(db_settings[:database])
 
-
 class PromiscuousMigration < ActiveRecord::Migration
   def change
     [:publisher_models, :publisher_model_others,
