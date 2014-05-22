@@ -26,6 +26,7 @@ class PromiscuousMigration < ActiveRecord::Migration
      :publisher_another_dsl_models, :subscriber_another_dsl_models,
      :publisher_model_without_subscribers].each do |table|
       create_table table, :force => true do |t|
+        t.string :unpublished
         t.string :field_1
         t.string :field_2
         t.string :field_3
