@@ -1,10 +1,6 @@
 language: ruby
 bundler_args: --without development
 script: bundle exec rspec spec
-before_script:
-  - sudo /etc/init.d/postgresql stop
-  - sudo sed -i "s/#max_prepared_transactions = .*$/max_prepared_transactions = 10/g" /etc/postgresql/9.1/main/postgresql.conf
-  - sudo /etc/init.d/postgresql start
 env: JRUBY_OPTS="--server --debug -J-Xms512m -J-Xmx1024m" TIMEOUT=10
 rvm:
   - ruby-1.9.3
