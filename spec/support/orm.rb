@@ -7,12 +7,12 @@ module ORM
     {
       :active_record           => [:active_record32, :active_record40],
       :transaction             => [:active_record32, :active_record40],
-      :mongoid                 => [:mongoid3],
-      :polymorphic             => [:mongoid3],
-      :embedded_documents      => [:mongoid3],
-      :many_embedded_documents => [:mongoid3],
-      :versioning              => [:mongoid3],
-      :find_and_modify         => [:mongoid3],
+      :mongoid                 => [:mongoid3, :mongoid40],
+      :polymorphic             => [:mongoid3, :mongoid40],
+      :embedded_documents      => [:mongoid3, :mongoid40],
+      :many_embedded_documents => [:mongoid3, :mongoid40],
+      :versioning              => [:mongoid3, :mongoid40],
+      :find_and_modify         => [:mongoid3, :mongoid40],
     }[feature].any? { |orm| orm == backend }
   end
 

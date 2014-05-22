@@ -31,7 +31,7 @@ require 'spec_helper'
     context 'when updating a field that is not published' do
       it "doesn't track the write" do
         pub = PublisherModel.create
-        pub.update_attributes(:publisher_id => 123)
+        pub.update_attributes(:unpublished => 123)
         pub.update_attributes(:field_1 => 'ohai')
 
         op = Promiscuous::AMQP::Fake.get_next_payload['operations'].first

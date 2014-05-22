@@ -225,13 +225,6 @@ class Moped::PromiscuousDatabase < Moped::Database
   end
 end
 
-class Mongoid::Validations::UniquenessValidator
-  alias_method :validate_root_without_promisucous, :validate_root
-  def validate_root(*args)
-    without_promiscuous { validate_root_without_promisucous(*args) }
-  end
-end
-
 Moped.__send__(:remove_const, :Collection)
 Moped.__send__(:const_set,    :Collection, Moped::PromiscuousCollectionWrapper)
 Moped.__send__(:remove_const, :Query)

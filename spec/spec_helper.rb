@@ -49,3 +49,11 @@ module Promiscous
     true
   end
 end
+
+# To ensure that descendants list is ordered the same in mongoid 3x & 4x
+module ActiveSupport::DescendantsTracker
+  alias_method :orig_descendants, :descendants
+  def descendants
+    orig_descendants.sort { |x,y| x.to_s <=> y.to_s }
+  end
+end

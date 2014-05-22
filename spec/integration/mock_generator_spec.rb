@@ -28,6 +28,11 @@ if ORM.has(:mongoid)
           publish :field_2
           publish :field_3
         end
+        class PublisherModelAnotherChild < PublisherModel
+          publish :another_child_field_1
+          publish :another_child_field_2
+          publish :another_child_field_3
+        end
         class PublisherModelChild < PublisherModel
           publish :child_field_1
           publish :child_field_2
@@ -35,11 +40,6 @@ if ORM.has(:mongoid)
         end
         class PublisherModelChildOfChild < PublisherModelChild
           publish :child_of_child_field_1
-        end
-        class PublisherModelAnotherChild < PublisherModel
-          publish :another_child_field_1
-          publish :another_child_field_2
-          publish :another_child_field_3
         end
         class Scoped::ScopedPublisherModel < PublisherModel
         end

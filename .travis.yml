@@ -15,6 +15,7 @@ rvm:
   # - ruby-head
 gemfile:
   - gemfiles/mongoid31.gemfile
+  - gemfiles/mongoid40.gemfile
   - gemfiles/active_record32.gemfile
   - gemfiles/active_record40.gemfile
 services:

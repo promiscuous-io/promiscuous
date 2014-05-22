@@ -7,6 +7,7 @@ module ModelsHelper
       field :field_1
       field :field_2
       field :field_3
+      field :unpublished
 
       publish :field_1, :field_2, :field_3
     end
