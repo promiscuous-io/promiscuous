@@ -1,4 +1,16 @@
 class Promiscuous::Publisher::Transport::Persistence::ActiveRecord
+  def initialize
+    if connection.table_exists?(table)
+      raise <<-help
+        Promiscuous requires the following migration to be run:
+          create_table :_promiscuous do |t|
+            t.string    :batch
+            t.timestamp :at, :default => :now
+          end
+      help
+    end
+  end
+
   def save(batch)
     q = "INSERT INTO #{table} (\"batch\") " +
       "VALUES ('#{batch.dump}') RETURNING id"

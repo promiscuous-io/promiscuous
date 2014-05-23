@@ -4,6 +4,17 @@ module Promiscuous::Publisher::Model::ActiveRecord
 
   require 'promiscuous/publisher/operation/active_record'
 
+  included do
+    if !self.columns.collect(&:name).include?("_v")
+      raise <<-help
+      #{self} must include a _v column.  Create the following migration:
+        change_table :#{self.table_name} do |t|
+          t.integer :_v, :limit => 8
+        end
+      help
+    end
+  end
+
   module ClassMethods
     def __promiscuous_missing_record_exception
       ActiveRecord::RecordNotFound
