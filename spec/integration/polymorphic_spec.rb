@@ -143,6 +143,26 @@ if ORM.has(:polymorphic)
           end
         end
       end
+
+      context 'when a subscriber adds a subclass after data has replicated' do
+        let!(:pub) { Publisher3.create(:field_1 => '31', :field_2 => '32', :field_3 => '33') }
+
+        before do
+          eventually { Subscriber1.count.should == 1 }
+
+          define_constant :Subscriber3, Subscriber2 do
+            field :field_3
+            subscribe :as => :Publisher3
+            subscribe :field_3
+          end
+        end
+
+        it 'updates the type of the existing document with subsquent updates' do
+          pub.update_attributes(:field_3 => '333')
+
+          eventually { Subscriber3.first.field_3.should == '333' }
+        end
+      end
     end
 
     context 'when subscirbing to child classes individually' do

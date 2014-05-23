@@ -49,13 +49,28 @@ module Promiscuous::Subscriber::Model::Mongoid
 
     def __promiscuous_fetch_existing(id)
       key = subscribe_foreign_key
-      if respond_to?("find_by")
+      instance = if respond_to?("find_by")
         promiscuous_root_class.find_by(key => id)
       else
         instance = promiscuous_root_class.where(key => id).first
         raise __promiscuous_missing_record_exception.new(promiscuous_root_class, id) if instance.nil?
         instance
       end
+
+      # This allows for subscribing initially only to a root class and replicating data
+      # and then add subscribing to subclasses and having the type of existing
+      # data automatically update (avoiding the confusing workaround of having
+      # to delete existing data).
+      example_instance = self.new
+      if example_instance.respond_to?(:_type)
+        expected_type = example_instance._type
+        if instance._type != expected_type
+          collection.find(instance.atomic_selector).update('$set' => { :_type => expected_type })
+          instance = __promiscuous_fetch_existing(id)
+        end
+      end
+
+      instance
     end
   end
 
