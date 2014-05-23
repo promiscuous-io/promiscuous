@@ -1,6 +1,6 @@
 class Promiscuous::Publisher::Transport::Persistence::ActiveRecord
   def initialize
-    if connection.table_exists?(table)
+    unless connection.table_exists?(table)
       raise <<-help
         Promiscuous requires the following migration to be run:
           create_table :_promiscuous do |t|
