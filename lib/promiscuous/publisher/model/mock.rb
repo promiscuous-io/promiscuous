@@ -30,7 +30,8 @@ module Promiscuous::Publisher::Model::Mock
     # json dump.
     batch = op.create_transport_batch([op])
 
-    Promiscuous::Subscriber::Message.new(batch.payload).process
+    message = Promiscuous::Subscriber::Message.new(batch.payload)
+    Promiscuous::Subscriber::UnitOfWork.process(message)
   end
 
   module ClassMethods

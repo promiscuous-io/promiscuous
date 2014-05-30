@@ -84,7 +84,6 @@ class Promiscuous::Subscriber::UnitOfWork
   end
 
   def on_message
-    # XXX This needs to be done for each operation
     with_transaction do
       self.operations.each { |op| execute_operation(op) if op.model }
     end
