@@ -71,6 +71,7 @@ class Promiscuous::Subscriber::Worker::EventualDestroyer
     private
 
     def self.redis
+      Promiscuous.ensure_connected
       Promiscuous::Redis.connection
     end
 
