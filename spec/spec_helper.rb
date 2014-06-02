@@ -27,7 +27,7 @@ end
 
 RSpec.configure do |config|
   config.mock_with :mocha
-  config.color_enabled = true
+  config.color = true
 
   config.include AsyncHelper
   config.include BackendHelper
