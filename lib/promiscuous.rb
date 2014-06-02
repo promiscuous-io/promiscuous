@@ -43,6 +43,7 @@ module Promiscuous
     def connect
       AMQP.connect
       Redis.connect
+
       @should_be_connected = true
     end
 

@@ -1,4 +1,5 @@
 require 'fnv'
+require 'robust-redis-lock'
 
 class Promiscuous::Subscriber::UnitOfWork
   attr_accessor :message
@@ -58,17 +59,16 @@ class Promiscuous::Subscriber::UnitOfWork
     return yield unless operation.version
 
     key = "#{app}:#{operation.key}"
-    lock_options = LOCK_OPTIONS.merge(:node => Promiscuous::Redis.node_for(key))
-    mutex = Promiscuous::Redis::Mutex.new(key, lock_options)
+    lock = Redis::Lock.new(key, LOCK_OPTIONS.merge(:redis => Promiscuous::Redis.connection))
 
-    unless mutex.lock
-      raise Promiscuous::Error::LockUnavailable.new(mutex.key)
+    unless lock.lock
+      raise Promiscuous::Error::LockUnavailable.new(lock.key)
     end
 
     begin
       yield
     ensure
-      unless mutex.unlock
+      unless lock.unlock
         # TODO Be safe in case we have a duplicate message and lost the lock on it
         raise "The subscriber lost the lock during its operation. It means that someone else\n"+
           "received a duplicate message, and we got screwed.\n"

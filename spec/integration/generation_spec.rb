@@ -12,13 +12,13 @@ if ORM.has(:mongoid)
       pub = pub = PublisherModel.create(:field_1 => '1')
       eventually { SubscriberModel.first.field_1.should == '1' }
 
-      Promiscuous::Redis.master.flushdb
+      Promiscuous::Redis.connection.flushdb
       Promiscuous::Config.generation = 1
 
       pub.update_attributes(:field_1 => '2')
       eventually { SubscriberModel.first.field_1.should == '2' }
 
-      Promiscuous::Redis.master.flushdb
+      Promiscuous::Redis.connection.flushdb
       Promiscuous::Config.generation = 2
 
       pub.update_attributes(:field_1 => '3')

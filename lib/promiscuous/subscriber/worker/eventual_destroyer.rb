@@ -71,7 +71,7 @@ class Promiscuous::Subscriber::Worker::EventualDestroyer
     private
 
     def self.redis
-      Promiscuous::Redis.master.nodes.first
+      Promiscuous::Redis.connection
     end
 
     def self.key

@@ -1,15 +1,11 @@
 module BackendHelper
-  NUM_SHARDS = 8
-  HASH_SIZE = 2**30
-
   def reconfigure_backend(&block)
     Promiscuous.configure do |config|
       config.reset
       config.amqp_url = amqp_url
-      config.redis_urls = NUM_SHARDS.times.map { |i| "#{redis_url}#{i}" }
       config.app = 'test'
+      config.redis_url = redis_url
       config.queue_options = {:auto_delete => true}
-      config.hash_size = HASH_SIZE
       config.logger = Logger.new(STDERR)
       config.logger.level = ENV["LOGGER_LEVEL"] ? ENV["LOGGER_LEVEL"].to_i : Logger::WARN
       config.stats_interval = 0
@@ -31,7 +27,7 @@ module BackendHelper
       end
     end
     Promiscuous.ensure_connected
-    Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
+    Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it.
   end
 
   def run_subscriber_worker!
@@ -58,7 +54,7 @@ module BackendHelper
       config.backend = :fake
       block.call(config) if block
     end
-    Promiscuous::Redis.master.flushdb # not the ideal place to put it, deal with it.
+    Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it.
   end
 
   private
