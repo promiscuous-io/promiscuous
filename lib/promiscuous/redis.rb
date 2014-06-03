@@ -18,7 +18,7 @@ class Promiscuous::Redis
   end
 
   def self.disconnect
-    self.connection.quit
+    self.connection.try(:quit)
   end
 
   def self.lost_connection_exception(node, options={})
