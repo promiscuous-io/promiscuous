@@ -130,6 +130,7 @@ module ModelsHelper
       include Promiscuous::Subscriber
 
       field :field_1
+      field :field_1_derived
       field :field_2
       field :field_3
 

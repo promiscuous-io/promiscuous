@@ -28,6 +28,7 @@ class PromiscuousMigration < ActiveRecord::Migration
       create_table table, :force => true do |t|
         t.string :unpublished
         t.string :field_1
+        t.string :field_1_derived
         t.string :field_2
         t.string :field_3
         t.string :child_field_1
