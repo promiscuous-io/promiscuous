@@ -35,7 +35,7 @@ class Promiscuous::Subscriber::Worker::EventualDestroyer
     def perform
       model = class_name.constantize
       begin
-        model.__promiscuous_fetch_existing(instance_id).destroy
+        model.__promiscuous_with_pooled_connection { model.__promiscuous_fetch_existing(instance_id).destroy }
       rescue model.__promiscuous_missing_record_exception
       end
 

@@ -31,5 +31,9 @@ module Promiscuous::Subscriber::Model::ActiveRecord
         promiscuous_root_class.find_by(key => id)
       end
     end
+
+    def __promiscuous_with_pooled_connection
+      ActiveRecord::Base.connection_pool.with_connection { yield }
+    end
   end
 end

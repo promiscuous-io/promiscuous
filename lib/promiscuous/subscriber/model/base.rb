@@ -101,5 +101,9 @@ module Promiscuous::Subscriber::Model::Base
     def __promiscuous_fetch_new(id)
       new.tap { |m| m.__send__("#{subscribe_foreign_key}=", id) }
     end
+
+    def __promiscuous_with_pooled_connection
+      yield
+    end
   end
 end
