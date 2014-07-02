@@ -9,7 +9,7 @@ class Promiscuous::Publisher::Transport::Persistence::Mongoid
   end
 
   def delete(batch)
-    Storage.find(batch.id).destroy
+    Storage.collection.find(:_id => batch.id).remove
   end
 
   class Storage

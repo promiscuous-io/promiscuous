@@ -201,7 +201,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
   end
 
   def remove_all
-    raise "Instead of doing a multi delete, delete each document separatly.\n" +
+    raise "Promiscuous: Instead of doing a multi delete, delete each document separatly.\n" +
           "Declare your has_many relationships with :dependent => :destroy instead of :delete"
   end
 end
