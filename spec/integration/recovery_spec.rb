@@ -47,6 +47,21 @@ describe Promiscuous do
       end
     end
 
+    context "for creates and destroys" do
+      it "clears the batch" do
+        amqp_down!
+
+        pub = PublisherModel.create(:field_1 => '1')
+        pub.destroy
+
+        eventually { Promiscuous::Publisher::Transport.persistence.expired.count.should == 2 }
+
+        amqp_up!
+
+        eventually { Promiscuous::Publisher::Transport.persistence.expired.should be_empty }
+      end
+    end
+
     context 'destroys' do
       it 'still publishes message updates' do
         pub = PublisherModel.create(:field_1 => '1')

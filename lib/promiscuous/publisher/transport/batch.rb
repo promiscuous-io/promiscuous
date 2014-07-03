@@ -90,7 +90,7 @@ class Promiscuous::Publisher::Transport::Batch
         else
           find_instance(attributes)
         end
-      end
+      end.compact
       self.new(dump['type'], instances)
     end
 
