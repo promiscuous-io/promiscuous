@@ -89,8 +89,8 @@ class Promiscuous::AMQP::Bunny
       @callback_mapping[tag] = options[:on_confirm] if options[:on_confirm]
     end
   rescue Exception => e
+    Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
     e = Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
-    Promiscuous.warn "[publish] #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.call(e)
   end
 

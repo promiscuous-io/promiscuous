@@ -46,7 +46,10 @@ class Promiscuous::Publisher::Transport::Batch
       end
     rescue Exception => e
       Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
-      raise e if raise_error
+      e = Promiscuous::Error::Publisher.new(e, :payload => self.payload)
+      Promiscuous::Config.error_notifier.call(e)
+
+      raise e.inner if raise_error
     end
   end
 
