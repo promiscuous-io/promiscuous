@@ -3,7 +3,6 @@ require 'spec_helper'
 describe Promiscuous do
   before { load_models; load_observers }
   before { use_real_backend }
-
   before { run_subscriber_worker! }
 
   context 'when creating' do

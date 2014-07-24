@@ -12,16 +12,24 @@ describe Promiscuous do
     without_promiscuous { pub_update = PublisherModel.first; pub_update.update_attributes(:field_1 => 'hello') }
 
     # Ensure ordering
-    pub_update.promiscuous.sync; pub_create.promiscuous.sync
+    PublisherModel.find(pub_update.id).promiscuous.sync; PublisherModel.find(pub_create.id).reload.promiscuous.sync
+
     eventually { SubscriberModel.first.field_1.should == 'hello' }
 
     PublisherModel.first.update_attributes(:field_1 => 'ohai')
+
     eventually { SubscriberModel.first.field_1.should == 'ohai' }
   end
 
-  it 'ignores changes to object if they are not persisted' do
+  it 'prevents syncing an object with changes' do
     pub = without_promiscuous { PublisherModel.create(:field_1 => 'hello') }
     pub.field_1 = 'bye'
+
+    expect { pub.promiscuous.sync }.to raise_error
+  end
+
+  it 'prevents syncing an object that was persisted' do
+    pub = without_promiscuous { PublisherModel.create(:field_1 => 'hello') }
 
     expect { pub.promiscuous.sync }.to raise_error
   end

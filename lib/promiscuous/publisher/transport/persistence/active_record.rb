@@ -2,19 +2,17 @@ class Promiscuous::Publisher::Transport::Persistence::ActiveRecord
   def save(batch)
     check_schema
 
-    q = "INSERT INTO #{table} (\"batch\") " +
-      "VALUES ('#{batch.dump}') RETURNING id"
+    q = "INSERT INTO #{table} (batch) " +
+      "VALUES ('#{batch.dump}')"
 
-    result = connection.exec_query(q, 'Promiscuous Recovery Save')
-
-    batch.id = result.rows.first.first.to_i
+    batch.id = connection.insert_sql(q, 'Promiscuous Recovery Save')
   end
 
   def expired
     check_schema
 
     q = "SELECT id, p.batch FROM #{table} p " +
-      "WHERE at < current_timestamp - #{Promiscuous::Config.recovery_timeout} * INTERVAL '1 second'"
+      "WHERE at < CURRENT_TIMESTAMP - INTERVAL '#{Promiscuous::Config.recovery_timeout}' second"
 
     connection.exec_query(q, 'Promiscuous Recovery Expired').rows
   end
@@ -24,7 +22,7 @@ class Promiscuous::Publisher::Transport::Persistence::ActiveRecord
 
     q = "DELETE FROM #{table} WHERE id = #{batch.id}"
 
-    connection.exec_query(q, 'Promiscuous Recovery Delete')
+    connection.exec_delete(q, 'Promiscuous Recovery Delete', [])
   end
 
   private
@@ -37,7 +35,7 @@ class Promiscuous::Publisher::Transport::Persistence::ActiveRecord
         Promiscuous requires the following migration to be run:
           create_table :_promiscuous do |t|
             t.string    :batch
-            t.timestamp :at, :default => :now
+            t.timestamp :at, 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP'
           end
       help
     end

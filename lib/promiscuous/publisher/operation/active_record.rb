@@ -59,6 +59,11 @@ class ActiveRecord::Base
               with_promiscuous_transaction_context { |tx| tx.commit }
             end
 
+            def supports_returning_statments?
+              @supports_returning_statments ||= ["ActiveRecord::ConnectionAdapters::PostgreSQLAdapter",
+                                                 "ActiveRecord::ConnectionAdapters::OracleEnhancedAdapter"].include?(self.class.name)
+            end
+
             alias_method :insert_without_promiscuous, :insert
             alias_method :update_without_promiscuous, :update
             alias_method :delete_without_promiscuous, :delete
@@ -152,10 +157,21 @@ class ActiveRecord::Base
     def db_operation_and_select
       # XXX This is only supported by Postgres and should be in the postgres driver
       @connection.transaction do
-        @connection.exec_insert("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
-          @instances = result.map do |row|
-            instance = model.instantiate(row)
-            instance
+        if @connection.supports_returning_statments?
+          @connection.exec_insert("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
+            @instances = result.map do |row|
+              instance = model.instantiate(row)
+              instance
+            end
+          end
+        else
+          @connection.exec_insert("#{@connection.to_sql(@arel, @binds)}", @operation_name, @binds)
+
+          id = @binds.select { |k,v| k.name == 'id' }.first.last rescue nil
+          id ||= @connection.instance_eval { @connection.last_id }
+          id.tap do |last_id|
+            result = @connection.exec_query("SELECT * FROM #{model.table_name} WHERE #{@pk} = #{last_id}")
+            @instances = result.map { |row| model.instantiate(row) }
           end
         end
       end
@@ -168,6 +184,7 @@ class ActiveRecord::Base
     def initialize(arel, name, binds, options={})
       super
       @operation = :update
+      return if Promiscuous.disabled?
       raise unless @arel.is_a?(Arel::UpdateManager)
     end
 
@@ -191,16 +208,31 @@ class ActiveRecord::Base
       (updated_fields_in_query.keys & model.published_db_fields).present?
     end
 
+    def sql_select_statment
+      arel = @arel.dup
+      arel.instance_eval { @ast = @ast.dup }
+      arel.ast.values = []
+      arel.to_sql.sub(/^UPDATE /, 'SELECT * FROM ')
+    end
+
     def db_operation_and_select
       # TODO this should be in the postgres driver (to also leverage the cache)
-      @arel.ast.values << Arel::Nodes::SqlLiteral.new("\"#{Promiscuous::Config.version_field}\" = COALESCE(\"#{Promiscuous::Config.version_field}\", 0) + 1")
+      @arel.ast.values << Arel::Nodes::SqlLiteral.new("#{Promiscuous::Config.version_field} = COALESCE(#{Promiscuous::Config.version_field}, 0) + 1")
 
-      @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
-        @instances = result.map { |row| model.instantiate(row) }
-      end.rows.size
+      if @connection.supports_returning_statments?
+        @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
+          @instances = result.map { |row| model.instantiate(row) }
+        end.rows.size
+      else
+        @connection.exec_update(@connection.to_sql(@arel, @binds), @operation_name, @binds).tap do
+          result = @connection.exec_query(sql_select_statment, @operation_name)
+          @instances = result.map { |row| model.instantiate(row) }
+        end
+      end
     end
 
     def execute(&db_operation)
+      return db_operation.call if Promiscuous.disabled?
       return db_operation.call unless model
       return db_operation.call unless any_published_field_changed?
       super
@@ -214,11 +246,20 @@ class ActiveRecord::Base
       raise unless @arel.is_a?(Arel::DeleteManager)
     end
 
+    def sql_select_statment
+      @connection.to_sql(@arel.dup, @binds.dup).sub(/^DELETE /, 'SELECT * ')
+    end
+
     def db_operation_and_select
-      # XXX This is only supported by Postgres.
-      @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
+      if @connection.supports_returning_statments?
+        @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
+          @instances = result.map { |row| model.instantiate(row) }
+        end.rows.size
+      else
+        result = @connection.exec_query(sql_select_statment, @operation_name, @binds)
         @instances = result.map { |row| model.instantiate(row) }
-      end.rows.size
+        @connection.exec_delete(@connection.to_sql(@arel, @binds), @operation_name, @binds)
+      end
     end
   end
 

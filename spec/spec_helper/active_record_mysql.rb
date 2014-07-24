@@ -6,16 +6,17 @@ if ENV['LOGGER_LEVEL']
 end
 
 db_settings = {
-  :adapter  => RUBY_PLATFORM == "java" ? "jdbcpostgresql" : "postgresql",
+  :adapter  => "mysql2",
   :database => "promiscuous",
-  :username => "postgres",
+  :username => "root",
   :password => nil,
   :encoding => "utf8",
   :pool => 20,
 }
 
-ActiveRecord::Base.establish_connection(db_settings.merge('database' => 'postgres'))
+ActiveRecord::Base.establish_connection(db_settings.merge('database' => 'mysql'))
 ActiveRecord::Base.connection.drop_database(db_settings[:database]) rescue nil
 ActiveRecord::Base.connection.create_database(db_settings[:database])
+ActiveRecord::Base.establish_connection(db_settings)
 
 load 'spec/spec_helper/sql.rb'

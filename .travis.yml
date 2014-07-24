@@ -1,24 +1,18 @@
 language: ruby
 bundler_args: --without development
 script: bundle exec rspec spec
-env: JRUBY_OPTS="--server --debug -J-Xms512m -J-Xmx1024m" TIMEOUT=10
+env: TIMEOUT=10
 rvm:
   - ruby-1.9.3
   - ruby-2.0.0
   - ruby-2.1.0
-  # - jruby
-  # - jruby-head
-  # - ruby-head
 gemfile:
   - gemfiles/mongoid31.gemfile
   - gemfiles/mongoid40.gemfile
   - gemfiles/active_record32.gemfile
   - gemfiles/active_record40.gemfile
+  - gemfiles/active_record40_mysql.gemfile
 services:
   - mongodb
   - rabbitmq
   - redis-server
-matrix:
-  allow_failures:
-    - rvm: ruby-head
-    - rvm: jruby-head

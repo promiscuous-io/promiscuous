@@ -5,8 +5,8 @@ module ORM
 
   def self.has(feature)
     {
-      :active_record           => [:active_record32, :active_record40],
-      :transaction             => [:active_record32, :active_record40],
+      :active_record           => [:active_record32, :active_record40, :active_record40_mysql],
+      :transaction             => [:active_record32, :active_record40, :active_record40_mysql],
       :mongoid                 => [:mongoid3, :mongoid40],
       :polymorphic             => [:mongoid3, :mongoid40],
       :embedded_documents      => [:mongoid3, :mongoid40],
@@ -17,10 +17,8 @@ module ORM
   end
 
   if has(:mongoid)
-    #Operation = Promiscuous::Publisher::Model::Mongoid::Operation
     ID = :_id
   elsif has(:active_record)
-    #Operation = Promiscuous::Publisher::Operation
     ID = :id
   end
 
@@ -38,8 +36,10 @@ module ORM
     Mongoid.purge! if has(:mongoid)
 
     if has(:active_record)
-      DatabaseCleaner.clean
-      DatabaseCleaner.start
+      Promiscuous.without_promiscuous do
+        DatabaseCleaner.clean
+        DatabaseCleaner.start
+      end
     end
   end
 end

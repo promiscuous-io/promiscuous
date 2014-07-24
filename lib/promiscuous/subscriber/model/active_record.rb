@@ -33,7 +33,8 @@ module Promiscuous::Subscriber::Model::ActiveRecord
     end
 
     def __promiscuous_with_pooled_connection
-      ActiveRecord::Base.connection_pool.with_connection { yield }
+      yield
+      ActiveRecord::Base.clear_active_connections!
     end
   end
 end

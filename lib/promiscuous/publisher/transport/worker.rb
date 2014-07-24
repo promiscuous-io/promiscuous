@@ -30,7 +30,8 @@ class Promiscuous::Publisher::Transport::Worker
         Promiscuous::Config.error_notifier.call(e)
       end
     end
-    ActiveRecord::Base.connection.close
+  ensure
+    ActiveRecord::Base.clear_active_connections!
   end
 end
 
