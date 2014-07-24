@@ -38,10 +38,6 @@ class User
 end
 ```
 
-Note: With ActiveRecord on the publisher side, promiscuous only supports PostgreSQL at
-the moment. You also need to change `max_prepared_transactions = 10` in the config of
-PostgreSQL.
-
 ### 3. Subscribing
 
 Similarly to the publisher app, we can subscribe to the attributes:
