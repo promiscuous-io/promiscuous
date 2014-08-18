@@ -12,7 +12,7 @@ describe Promiscuous do
     without_promiscuous { pub_update = PublisherModel.first; pub_update.update_attributes(:field_1 => 'hello') }
 
     # Ensure ordering
-    PublisherModel.find(pub_update.id).promiscuous.sync; PublisherModel.find(pub_create.id).reload.promiscuous.sync
+    PublisherModel.find(pub_update.id).promiscuous.sync('promiscuous'); PublisherModel.find(pub_create.id).reload.promiscuous.sync('promiscuous')
 
     eventually { SubscriberModel.first.field_1.should == 'hello' }
 

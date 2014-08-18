@@ -40,7 +40,7 @@ module Promiscuous::Publisher::Model::Base
       @instance.id
     end
 
-    def sync(options={}, &block)
+    def sync(target, &block)
       raise "Model cannot be dirty (have changes) when syncing" if @instance.changed?
       raise "Model has to be reloaded if it was saved" if @instance.previous_changes.present?
 

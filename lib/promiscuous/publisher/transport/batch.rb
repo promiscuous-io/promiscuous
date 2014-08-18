@@ -1,5 +1,5 @@
 class Promiscuous::Publisher::Transport::Batch
-  attr_accessor :operations, :payload_attributes, :timestamp, :id
+  attr_accessor :operations, :payload_attributes, :timestamp, :id, :exchange, :routing
 
   SERIALIZER = MultiJson
 
@@ -19,6 +19,8 @@ class Promiscuous::Publisher::Transport::Batch
   def initialize
     self.operations         = []
     self.payload_attributes = {}
+    self.exchange           = Promiscuous::Config.publisher_exchange
+    self.routing            = :*
     self.timestamp          = Time.now
   end
 
@@ -39,7 +41,9 @@ class Promiscuous::Publisher::Transport::Batch
 
     begin
       if self.operations.present?
-        Promiscuous::AMQP.publish(:key => Promiscuous::Config.app, :payload => self.payload,
+        Promiscuous::AMQP.publish(:exchange => self.exchange,
+                                  :key => self.routing,
+                                  :payload => self.payload,
                                   :on_confirm => method(:on_rabbitmq_confirm))
       else
         on_rabbitmq_confirm

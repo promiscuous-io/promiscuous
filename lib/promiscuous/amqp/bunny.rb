@@ -45,22 +45,18 @@ class Promiscuous::AMQP::Bunny
     channel.basic_qos(options[:prefetch]) if options[:prefetch]
     raw_confirm_select(channel, &method(:on_confirm)) if options[:confirm]
 
-    if options[:exchanges]
-      exchanges = options[:exchanges].map do |exchange_name|
-        channel.exchange(exchange_name, :type => :topic, :durable => true)
-      end
-      [connection, channel, exchanges]
-    else
-      exchange = channel.exchange(options[:exchange], :type => :topic, :durable => true)
-      [connection, channel, exchange]
+    exchanges = {}
+    options[:exchanges].each do |exchange_name|
+      exchanges[exchange_name] = channel.exchange(exchange_name, :type => :topic, :durable => true)
     end
+    [connection, channel, exchanges]
   end
 
   def connect
-    connection_options = { :url      => Promiscuous::Config.publisher_amqp_url,
-                           :exchange => Promiscuous::Config.publisher_exchange,
-                           :confirm  => true }
-    @connection, @channel, @exchange = new_connection(connection_options)
+    connection_options = { :url       => Promiscuous::Config.publisher_amqp_url,
+                           :exchanges => [Promiscuous::Config.publisher_exchange, Promiscuous::Config.sync_exchange],
+                           :confirm   => true }
+    @connection, @channel, @exchanges = new_connection(connection_options)
   end
 
   def disconnect
@@ -76,12 +72,13 @@ class Promiscuous::AMQP::Bunny
   end
 
   def raw_publish(options)
-    options[:exchange].publish(options[:payload], :key => options[:key], :persistent => true)
+    @exchanges[options[:exchange]].publish(options[:payload], :key => options[:key], :persistent => true)
   end
 
   def publish(options={})
-    options[:exchange] ||= @exchange
-    Promiscuous.debug "[publish] #{options[:exchange].name}/#{options[:key]} #{options[:payload]}"
+    raise "Exchange '#{options[:exchange]}' not one of: #{@exchanges.keys}" unless @exchanges[options[:exchange]]
+
+    Promiscuous.debug "[publish] #{options[:exchange]}/#{options[:key]} #{options[:payload]}"
 
     @connection_lock.synchronize do
       tag = @channel.next_publish_seq_no if options[:on_confirm]
@@ -117,10 +114,10 @@ class Promiscuous::AMQP::Bunny
       @connection, @channel, exchanges = Promiscuous::AMQP.new_connection(connection_options)
 
       @queue = @channel.queue(Promiscuous::Config.queue_name, Promiscuous::Config.queue_options)
-      exchanges.zip(options[:bindings].values).each do |exchange, bindings|
+      exchanges.keys.zip(options[:bindings].values).each do |exchange, bindings|
         bindings.each do |binding|
           @queue.bind(exchange, :routing_key => binding)
-          Promiscuous.debug "[bind] #{exchange.name}/#{binding}/#{Promiscuous::Config.queue_name}"
+          Promiscuous.debug "[bind] #{exchange}/#{binding}/#{Promiscuous::Config.queue_name}"
         end
       end
 
