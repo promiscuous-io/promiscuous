@@ -108,6 +108,8 @@ class Promiscuous::AMQP::Bunny
       @lock = Mutex.new
       @prefetch = Promiscuous::Config.prefetch
 
+      options[:bindings][Promiscuous::Config.sync_exchange] = [Promiscuous::Config.app, Promiscuous::Config.sync_all_routing]
+
       connection_options = { :url       => Promiscuous::Config.subscriber_amqp_url,
                              :exchanges => options[:bindings].keys,
                              :prefetch  => @prefetch }

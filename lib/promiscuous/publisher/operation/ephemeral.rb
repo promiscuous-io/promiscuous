@@ -2,6 +2,8 @@ class Promiscuous::Publisher::Operation::Ephemeral < Promiscuous::Publisher::Ope
   def initialize(options={})
     super
     @instance = options[:instance]
+    @routing = options[:routing]
+    @exchange = options[:exchange]
   end
 
   def instances
@@ -9,7 +11,7 @@ class Promiscuous::Publisher::Operation::Ephemeral < Promiscuous::Publisher::Ope
   end
 
   def execute_instrumented(query)
-    create_transport_batch([self]).publish(true)
+    create_transport_batch([self], :exchange => @exchange, :routing => @routing).publish(true)
   end
 
   def increment_version_in_document

@@ -16,11 +16,11 @@ class Promiscuous::Publisher::Transport::Batch
     batch
   end
 
-  def initialize
+  def initialize(options={})
     self.operations         = []
     self.payload_attributes = {}
-    self.exchange           = Promiscuous::Config.publisher_exchange
-    self.routing            = :*
+    self.exchange           = options[:exchange] || Promiscuous::Config.publisher_exchange
+    self.routing            = options[:routing]  || Promiscuous::Config.sync_all_routing
     self.timestamp          = Time.now
   end
 
