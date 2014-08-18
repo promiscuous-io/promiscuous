@@ -10,6 +10,8 @@ class Promiscuous::Publisher::Transport::Batch
     batch.id = id
     batch.timestamp = data['timestamp']
     batch.payload_attributes = data['payload_attributes']
+    batch.exchange = data['exchange']
+    batch.routing = data['routing']
 
     data['operations'].each { |op_data| batch.operations << Operation.load(op_data) }
 
@@ -83,7 +85,9 @@ class Promiscuous::Publisher::Transport::Batch
     {
       :operations => self.operations.map(&:dump),
       :payload_attributes => self.payload_attributes,
-      :timestamp => self.timestamp
+      :timestamp => self.timestamp,
+      :exchange => self.exchange,
+      :routing => self.routing
     })
   end
 

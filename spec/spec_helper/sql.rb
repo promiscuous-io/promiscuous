@@ -29,7 +29,7 @@ class PromiscuousMigration < ActiveRecord::Migration
       end
 
       create_table :_promiscuous, :force => true do |t|
-        t.string    :batch
+        t.text      :batch
         t.column    :at, 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP'
       end
     end
