@@ -44,7 +44,7 @@ class Promiscuous::Publisher::Transport::Batch
     begin
       if self.operations.present?
         Promiscuous::AMQP.publish(:exchange => self.exchange,
-                                  :key => self.routing,
+                                  :key => self.routing.to_s,
                                   :payload => self.payload,
                                   :on_confirm => method(:on_rabbitmq_confirm))
       else
