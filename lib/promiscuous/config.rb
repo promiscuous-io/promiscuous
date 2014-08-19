@@ -1,9 +1,9 @@
 module Promiscuous::Config
   mattr_accessor :app, :backend, :amqp_url,
                  :publisher_amqp_url, :subscriber_amqp_url, :publisher_exchange,
-                 :subscriber_exchanges, :queue_name, :queue_options,
+                 :subscriber_exchanges, :sync_exchange, :queue_name, :queue_options,
                  :redis_url, :redis_stats_url, :stats_interval,
-                 :socket_timeout, :heartbeat,
+                 :socket_timeout, :heartbeat, :sync_all_routing,
                  :prefetch, :recovery_timeout, :recovery_interval, :logger, :subscriber_threads,
                  :version_field, :error_notifier, :transport_collection,
                  :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval
@@ -40,7 +40,9 @@ module Promiscuous::Config
     self.publisher_amqp_url   ||= self.amqp_url
     self.subscriber_amqp_url  ||= self.amqp_url
     self.publisher_exchange   ||= Promiscuous::AMQP::LIVE_EXCHANGE
+    self.sync_exchange        ||= Promiscuous::AMQP::SYNC_EXCHANGE
     self.subscriber_exchanges ||= [Promiscuous::AMQP::LIVE_EXCHANGE]
+    self.sync_all_routing     ||= :__all__
     self.queue_name           ||= "#{self.app}.promiscuous"
     self.queue_options        ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.redis_url            ||= 'redis://localhost/'

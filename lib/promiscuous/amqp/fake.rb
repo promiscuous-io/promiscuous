@@ -20,7 +20,7 @@ class Promiscuous::AMQP::Fake
   end
 
   def publish(options={})
-    Promiscuous.debug "[publish (fake)] #{options[:exchange].try(:name) || "default"}/#{options[:key]} #{options[:payload]}"
+    Promiscuous.debug "[publish (fake)] #{options[:exchange] || "default"}/#{options[:key]} #{options[:payload]}"
     @messages << options
     options[:on_confirm].try(:call)
   end

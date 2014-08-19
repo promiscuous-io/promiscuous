@@ -23,7 +23,7 @@ module Promiscuous::Publisher::Model::Mongoid
   class PromiscuousMethods
     include Promiscuous::Publisher::Model::Base::PromiscuousMethodsBase
 
-    def sync(options={}, &block)
+    def sync(target)
       raise "Use promiscuous.sync on the parent instance" if @instance.embedded?
       super
     end

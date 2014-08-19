@@ -34,7 +34,7 @@ class Promiscuous::Publisher::Transport::Persistence::ActiveRecord
       raise <<-help
         Promiscuous requires the following migration to be run:
           create_table :_promiscuous do |t|
-            t.string    :batch
+            t.text      :batch
             t.timestamp :at, 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP'
           end
       help

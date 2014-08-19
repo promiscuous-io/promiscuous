@@ -1,25 +1,25 @@
 class Promiscuous::Publisher::Transport::Batch
-  attr_accessor :operations, :payload_attributes, :timestamp, :id
+  attr_accessor :operations, :payload_attributes, :timestamp, :id, :exchange, :routing
 
   SERIALIZER = MultiJson
 
   def self.load(id, dump)
-    data = SERIALIZER.load(dump)
+    data = SERIALIZER.load(dump).with_indifferent_access
 
-    batch = self.new
+    batch = self.new(data)
     batch.id = id
-    batch.timestamp = data['timestamp']
-    batch.payload_attributes = data['payload_attributes']
 
     data['operations'].each { |op_data| batch.operations << Operation.load(op_data) }
 
     batch
   end
 
-  def initialize
+  def initialize(options={})
     self.operations         = []
-    self.payload_attributes = {}
-    self.timestamp          = Time.now
+    self.payload_attributes = options[:payload_attributes] || {}
+    self.exchange           = options[:exchange]  || Promiscuous::Config.publisher_exchange
+    self.routing            = options[:routing]   || Promiscuous::Config.sync_all_routing
+    self.timestamp          = options[:timestamp] || Time.now
   end
 
   def add(type, instances)
@@ -39,7 +39,9 @@ class Promiscuous::Publisher::Transport::Batch
 
     begin
       if self.operations.present?
-        Promiscuous::AMQP.publish(:key => Promiscuous::Config.app, :payload => self.payload,
+        Promiscuous::AMQP.publish(:exchange => self.exchange,
+                                  :key => self.routing.to_s,
+                                  :payload => self.payload,
                                   :on_confirm => method(:on_rabbitmq_confirm))
       else
         on_rabbitmq_confirm
@@ -79,7 +81,9 @@ class Promiscuous::Publisher::Transport::Batch
     {
       :operations => self.operations.map(&:dump),
       :payload_attributes => self.payload_attributes,
-      :timestamp => self.timestamp
+      :timestamp => self.timestamp,
+      :exchange => self.exchange,
+      :routing => self.routing
     })
   end
 

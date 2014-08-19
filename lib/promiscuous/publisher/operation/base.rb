@@ -1,5 +1,5 @@
 class Promiscuous::Publisher::Operation::Base
-  attr_accessor :operation, :recovering
+  attr_accessor :operation, :recovering, :routing, :exchange
 
   def initialize(options={})
     @operation = options[:operation]
@@ -44,8 +44,8 @@ class Promiscuous::Publisher::Operation::Base
     "Unknown database operation"
   end
 
-  def create_transport_batch(operations)
-    Promiscuous::Publisher::Transport::Batch.new.tap do |batch|
+  def create_transport_batch(operations, options={})
+    Promiscuous::Publisher::Transport::Batch.new(options).tap do |batch|
       operations.map do |operation|
         batch.add operation.operation, operation.instances
       end

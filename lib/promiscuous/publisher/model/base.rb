@@ -40,12 +40,15 @@ module Promiscuous::Publisher::Model::Base
       @instance.id
     end
 
-    def sync(options={}, &block)
+    def sync(target)
       raise "Model cannot be dirty (have changes) when syncing" if @instance.changed?
       raise "Model has to be reloaded if it was saved" if @instance.previous_changes.present?
 
       # We can use the ephemeral because both are mongoid and ephemerals are atomic operations.
-      Promiscuous::Publisher::Operation::Ephemeral.new(:instance => @instance, :operation => :update).execute
+      Promiscuous::Publisher::Operation::Ephemeral.new(:instance => @instance,
+                                                       :operation => :update,
+                                                       :routing => target,
+                                                       :exchange => Promiscuous::Config.sync_exchange).execute
     end
 
   end

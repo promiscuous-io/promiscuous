@@ -3,6 +3,7 @@ module Promiscuous::AMQP
   autoload :HotBunnies, :Bunny, :Null, :Fake, :File
 
   LIVE_EXCHANGE = 'promiscuous'
+  SYNC_EXCHANGE = 'promiscuous.sync'
 
   class << self
     attr_accessor :backend
