@@ -55,7 +55,7 @@ class Promiscuous::CLI
       bar = ProgressBar.create(:format => '%t |%b>%i| %c/%C %e', :title => title, :total => criteria.count)
       criteria.each do |doc|
         break if @stop
-        doc.promiscuous.sync
+        doc.promiscuous.sync(Promiscuous::Config.sync_all_routing)
         bar.increment
       end
     end
