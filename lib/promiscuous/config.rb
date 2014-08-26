@@ -5,7 +5,7 @@ module Promiscuous::Config
                  :redis_url, :redis_stats_url, :stats_interval, :error_queue_name,
                  :socket_timeout, :heartbeat, :sync_all_routing, :rabbit_mgmt_url,
                  :prefetch, :recovery_timeout, :recovery_interval, :logger, :subscriber_threads,
-                 :version_field, :error_notifier, :transport_collection,
+                 :version_field, :error_notifier, :transport_collection, :queue_policy,
                  :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval,
                  :error_exchange, :error_routing, :retry_routing, :error_ttl
 
@@ -51,7 +51,8 @@ module Promiscuous::Config
     self.error_routing        ||= :__error__
     self.retry_routing        ||= :__retry__
     self.error_ttl            ||= 30000
-    self.queue_options        ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
+    self.queue_policy         ||= { 'ha-mode' => 'all' }
+    self.queue_options        ||= { :durable => true }
     self.redis_url            ||= 'redis://localhost/'
     # TODO self.redis_slave_url ||= nil
     self.redis_stats_url      ||= self.redis_url
