@@ -9,10 +9,17 @@ class Promiscuous::Subscriber::Worker::Pump
   def connect
     options = {}
     options[:bindings] = {}
-    # We need to subscribe to everything to keep up with the version tracking
+    # We need to subscribe to everything to keep routing simple
     Promiscuous::Config.subscriber_exchanges.each do |exchange|
       options[:bindings][exchange] = ['*']
     end
+
+    # Subscribe to the sync exchange to make syncing not require any command
+    # line ops
+    options[:bindings][Promiscuous::Config.sync_exchange] = [Promiscuous::Config.app, Promiscuous::Config.sync_all_routing]
+
+    # Subscribe to the error exchange but only to retries
+    options[:bindings][Promiscuous::Config.error_exchange] = [Promiscuous::Config.retry_routing]
 
     subscribe(options, &method(:on_message))
   end

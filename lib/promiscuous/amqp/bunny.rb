@@ -54,7 +54,8 @@ class Promiscuous::AMQP::Bunny
 
   def connect
     connection_options = { :url       => Promiscuous::Config.publisher_amqp_url,
-                           :exchanges => [Promiscuous::Config.publisher_exchange, Promiscuous::Config.sync_exchange],
+                           :exchanges => [Promiscuous::Config.publisher_exchange,
+                                          Promiscuous::Config.sync_exchange],
                            :confirm   => true }
     @connection, @channel, @exchanges = new_connection(connection_options)
   end
@@ -108,14 +109,16 @@ class Promiscuous::AMQP::Bunny
       @lock = Mutex.new
       @prefetch = Promiscuous::Config.prefetch
 
-      options[:bindings][Promiscuous::Config.sync_exchange] = [Promiscuous::Config.app, Promiscuous::Config.sync_all_routing]
+      configure_rabbit
 
       connection_options = { :url       => Promiscuous::Config.subscriber_amqp_url,
                              :exchanges => options[:bindings].keys,
                              :prefetch  => @prefetch }
       @connection, @channel, exchanges = Promiscuous::AMQP.new_connection(connection_options)
 
-      @queue = @channel.queue(Promiscuous::Config.queue_name, Promiscuous::Config.queue_options)
+      create_queues(@channel)
+
+      # Main queue binding
       exchanges.keys.zip(options[:bindings].values).each do |exchange, bindings|
         bindings.each do |binding|
           @queue.bind(exchange, :routing_key => binding)
@@ -123,13 +126,53 @@ class Promiscuous::AMQP::Bunny
         end
       end
 
+      # Error queue binding
+      @error_queue.bind(Promiscuous::Config.error_exchange, :routing_key => Promiscuous::Config.error_routing)
+
       @subscription = subscribe_queue(@queue, &block)
+    end
+
+    def configure_rabbit
+      Promiscuous::Rabbit::Policy.set Promiscuous::Config.queue_name,
+        {
+        "pattern"    => Promiscuous::Config.queue_name,
+        "apply-to"   => "queues",
+        "definition" =>
+          {
+            "dead-letter-routing-key" => Promiscuous::Config.retry_routing,
+            "dead-letter-exchange"    => Promiscuous::Config.error_exchange
+          }
+        }
+
+     Promiscuous::Rabbit::Policy.set Promiscuous::Config.error_queue_name,
+       {
+       "pattern"     => Promiscuous::Config.error_queue_name,
+       "apply-to"    => "queues",
+       "definition"  =>
+         {
+           "message-ttl" => Promiscuous::Config.error_ttl,
+           "dead-letter-routing-key" => Promiscuous::Config.error_routing,
+           "dead-letter-exchange" => Promiscuous::Config.error_exchange
+         }
+       }
     end
 
     def subscribe_queue(queue, &block)
       queue.subscribe(:ack => true) do |delivery_info, metadata, payload|
         block.call(MetaData.new(self, delivery_info), payload)
       end
+    end
+
+    def create_queues(channel)
+      @queue       = channel.queue(Promiscuous::Config.queue_name,
+                                   Promiscuous::Config.queue_options)
+
+      @error_queue = channel.queue(Promiscuous::Config.error_queue_name,
+                                   Promiscuous::Config.queue_options)
+    end
+
+    def delete_queues
+      [@error_queue, @queue].each { |queue| queue.try(:delete) }
     end
 
     class MetaData
@@ -142,8 +185,8 @@ class Promiscuous::AMQP::Bunny
         @subscriber.ack_message(@delivery_info.delivery_tag)
       end
 
-      def postpone
-        @subscriber.postpone_message
+      def nack
+        @subscriber.nack_message(@delivery_info.delivery_tag)
       end
     end
 
@@ -151,13 +194,8 @@ class Promiscuous::AMQP::Bunny
       @lock.synchronize { @channel.ack(tag) } if @channel
     end
 
-    def postpone_message
-      # Not using nacks, because the message gets sent back right away so this
-      # is a no-op.
-
-      # TODO: Even though the prefetch window is set to 10mil we should still
-      # check that the unacked messages doesn't exceed this limit and increase
-      # the prefetch window.
+    def nack_message(tag)
+      @lock.synchronize { @channel.nack(tag) } if @channel
     end
 
     def recover

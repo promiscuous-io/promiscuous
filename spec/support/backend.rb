@@ -12,6 +12,7 @@ module BackendHelper
       config.destroy_timeout = 0
       config.destroy_check_interval = 0
       config.max_retries = 0
+      config.rabbit_mgmt_url = rabbit_mgmt_url
       block.call(config) if block
     end
     Promiscuous.connect
@@ -28,6 +29,8 @@ module BackendHelper
     end
     Promiscuous.ensure_connected
     Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it.
+    [Promiscuous::Config.queue_name, Promiscuous::Config.error_queue_name].each { |queue| Promiscuous::Rabbit::Policy.delete(queue) }
+
   end
 
   def run_subscriber_worker!
@@ -54,7 +57,7 @@ module BackendHelper
       config.backend = :fake
       block.call(config) if block
     end
-    Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it.
+    Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it
   end
 
   private
@@ -66,10 +69,15 @@ module BackendHelper
   def amqp_url
     ENV['BOXEN_RABBITMQ_URL'] || 'amqp://guest:guest@localhost:5672'
   end
+
+  def rabbit_mgmt_url
+    ENV['BOXEN_RABBITMQ_MGMT_URL'] || 'http://guest:guest@localhost:15672'
+  end
 end
 
 RSpec.configure do |config|
   config.after do
+    @worker.try { |worker| worker.pump.delete_queues }
     [@recovery_worker, @worker].compact.each do |worker|
       worker.stop
       worker = nil

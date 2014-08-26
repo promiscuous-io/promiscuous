@@ -47,5 +47,8 @@ class Promiscuous::AMQP::Fake
 
     def disconnect
     end
+
+    def delete_queues
+    end
   end
 end

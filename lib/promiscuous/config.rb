@@ -2,11 +2,12 @@ module Promiscuous::Config
   mattr_accessor :app, :backend, :amqp_url,
                  :publisher_amqp_url, :subscriber_amqp_url, :publisher_exchange,
                  :subscriber_exchanges, :sync_exchange, :queue_name, :queue_options,
-                 :redis_url, :redis_stats_url, :stats_interval,
-                 :socket_timeout, :heartbeat, :sync_all_routing,
+                 :redis_url, :redis_stats_url, :stats_interval, :error_queue_name,
+                 :socket_timeout, :heartbeat, :sync_all_routing, :rabbit_mgmt_url,
                  :prefetch, :recovery_timeout, :recovery_interval, :logger, :subscriber_threads,
                  :version_field, :error_notifier, :transport_collection,
-                 :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval
+                 :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval,
+                 :error_exchange, :error_routing, :retry_routing, :error_ttl
 
   def self.backend=(value)
     @@backend = value
@@ -37,13 +38,19 @@ module Promiscuous::Config
     self.app                  ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
     self.backend              ||= best_amqp_backend
     self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
+    self.rabbit_mgmt_url      ||= 'http://guest:guest@localhost:15672'
     self.publisher_amqp_url   ||= self.amqp_url
     self.subscriber_amqp_url  ||= self.amqp_url
-    self.publisher_exchange   ||= Promiscuous::AMQP::LIVE_EXCHANGE
-    self.sync_exchange        ||= Promiscuous::AMQP::SYNC_EXCHANGE
-    self.subscriber_exchanges ||= [Promiscuous::AMQP::LIVE_EXCHANGE]
+    self.publisher_exchange   ||= 'promiscuous'
+    self.sync_exchange        ||= 'promiscuous.sync'
+    self.subscriber_exchanges ||= [self.publisher_exchange]
     self.sync_all_routing     ||= :__all__
-    self.queue_name           ||= "#{self.app}.promiscuous"
+    self.queue_name           ||= "#{self.app}.subscriber"
+    self.error_exchange       ||= "#{self.app}.error"
+    self.error_queue_name     ||= "#{self.app}.error"
+    self.error_routing        ||= :__error__
+    self.retry_routing        ||= :__retry__
+    self.error_ttl            ||= 30000
     self.queue_options        ||= {:durable => true, :arguments => {'x-ha-policy' => 'all'}}
     self.redis_url            ||= 'redis://localhost/'
     # TODO self.redis_slave_url ||= nil
