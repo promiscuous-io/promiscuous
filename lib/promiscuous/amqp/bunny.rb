@@ -134,7 +134,7 @@ class Promiscuous::AMQP::Bunny
 
     def configure_rabbit
       policy = {
-        "dead-letter-routing-key" => Promiscuous::Config.retry_routing,
+        "dead-letter-routing-key" => Promiscuous::Config.error_routing,
         "dead-letter-exchange"    => Promiscuous::Config.error_exchange
       }.merge(Promiscuous::Config.queue_policy)
 
@@ -147,7 +147,7 @@ class Promiscuous::AMQP::Bunny
 
      policy = {
        "message-ttl" => Promiscuous::Config.error_ttl,
-       "dead-letter-routing-key" => Promiscuous::Config.error_routing,
+       "dead-letter-routing-key" => Promiscuous::Config.retry_routing,
        "dead-letter-exchange" => Promiscuous::Config.error_exchange
      }.merge(Promiscuous::Config.queue_policy)
      Promiscuous::Rabbit::Policy.set Promiscuous::Config.error_queue_name,

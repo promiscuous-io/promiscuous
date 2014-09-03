@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models }
-  before { use_real_backend { |config| config.logger.level = Logger::FATAL; config.error_ttl = 10 } }
+  before { use_real_backend { |config| config.logger.level = Logger::FATAL; config.error_ttl = ttl } }
   before { run_subscriber_worker! }
   before { $raise = true }
 
@@ -18,15 +18,35 @@ describe Promiscuous do
       PublisherModel.create(:field_1 => 'value')
     end
 
-    it "retries when an exception is raised" do
-      sleep 1
+    context 'when the ttl is shorter then the subscriber is expected to receive the message' do
+      let(:ttl) { 10 }
 
-      SubscriberModel.count.should == 0
+      it "retries when an exception is raised" do
+        sleep 1
 
-      $raise = false
+        SubscriberModel.count.should == 0
 
-      eventually(:timeout => 5.seconds) do
-        SubscriberModel.count.should == 1
+        $raise = false
+
+        eventually(:timeout => 5.seconds) do
+          SubscriberModel.count.should == 1
+        end
+      end
+    end
+
+    context 'when the ttl is longer then the subscriber is expected to receive the message' do
+      let(:ttl) { 99999 }
+
+      it "retries when an exception is raised" do
+        sleep 1
+
+        SubscriberModel.count.should == 0
+
+        $raise = false
+
+        sleep 1
+
+        SubscriberModel.count.should == 0
       end
     end
   end
