@@ -2,7 +2,9 @@ require 'spec_helper'
 
 describe Promiscuous do
   before { load_models }
-  before { use_real_backend { |config| config.logger.level = Logger::FATAL; config.error_ttl = ttl } }
+  before { use_real_backend { |config| config.logger.level = Logger::FATAL
+                                       config.error_ttl = ttl
+                                       config.error_notifier = proc { $error = true } } }
   before { run_subscriber_worker! }
   before { $raise = true }
 
@@ -21,10 +23,11 @@ describe Promiscuous do
     context 'when the ttl is shorter then the subscriber is expected to receive the message' do
       let(:ttl) { 10 }
 
-      it "retries when an exception is raised" do
+      it "retries when an exception is raised and notifies" do
         sleep 1
 
         SubscriberModel.count.should == 0
+        $error.should == true
 
         $raise = false
 
@@ -37,10 +40,11 @@ describe Promiscuous do
     context 'when the ttl is longer then the subscriber is expected to receive the message' do
       let(:ttl) { 99999 }
 
-      it "retries when an exception is raised" do
+      it "doesn't retry when an exception is raised as its shorter then the ttl" do
         sleep 1
 
         SubscriberModel.count.should == 0
+        $error.should == true
 
         $raise = false
 

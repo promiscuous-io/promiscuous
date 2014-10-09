@@ -38,7 +38,8 @@ class Promiscuous::Subscriber::UnitOfWork
   def process_message
     begin
       on_message
-    rescue Exception
+    rescue Exception => e
+      Promiscuous::Config.error_notifier.call(e)
       message.nack
     end
   end
