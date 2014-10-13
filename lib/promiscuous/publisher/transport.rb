@@ -5,7 +5,7 @@ class Promiscuous::Publisher::Transport
   def self.persistence
     unless @persistence_key == Promiscuous::Config.transport_persistence
       fix_inflections
-      @persistence = self.const_get("Persistence::#{Promiscuous::Config.transport_persistence.to_s.classify}").new
+      @persistence = Persistence.const_get(Promiscuous::Config.transport_persistence.to_s.classify).new
       @persistence_key = Promiscuous::Config.transport_persistence
     end
     @persistence

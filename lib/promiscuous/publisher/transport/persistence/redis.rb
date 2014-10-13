@@ -1,5 +1,4 @@
 class Promiscuous::Publisher::Transport::Persistence::Redis
-
   def save(batch)
     batch.id = SecureRandom.uuid
 
