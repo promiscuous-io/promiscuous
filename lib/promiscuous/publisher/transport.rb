@@ -2,13 +2,20 @@ class Promiscuous::Publisher::Transport
   extend Promiscuous::Autoload
   autoload :Batch, :Worker, :Persistence
 
-  class_attribute :persistence
+  def self.persistence
+    unless @persistence_key == Promiscuous::Config.transport_persistence
+      fix_inflections
+      @persistence = self.const_get("Persistence::#{Promiscuous::Config.transport_persistence.to_s.classify}").new
+      @persistence_key = Promiscuous::Config.transport_persistence
+    end
+    @persistence
+  end
 
-  if defined?(Mongoid::Document)
-    self.persistence = Persistence::Mongoid.new
-  elsif defined?(ActiveRecord::Base)
-    self.persistence = Persistence::ActiveRecord.new
-  else
-    raise "Either Mongoid or ActiveRecord support required"
+  private
+
+  def self.fix_inflections
+    ActiveSupport::Inflector.inflections do |inflect|
+      inflect.uncountable "redis"
+    end
   end
 end

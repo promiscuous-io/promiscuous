@@ -159,7 +159,7 @@ class Promiscuous::AMQP::Bunny
     end
 
     def subscribe_queue(queue, &block)
-      queue.subscribe(:ack => true) do |delivery_info, metadata, payload|
+      queue.subscribe(:manual_ack => true) do |delivery_info, metadata, payload|
         block.call(MetaData.new(self, delivery_info), payload)
       end
     end

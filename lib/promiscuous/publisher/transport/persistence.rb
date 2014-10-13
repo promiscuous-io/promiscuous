@@ -1,6 +1,6 @@
 class Promiscuous::Publisher::Transport::Persistence
   extend Promiscuous::Autoload
-  autoload :Mongoid, :ActiveRecord
+  autoload :Mongoid, :ActiveRecord, :Redis
 
   def save(batch)
     # Implemented by subclasses

@@ -7,7 +7,7 @@ module Promiscuous::Config
                  :prefetch, :recovery_timeout, :recovery_interval, :logger, :subscriber_threads,
                  :version_field, :error_notifier, :transport_collection, :queue_policy,
                  :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval,
-                 :error_exchange, :error_routing, :retry_routing, :error_ttl
+                 :error_exchange, :error_routing, :retry_routing, :error_ttl, :transport_persistence
 
   def self.backend=(value)
     @@backend = value
@@ -29,6 +29,14 @@ module Promiscuous::Config
       end
     else
       :bunny
+    end
+  end
+
+  def self.best_transport_persistence
+    if defined?(Mongoid::Document)
+      self.transport_persistence = :mongoid
+    elsif defined?(ActiveRecord::Base)
+      self.transport_persistence = :active_record
     end
   end
 
@@ -72,6 +80,7 @@ module Promiscuous::Config
     self.generation           ||= 0
     self.destroy_timeout      ||= 1.hour
     self.destroy_check_interval ||= 10.minutes
+    self.transport_persistence ||= best_transport_persistence
   end
 
   def self.configure(&block)
