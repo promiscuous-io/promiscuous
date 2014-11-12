@@ -5,7 +5,7 @@ module Promiscuous::Config
                  :redis_url, :redis_stats_url, :stats_interval, :error_queue_name,
                  :socket_timeout, :heartbeat, :sync_all_routing, :rabbit_mgmt_url,
                  :prefetch, :recovery_timeout, :recovery_interval, :logger, :subscriber_threads,
-                 :version_field, :error_notifier, :transport_collection, :queue_policy,
+                 :version_field, :error_notifier, :transport_collection, :queue_policy, :test_mode,
                  :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval,
                  :error_exchange, :error_routing, :retry_routing, :error_ttl, :transport_persistence
 
@@ -81,6 +81,15 @@ module Promiscuous::Config
     self.destroy_timeout      ||= 1.hour
     self.destroy_check_interval ||= 10.minutes
     self.transport_persistence ||= best_transport_persistence
+    self.test_mode            = set_test_mode
+  end
+
+  def self.set_test_mode
+    if self.test_mode.nil?
+      defined?(Rails) ? Rails.env.test? ? true : false : false
+    else
+      self.test_mode
+    end
   end
 
   def self.configure(&block)

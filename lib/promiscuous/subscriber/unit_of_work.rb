@@ -41,6 +41,7 @@ class Promiscuous::Subscriber::UnitOfWork
     rescue Exception => e
       Promiscuous::Config.error_notifier.call(e)
       message.nack
+      raise e if Promiscuous::Config.test_mode
     end
   end
 

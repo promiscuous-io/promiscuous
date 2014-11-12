@@ -49,6 +49,8 @@ describe Promiscuous do
   it "can sync to all subscribers" do
     pub_create = PublisherModel.create
 
+    eventually { SubscriberModel.first.field_1.should == nil }
+
     without_promiscuous { pub_create.update_attributes(:field_1 => 'hello') }
 
     PublisherModel.find(pub_create.id).promiscuous.sync(Promiscuous::Config.sync_all_routing)

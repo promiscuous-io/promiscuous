@@ -42,11 +42,13 @@ DatabaseCleaner.strategy = :truncation
 
 RSpec.configure do |config|
   config.before(:each) do
-    DatabaseCleaner.start
+    Promiscuous.without_promiscuous do
+      DatabaseCleaner.clean
+      DatabaseCleaner.start
+    end
   end
 
   config.after(:each) do
-    without_promiscuous { DatabaseCleaner.clean }
     ActiveRecord::Base.connection_pool.disconnect!
   end
 end
