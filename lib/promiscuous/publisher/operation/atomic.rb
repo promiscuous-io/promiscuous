@@ -14,7 +14,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     end
 
     transport_batch = create_transport_batch([self])
-    transport_batch.prepare
+    transport_batch.lock
 
     query.call_and_remember_result(:instrumented)
 

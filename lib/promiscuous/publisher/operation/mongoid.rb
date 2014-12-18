@@ -130,6 +130,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     end
   end
 
+  # XXX Should not be needed
   class PromiscuousReadOperation < Promiscuous::Publisher::Operation::NonPersistent
     include Moped::PromiscuousQueryWrapper::PromiscuousHelpers
 

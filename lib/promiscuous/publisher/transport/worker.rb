@@ -1,8 +1,4 @@
 class Promiscuous::Publisher::Transport::Worker
-  def initialize
-    @persistence = Promiscuous::Publisher::Transport.persistence
-  end
-
   def start
     @thread ||= Thread.new { main_loop }
   end
@@ -20,18 +16,31 @@ class Promiscuous::Publisher::Transport::Worker
 
         break if @stop
 
-        @persistence.expired.each do |id, attributes|
-          batch = Promiscuous::Publisher::Transport::Batch.load(id, attributes)
-          batch.publish
-          Promiscuous.info "[publish][recovery] #{id} recovered: #{attributes}"
+        Promiscuous::Publisher::Transport.expired.each do |lock|
+          transport_batch = Promiscuous::Publisher::Transport::Batch.new(:payload_attributes => lock.data[:payload_attributes])
+          transport_batch.add(lock.data[:type], [fetch_instance(lock.data)])
+          transport_batch.lock
+          transport_batch.publish
+          Promiscuous.info "[publish][recovery] #{lock.key} recovered"
         end
       rescue => e
-        puts e
+        puts e; puts e.backtrace.join("\n")
         Promiscuous::Config.error_notifier.call(e)
       end
     end
   ensure
     ActiveRecord::Base.clear_active_connections!
+  end
+
+  private
+
+  def fetch_instance(attrs)
+    klass = attrs[:class].constantize
+    if attrs[:type] == :destroy
+      klass.new.tap { |new_instance| new_instance.id = attrs[:id] }
+    else
+      klass.where(:id => attrs[:id]).first
+    end
   end
 end
 

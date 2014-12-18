@@ -16,7 +16,7 @@ module Promiscuous::Publisher::Model::Base
 
     def payload(options={})
       msg = {}
-      msg[:types] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+      msg[:types] = types
       msg[:id]    = @instance.id.to_s
       unless options[:with_attributes] == false
         # promiscuous_payload is useful to implement relays
@@ -51,6 +51,13 @@ module Promiscuous::Publisher::Model::Base
                                                        :exchange => Promiscuous::Config.sync_exchange).execute
     end
 
+    def types
+      @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+    end
+
+    def key
+      [Promiscuous::Config.app,types.first,id].join('/')
+    end
   end
 
   class PromiscuousMethods

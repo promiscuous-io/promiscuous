@@ -4,7 +4,7 @@ module Promiscuous::Config
                  :subscriber_exchanges, :sync_exchange, :queue_name, :queue_options,
                  :redis_url, :redis_stats_url, :stats_interval, :error_queue_name,
                  :socket_timeout, :heartbeat, :sync_all_routing, :rabbit_mgmt_url,
-                 :prefetch, :recovery_timeout, :recovery_interval, :logger, :subscriber_threads,
+                 :prefetch, :publisher_lock_expiration, :publisher_lock_timeout, :recovery_interval, :logger, :subscriber_threads,
                  :version_field, :error_notifier, :transport_collection, :queue_policy, :test_mode,
                  :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval,
                  :error_exchange, :error_routing, :retry_routing, :error_ttl, :transport_persistence
@@ -29,14 +29,6 @@ module Promiscuous::Config
       end
     else
       :bunny
-    end
-  end
-
-  def self.best_transport_persistence
-    if defined?(Mongoid::Document)
-      self.transport_persistence = :mongoid
-    elsif defined?(ActiveRecord::Base)
-      self.transport_persistence = :active_record
     end
   end
 
@@ -68,7 +60,8 @@ module Promiscuous::Config
     self.socket_timeout       ||= 10
     self.heartbeat            ||= 60
     self.prefetch             ||= 1000
-    self.recovery_timeout     ||= 10.seconds
+    self.publisher_lock_expiration ||= 10.seconds
+    self.publisher_lock_timeout ||= 1.seconds
     self.recovery_interval    ||= 5.seconds
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10
@@ -80,7 +73,6 @@ module Promiscuous::Config
     self.generation           ||= 0
     self.destroy_timeout      ||= 1.hour
     self.destroy_check_interval ||= 10.minutes
-    self.transport_persistence ||= best_transport_persistence
     self.test_mode            = set_test_mode
   end
 

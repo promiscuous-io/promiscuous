@@ -1,21 +1,15 @@
+require 'robust-redis-lock'
+
 class Promiscuous::Publisher::Transport
   extend Promiscuous::Autoload
-  autoload :Batch, :Worker, :Persistence
+  autoload :Batch, :Worker, :Lock
 
-  def self.persistence
-    unless @persistence_key == Promiscuous::Config.transport_persistence
-      fix_inflections
-      @persistence = Persistence.const_get(Promiscuous::Config.transport_persistence.to_s.classify).new
-      @persistence_key = Promiscuous::Config.transport_persistence
-    end
-    @persistence
+  def self.expired
+    Redis::Lock.expired(Promiscuous::Publisher::Transport::Lock::lock_options.merge(:redis => redis))
   end
 
-  private
-
-  def self.fix_inflections
-    ActiveSupport::Inflector.inflections do |inflect|
-      inflect.uncountable "redis"
-    end
+  def self.redis
+    Promiscuous.ensure_connected
+    Promiscuous::Redis.connection
   end
 end
