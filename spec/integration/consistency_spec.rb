@@ -49,6 +49,7 @@ describe Promiscuous do
       amqp_delayed!
 
       pub.update_attributes(:field_1 => '2')
+      purge_locks! # Message will be published anyway but we want to release the locks to test this case for the specs
 
       amqp_up!
 
@@ -74,6 +75,7 @@ describe Promiscuous do
       amqp_delayed!
 
       pub = PublisherModel.create(:field_1 => '1')
+      purge_locks! # Message will be published anyway but we want to release the locks to test this case for the specs
 
       amqp_up!
 
@@ -100,6 +102,7 @@ describe Promiscuous do
       amqp_delayed!
 
       pub = PublisherModel.create(:field_1 => '1')
+      purge_locks!
 
       amqp_up!
 
@@ -167,6 +170,7 @@ describe Promiscuous do
       amqp_down!
 
       pub.update_attributes(:field_1 => '2') # this payload will never be sent
+      purge_locks! # Message we want to release the locks to test the case where an update is lost
 
       amqp_up!
 
@@ -197,4 +201,8 @@ def define_callback(cb)
     cattr_accessor "#{cb}_instance"
     __send__("after_#{cb}", proc { self.class.send("#{cb}_instance=", self) })
   end
+end
+
+def purge_locks!
+  Promiscuous::Redis.connection.flushdb
 end

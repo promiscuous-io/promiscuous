@@ -16,20 +16,24 @@ class Promiscuous::Publisher::Transport::Worker
 
         break if @stop
 
-        Promiscuous::Publisher::Transport.expired.each do |lock|
-          transport_batch = Promiscuous::Publisher::Transport::Batch.new(:payload_attributes => lock.data[:payload_attributes])
-          transport_batch.add(lock.data[:type], [fetch_instance(lock.data)])
-          transport_batch.lock
-          transport_batch.publish
-          Promiscuous.info "[publish][recovery] #{lock.key} recovered"
-        end
-      rescue => e
-        puts e; puts e.backtrace.join("\n")
-        Promiscuous::Config.error_notifier.call(e)
+        recover
       end
     end
   ensure
     ActiveRecord::Base.clear_active_connections!
+  end
+
+  def recover
+    Promiscuous::Publisher::Transport.expired.each do |lock|
+      transport_batch = Promiscuous::Publisher::Transport::Batch.new(:payload_attributes => lock.data[:payload_attributes])
+      transport_batch.add(lock.data[:type], [fetch_instance(lock.data)])
+      transport_batch.lock
+      transport_batch.publish
+      Promiscuous.info "[publish][recovery] #{lock.key} recovered"
+    end
+  rescue => e
+    puts e; puts e.backtrace.join("\n")
+    Promiscuous::Config.error_notifier.call(e)
   end
 
   private
