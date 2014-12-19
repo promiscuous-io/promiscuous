@@ -83,8 +83,8 @@ class Promiscuous::AMQP::Bunny
 
     @connection_lock.synchronize do
       tag = @channel.next_publish_seq_no if options[:on_confirm]
-      raw_publish(options)
       @callback_mapping[tag] = options[:on_confirm] if options[:on_confirm]
+      raw_publish(options)
     end
   rescue Exception => e
     Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")

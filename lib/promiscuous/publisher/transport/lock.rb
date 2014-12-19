@@ -31,8 +31,12 @@ class Promiscuous::Publisher::Transport::Lock
     # MUST CHECK IF POSSIBLE TO LOCK IF ANY CAN'T THEN UNLOCK WHAT's BEEN LOCKED
     # AND RAISE
     @locks.each do |lock|
-      unless lock.lock
+      unless locked = lock.lock
         raise "Failed to lock"
+      else
+        unless locked == true
+          # NEED TO RECOVER
+        end
       end
     end
   end
@@ -50,8 +54,5 @@ class Promiscuous::Publisher::Transport::Lock
   def redis
     Promiscuous.ensure_connected
     Promiscuous::Redis.connection
-  end
-
-  def lock_options
   end
 end
