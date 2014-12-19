@@ -27,16 +27,15 @@ class Promiscuous::Publisher::Transport::Lock
                                   self.class.lock_options.merge(:redis => redis))
       end
 
-    # TODO: If recovered. Run recovery protocol.
-    # MUST CHECK IF POSSIBLE TO LOCK IF ANY CAN'T THEN UNLOCK WHAT's BEEN LOCKED
-    # AND RAISE
     @locks.each do |lock|
-      unless locked = lock.lock
-        raise "Failed to lock"
-      else
-        unless locked == true
-          # NEED TO RECOVER
-        end
+      case lock.lock
+      when true
+        # All good
+      when false
+        # UNLOCK WHAT's BEEN LOCKED AND RAISE
+      when :recovered
+        puts "HERE"
+        # RECOVER
       end
     end
   end
