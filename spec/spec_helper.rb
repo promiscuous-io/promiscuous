@@ -38,6 +38,8 @@ RSpec.configure do |config|
   config.include DependencyHelper
   config.include MocksHelper
 
+  I18n.enforce_available_locales = false
+
   config.after { Promiscuous::Loader.cleanup }
 end
 

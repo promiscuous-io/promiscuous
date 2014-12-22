@@ -5,9 +5,9 @@ module Promiscuous::Config
                  :redis_url, :redis_stats_url, :stats_interval, :error_queue_name,
                  :socket_timeout, :heartbeat, :sync_all_routing, :rabbit_mgmt_url,
                  :prefetch, :publisher_lock_expiration, :publisher_lock_timeout, :recovery_interval, :logger, :subscriber_threads,
-                 :version_field, :error_notifier, :transport_collection, :queue_policy, :test_mode,
+                 :version_field, :error_notifier, :queue_policy, :test_mode,
                  :on_stats, :max_retries, :generation, :destroy_timeout, :destroy_check_interval,
-                 :error_exchange, :error_routing, :retry_routing, :error_ttl, :transport_persistence
+                 :error_exchange, :error_routing, :retry_routing, :error_ttl
 
   def self.backend=(value)
     @@backend = value
@@ -67,7 +67,6 @@ module Promiscuous::Config
     self.subscriber_threads   ||= 10
     self.error_notifier       ||= proc {}
     self.version_field        ||= '_v'
-    self.transport_collection ||= '_promiscuous'
     self.on_stats             ||= proc { |rate, latency| }
     self.max_retries          ||= defined?(Rails) ? Rails.env.production? ? 10 : 0 : 10
     self.generation           ||= 0

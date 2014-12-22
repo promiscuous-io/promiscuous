@@ -13,19 +13,13 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
       increment_version_in_document
     end
 
-    transport_batch = create_transport_batch([self])
-    transport_batch.lock
+    lock_instances_and_queue_recovered_payloads
 
     query.call_and_remember_result(:instrumented)
 
-    unless operation == :destroy
-      # Refresh the operation on the batch to include the updated instance
-      # reflecting the executed operation so that we publish the correct data.
-      transport_batch.clear
-      transport_batch.add query.operation.operation, query.operation.instances
-    end
+    generate_instances_payload_and_queue(self.instances)
 
-    transport_batch.publish
+    publish_payloads_async
   end
 
   def increment_version_in_document

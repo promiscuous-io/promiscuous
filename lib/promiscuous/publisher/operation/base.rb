@@ -1,8 +1,11 @@
+require 'robust-redis-lock'
+
 class Promiscuous::Publisher::Operation::Base
-  attr_accessor :operation, :recovering, :routing, :exchange
+  attr_accessor :operation, :recovering, :routing, :exchange, :instances
 
   def initialize(options={})
     @operation = options[:operation]
+    @operation_payloads = [];  @locks = []
   end
 
   def record_timestamp
@@ -44,15 +47,115 @@ class Promiscuous::Publisher::Operation::Base
     "Unknown database operation"
   end
 
-  def create_transport_batch(operations, options={})
-    Promiscuous::Publisher::Transport::Batch.new(options).tap do |batch|
-      operations.map do |operation|
-        batch.add operation.operation, operation.instances
-      end
+  def payload_attributes
+    if current_user = Promiscuous.context.current_user
+      { :current_user_id => current_user.id }
+    else
+      {}
+    end
+  end
 
-      if current_user = Promiscuous.context.current_user
-        batch.payload_attributes = { :current_user_id => current_user.id }
+  def lock_instances_and_queue_recovered_payloads
+    instances.to_a.map { |instance| [instance.promiscuous.key, instance] }.
+      sort { |a,b| a[0] <=> b[0] }.each do |instance_key, instance|
+      lock_data = { :type               => self.operation,
+                    :payload_attributes => self.payload_attributes,
+                    :class              => instance.class.to_s,
+                    :id                 => instance.id.to_s }
+      # TODO use Key class
+      @locks << Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s,
+                                lock_data,
+                                lock_options.merge(:redis => redis))
+
+      @locks.each do |lock|
+        case lock.lock
+        when true
+          # All good
+        when false
+          unlock_all_locks
+          raise Promiscuous::Error::LockUnavailable.new(lock.key)
+        when :recovered
+          recover_for_lock(lock)
+          lock.extend
+        end
       end
     end
+  end
+
+  def recover_for_lock(lock)
+    generate_instances_payload_and_queue [fetch_instance_for_lock(lock)]
+  end
+
+  def fetch_instance_for_lock(lock)
+    klass = lock.data[:class].constantize
+    if lock.data[:type] == :destroy
+      klass.new.tap { |new_instance| new_instance.id = lock.data[:id] }
+    else
+      klass.where(:id => lock.data[:id]).first
+    end
+  end
+
+  def unlock_all_locks
+    @locks.each(&:unlock)
+  end
+
+  def generate_instances_payload_and_queue(instances)
+    @operation_payloads += instances.
+      map { |instance| instance.promiscuous.payload(:with_attributes => operation != :destroy).
+            merge(:operation => self.operation, :version => instance.attributes[Promiscuous::Config.version_field]) }
+  end
+
+  def publish_payloads_async(options={})
+    unlock_all_locks and return if @operation_payloads.blank?
+
+    exchange    = options[:exchange]  || Promiscuous::Config.publisher_exchange
+    routing     = options[:routing]   || Promiscuous::Config.sync_all_routing
+    raise_error = options[:raise_error].present? ? options[:raise_error] : false
+    timestamp   = options[:timestamp] || Time.now
+
+    payload              = {}
+    payload[:operations] = @operation_payloads
+    payload[:app]        = Promiscuous::Config.app
+    payload[:timestamp]  = timestamp
+    payload[:generation] = Promiscuous::Config.generation
+    payload[:host]       = Socket.gethostname
+    payload.merge!(self.payload_attributes)
+
+    begin
+      Promiscuous::AMQP.publish(:exchange => exchange.to_s,
+                                :key => routing.to_s,
+                                :payload => MultiJson.dump(payload),
+                                :on_confirm => method(:unlock_all_locks))
+    rescue Exception => e
+      Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
+      e = Promiscuous::Error::Publisher.new(e, :payload => payload)
+      Promiscuous::Config.error_notifier.call(e)
+
+      raise e.inner if raise_error
+    end
+  end
+
+  def self.expired
+    Redis::Lock.expired(lock_options.merge(:redis => redis))
+  end
+
+  def redis
+    self.class.redis
+  end
+
+  def self.redis
+    Promiscuous.ensure_connected
+    Promiscuous::Redis.connection
+  end
+
+  def self.lock_options
+    { :timeout => Promiscuous::Config.publisher_lock_timeout.seconds,
+      :sleep   => 0.01,
+      :expire  => Promiscuous::Config.publisher_lock_expiration.seconds,
+      :key_group => :pub }
+  end
+
+  def lock_options
+    self.class.lock_options
   end
 end

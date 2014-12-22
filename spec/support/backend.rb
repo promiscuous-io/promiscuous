@@ -41,7 +41,7 @@ module BackendHelper
 
   def run_recovery_worker!
     @recovery_worker.stop if @recovery_worker
-    @recovery_worker = Promiscuous::Publisher::Transport::Worker.new
+    @recovery_worker = Promiscuous::Publisher::Worker.new
     @recovery_worker.start
   end
 
