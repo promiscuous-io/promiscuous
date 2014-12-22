@@ -32,10 +32,11 @@ class Promiscuous::Publisher::Transport::Lock
       when true
         # All good
       when false
-        # UNLOCK WHAT's BEEN LOCKED AND RAISE
+        unlock
+        raise Promiscuous::Error::LockUnavailable.new(lock.key)
       when :recovered
-        puts "HERE"
-        # RECOVER
+        Promiscuous::Publisher::Transport::Worker.new.recover_expired(lock, false)
+        lock.extend
       end
     end
   end

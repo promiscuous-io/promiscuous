@@ -115,13 +115,13 @@ describe Promiscuous do
       end
       before do
         amqp_down!
-        @pub = PublisherModel.create
+        @pub = PublisherModel.create(:field_1 => 1)
         sleep 1
         amqp_up!
       end
 
       it "a subsequent operation on the same object publishes the previous state of the database" do
-        @pub.update_attributes(:field_1 => 2)
+        @pub.update_attributes(:field_2 => 2)
 
         eventually { $callback_counter.should == 2 }
       end

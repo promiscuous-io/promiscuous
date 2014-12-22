@@ -7,7 +7,7 @@ module BackendHelper
       config.redis_url = redis_url
       config.queue_options = {:auto_delete => true}
       config.logger = Logger.new(STDERR)
-      config.logger.level = ENV["LOGGER_LEVEL"] ? ENV["LOGGER_LEVEL"].to_i : Logger::WARN
+      config.logger.level = ENV["LOGGER_LEVEL"] ? ENV["LOGGER_LEVEL"].to_i : Logger::ERROR
       config.stats_interval = 0
       config.destroy_timeout = 0
       config.destroy_check_interval = 0

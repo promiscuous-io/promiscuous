@@ -25,12 +25,20 @@ class Promiscuous::Publisher::Transport::Worker
 
   def recover
     Promiscuous::Publisher::Transport.expired.each do |lock|
-      transport_batch = Promiscuous::Publisher::Transport::Batch.new(:payload_attributes => lock.data[:payload_attributes])
-      transport_batch.add(lock.data[:type], [fetch_instance(lock.data)])
-      transport_batch.lock
-      transport_batch.publish
-      Promiscuous.info "[publish][recovery] #{lock.key} recovered"
+      recover_expired(lock)
     end
+  end
+
+  def recover_expired(lock, take_lock=true)
+    transport_batch = Promiscuous::Publisher::Transport::Batch.new(:payload_attributes => lock.data[:payload_attributes])
+    transport_batch.add(lock.data[:type], [fetch_instance(lock.data)])
+    if take_lock
+      transport_batch.lock
+    end
+    transport_batch.publish
+    Promiscuous.info "[publish][recovery] #{lock.key} recovered"
+  rescue Promiscuous::Error::LockUnavailable => e
+    # this is expected from within recovery
   rescue => e
     puts e; puts e.backtrace.join("\n")
     Promiscuous::Config.error_notifier.call(e)
