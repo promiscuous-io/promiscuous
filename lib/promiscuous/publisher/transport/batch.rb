@@ -21,7 +21,7 @@ class Promiscuous::Publisher::Transport::Batch
     @lock = Promiscuous::Publisher::Transport::Lock.new(self)
   end
 
-  def publish(raise_error=false)
+  def publish(raise_error=false, async=true)
     Promiscuous::AMQP.ensure_connected
 
     begin

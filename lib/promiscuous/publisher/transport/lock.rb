@@ -30,11 +30,14 @@ class Promiscuous::Publisher::Transport::Lock
     @locks.each do |lock|
       case lock.lock
       when true
+        puts "LOCK"
         # All good
       when false
+        puts "NOPE"
         unlock
         raise Promiscuous::Error::LockUnavailable.new(lock.key)
       when :recovered
+        puts "RECOVERED"
         Promiscuous::Publisher::Transport::Worker.new.recover_expired(lock, false)
         lock.extend
       end

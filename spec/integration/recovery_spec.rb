@@ -126,5 +126,23 @@ describe Promiscuous do
         eventually { $callback_counter.should == 2 }
       end
     end
+
+    context "when a lock is recovered" do
+      let(:lock_expiration) { 1 }
+
+      before do
+        amqp_down!
+        @pub = PublisherModel.create(:field_1 => 1)
+        amqp_up!
+        sleep 1
+        amqp_slow!(1.second)
+        @pub.update_attributes(:field_2 => 2) # lock recovered
+      end
+
+      it "extends the lock and prevents subsequent operations from recovering" do
+        sleep 1.1
+        expect { @pub.update_attributes(:field_3 => 1) }.to raise_error
+      end
+    end
   end
 end

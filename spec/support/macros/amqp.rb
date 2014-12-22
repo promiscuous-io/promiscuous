@@ -30,6 +30,17 @@ module AMQPMacro
     Promiscuous::AMQP.backend.delayed.each { |args| Promiscuous::AMQP.backend.publish(*args) }
   end
 
+  def amqp_slow!(delay)
+    prepare
+
+    Promiscuous::AMQP.backend.class_eval do
+      def publish(*args)
+        sleep delay
+        orig_publish(*args)
+      end
+    end
+  end
+
   private
 
   def prepare
