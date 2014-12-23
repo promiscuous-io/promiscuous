@@ -4,7 +4,7 @@ class Promiscuous::Publisher::Operation::Recovery < Promiscuous::Publisher::Oper
 
     lock_instances_and_queue_recovered_payloads
 
-    generate_instances_payload_and_queue
+    queue_instance_payloads
 
     publish_payloads_async
   end

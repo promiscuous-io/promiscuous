@@ -83,7 +83,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def recover_for_lock(lock)
-    generate_instances_payload_and_queue [fetch_instance_for_lock(lock)]
+    queue_instance_payloads [fetch_instance_for_lock(lock)]
   end
 
   def fetch_instance_for_lock(lock)
@@ -99,7 +99,7 @@ class Promiscuous::Publisher::Operation::Base
     @locks.each(&:unlock)
   end
 
-  def generate_instances_payload_and_queue(instances=self.instances)
+  def queue_instance_payloads(instances=self.instances)
     @operation_payloads += instances.
       map { |instance| instance.promiscuous.payload(:with_attributes => operation != :destroy).
             merge(:operation => self.operation, :version => instance.attributes[Promiscuous::Config.version_field]) }

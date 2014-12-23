@@ -7,7 +7,7 @@ class Promiscuous::Publisher::Operation::Ephemeral < Promiscuous::Publisher::Ope
   end
 
   def execute_instrumented(query)
-    generate_instances_payload_and_queue
+    queue_instance_payloads
     publish_payloads_async(:exchange => @exchange, :routing => @routing, :raise_error => true)
   end
 
