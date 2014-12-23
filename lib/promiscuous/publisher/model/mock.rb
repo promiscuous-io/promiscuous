@@ -23,14 +23,11 @@ module Promiscuous::Publisher::Model::Mock
   end
 
   def save_operation(operation)
-    payload = nil
-
-    op = Promiscuous::Publisher::Operation::Ephemeral.new(:instance => self, :operation => operation)
     # TODO FIX the mocks to populate app name, also we need to hook before the
     # json dump.
-    batch = op.create_transport_batch([op])
-
-    message = Promiscuous::Subscriber::Message.new(batch.payload)
+    op = Promiscuous::Publisher::Operation::Ephemeral.new(:instance => self, :operation => operation)
+    op.generate_instances_payload_and_queue
+    message = Promiscuous::Subscriber::Message.new(op.payload)
     Promiscuous::Subscriber::UnitOfWork.process(message)
   end
 

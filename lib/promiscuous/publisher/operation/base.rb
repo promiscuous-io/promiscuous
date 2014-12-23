@@ -99,10 +99,21 @@ class Promiscuous::Publisher::Operation::Base
     @locks.each(&:unlock)
   end
 
-  def generate_instances_payload_and_queue(instances)
+  def generate_instances_payload_and_queue(instances=self.instances)
     @operation_payloads += instances.
       map { |instance| instance.promiscuous.payload(:with_attributes => operation != :destroy).
             merge(:operation => self.operation, :version => instance.attributes[Promiscuous::Config.version_field]) }
+  end
+
+  def payload
+    payload              = {}
+    payload[:operations] = @operation_payloads
+    payload[:app]        = Promiscuous::Config.app
+    payload[:timestamp]  = Time.now
+    payload[:generation] = Promiscuous::Config.generation
+    payload[:host]       = Socket.gethostname
+    payload.merge!(self.payload_attributes)
+    MultiJson.dump(payload)
   end
 
   def publish_payloads_async(options={})
@@ -111,20 +122,11 @@ class Promiscuous::Publisher::Operation::Base
     exchange    = options[:exchange]  || Promiscuous::Config.publisher_exchange
     routing     = options[:routing]   || Promiscuous::Config.sync_all_routing
     raise_error = options[:raise_error].present? ? options[:raise_error] : false
-    timestamp   = options[:timestamp] || Time.now
-
-    payload              = {}
-    payload[:operations] = @operation_payloads
-    payload[:app]        = Promiscuous::Config.app
-    payload[:timestamp]  = timestamp
-    payload[:generation] = Promiscuous::Config.generation
-    payload[:host]       = Socket.gethostname
-    payload.merge!(self.payload_attributes)
 
     begin
       Promiscuous::AMQP.publish(:exchange => exchange.to_s,
                                 :key => routing.to_s,
-                                :payload => MultiJson.dump(payload),
+                                :payload => payload,
                                 :on_confirm => method(:unlock_all_locks))
     rescue Exception => e
       Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")

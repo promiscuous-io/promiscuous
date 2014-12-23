@@ -17,7 +17,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
 
     query.call_and_remember_result(:instrumented)
 
-    generate_instances_payload_and_queue(self.instances)
+    generate_instances_payload_and_queue
 
     publish_payloads_async
   end
