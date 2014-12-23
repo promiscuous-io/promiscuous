@@ -3,10 +3,9 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
 
   def initialize(options={})
     super
-    @operation = :commit
-    @transaction_operations = options[:transaction_operations].to_a
     @transaction_id = options[:transaction_id]
-    @operation_payloads = options[:operation_payloads]
+    @operation_name = :commit
+    @transaction_operations = options[:transaction_operations].to_a
   end
 
   def pending_writes
@@ -20,12 +19,17 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
     super && !pending_writes.empty?
   end
 
+  def operations
+    @transaction_operations
+  end
+
   def execute_instrumented(query)
-    transport_batch = create_transport_batch(@transaction_operations)
-    transport_batch.prepare
+    lock_operations_and_queue_recovered_payloads
 
     query.call_and_remember_result(:instrumented)
 
-    transport_batch.publish
+    queue_operation_payloads
+
+    publish_payloads_async
   end
 end

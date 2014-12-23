@@ -17,13 +17,12 @@ if ORM.has(:transaction)
           PublisherModel.create(:field_1 => '1')
           PublisherModel.create(:field_1 => 'raise')
         end
-        PublisherModel.create(:field_1 => '2')
       end
 
-      it 'does not replicate any of the opertations that were part of the transaction' do
+      it 'only that operaiton fails and others that were part of the transaction succceed (lose atomicity)' do
         eventually do
-          SubscriberModel.first.field_1.should == '2'
           SubscriberModel.count.should == 1
+          SubscriberModel.first.field_1.should == '1'
         end
       end
     end

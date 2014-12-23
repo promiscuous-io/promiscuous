@@ -1,12 +1,12 @@
 require 'robust-redis-lock'
 
 class Promiscuous::Publisher::Operation::Base
-  attr_accessor :operation_name, :recovering, :routing, :exchange, :operations, :instance
+  attr_accessor :operation_name, :recovering, :routing, :exchange, :instance
 
   def initialize(options={})
     @operation_name = options[:operation_name]
     @instance       = options[:instance]
-    @operation_payloads = [];  @locks = []
+    @operation_payloads = {};  @locks = []
   end
 
   def operations
@@ -70,24 +70,26 @@ class Promiscuous::Publisher::Operation::Base
       @locks << Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s,
                                 lock_data,
                                 lock_options.merge(:redis => redis))
+    end
 
-      @locks.each do |lock|
-        case lock.lock
-        when true
-          # All good
-        when false
-          unlock_all_locks
-          raise Promiscuous::Error::LockUnavailable.new(lock.key)
-        when :recovered
-          recover_for_lock(lock)
-          lock.extend
-        end
+    @locks.each do |lock|
+      case lock.lock
+      when true
+        # All good
+      when false
+        unlock_all_locks
+        raise Promiscuous::Error::LockUnavailable.new(lock.key)
+        # XXX A recovered lock should return the previous data otherwise you're
+        # using the wrong information!
+      when :recovered
+        recover_for_lock(lock)
+        lock.extend
       end
     end
   end
 
   def recover_for_lock(lock)
-    operation = self.class.new(:instance => fetch_instance_for_lock(lock), :operation_name => lock.data[:type])
+    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock(lock), :operation_name => lock.data[:type])
     queue_operation_payloads([operation])
   end
 
@@ -106,20 +108,28 @@ class Promiscuous::Publisher::Operation::Base
 
   def queue_operation_payloads(operations = self.operations)
     # XXX Store in hash by KEY so that messages are aggregated per doc
-    @operation_payloads += operations.
-      map { |operation| operation.instance.promiscuous.payload(:with_attributes => operation.operation_name != :destroy).
-            merge(:operation => operation.operation_name, :version => operation.instance.attributes[Promiscuous::Config.version_field]) if operation.instance }.compact
+    operations.each do |operation|
+      if operation.instance
+        @operation_payloads[operation.instance.promiscuous.key] ||= []
+        @operation_payloads[operation.instance.promiscuous.key] << operation.instance.promiscuous.
+          payload(:with_attributes => operation.operation_name != :destroy).
+          merge(:operation => operation.operation_name,
+                :version => operation.instance.attributes[Promiscuous::Config.version_field])
+      end
+    end
   end
 
-  def payload
-    payload              = {}
-    payload[:operations] = @operation_payloads
-    payload[:app]        = Promiscuous::Config.app
-    payload[:timestamp]  = Time.now
-    payload[:generation] = Promiscuous::Config.generation
-    payload[:host]       = Socket.gethostname
-    payload.merge!(self.payload_attributes)
-    MultiJson.dump(payload)
+  def payloads
+    @operation_payloads.map do |_, operation_payloads|
+      payload              = {}
+      payload[:operations] = operation_payloads
+      payload[:app]        = Promiscuous::Config.app
+      payload[:timestamp]  = Time.now
+      payload[:generation] = Promiscuous::Config.generation
+      payload[:host]       = Socket.gethostname
+      payload.merge!(self.payload_attributes)
+      MultiJson.dump(payload)
+    end
   end
 
   def publish_payloads_async(options={})
@@ -129,17 +139,19 @@ class Promiscuous::Publisher::Operation::Base
     routing     = options[:routing]   || Promiscuous::Config.sync_all_routing
     raise_error = options[:raise_error].present? ? options[:raise_error] : false
 
-    begin
-      Promiscuous::AMQP.publish(:exchange => exchange.to_s,
-                                :key => routing.to_s,
-                                :payload => payload,
-                                :on_confirm => method(:unlock_all_locks))
-    rescue Exception => e
-      Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
-      e = Promiscuous::Error::Publisher.new(e, :payload => payload)
-      Promiscuous::Config.error_notifier.call(e)
+    payloads.each do |payload|
+      begin
+        Promiscuous::AMQP.publish(:exchange => exchange.to_s,
+                                  :key => routing.to_s,
+                                  :payload => payload,
+                                  :on_confirm => method(:unlock_all_locks))
+      rescue Exception => e
+        Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
+        e = Promiscuous::Error::Publisher.new(e, :payload => payload)
+        Promiscuous::Config.error_notifier.call(e)
 
-      raise e.inner if raise_error
+        raise e.inner if raise_error
+      end
     end
   end
 
