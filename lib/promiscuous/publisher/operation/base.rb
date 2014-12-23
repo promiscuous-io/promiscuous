@@ -73,7 +73,8 @@ class Promiscuous::Publisher::Operation::Base
     end
 
     @locks.each do |lock|
-      case lock.lock
+      locked = lock.lock
+      case locked
       when true
         # All good
       when false
@@ -81,24 +82,24 @@ class Promiscuous::Publisher::Operation::Base
         raise Promiscuous::Error::LockUnavailable.new(lock.key)
         # XXX A recovered lock should return the previous data otherwise you're
         # using the wrong information!
-      when :recovered
-        recover_for_lock(lock)
+      else # Recovered
+        recover_for_lock(locked)
         lock.extend
       end
     end
   end
 
-  def recover_for_lock(lock)
-    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock(lock), :operation_name => lock.data[:type])
+  def recover_for_lock(lock_data)
+    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(lock_data), :operation_name => lock_data[:type])
     queue_operation_payloads([operation])
   end
 
-  def fetch_instance_for_lock(lock)
-    klass = lock.data[:class].constantize
-    if lock.data[:type] == :destroy
-      klass.new.tap { |new_instance| new_instance.id = lock.data[:id] }
+  def fetch_instance_for_lock_data(lock_data)
+    klass = lock_data[:class].constantize
+    if lock_data[:type] == :destroy
+      klass.new.tap { |new_instance| new_instance.id = lock_data[:id] }
     else
-      klass.where(:id => lock.data[:id]).first
+      klass.where(:id => lock_data[:id]).first
     end
   end
 
