@@ -75,7 +75,7 @@ module Promiscuous
       end
 
       health[:status]  = health.all?{|key, value| value == true} ?  :ok : :service_unavailable
-      health[:expired] = Promiscuous::Publisher::Transport.expired.length
+      health[:expired] = Promiscuous::Publisher::Operation::Base.expired.length
 
       health
     end
