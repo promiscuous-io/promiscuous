@@ -1,11 +1,4 @@
 class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operation::Base
-  # XXX instance can be a selector representation.
-  attr_accessor :instance
-
-  def instances
-    [@instance].compact
-  end
-
   def execute_instrumented(query)
     if operation_name == :destroy
       fetch_instance
@@ -13,11 +6,11 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
       increment_version_in_document
     end
 
-    lock_instances_and_queue_recovered_payloads
+    lock_operations_and_queue_recovered_payloads
 
     query.call_and_remember_result(:instrumented)
 
-    queue_instance_payloads
+    queue_operation_payloads
 
     publish_payloads_async
   end

@@ -1,11 +1,16 @@
 require 'robust-redis-lock'
 
 class Promiscuous::Publisher::Operation::Base
-  attr_accessor :operation_name, :recovering, :routing, :exchange, :instances
+  attr_accessor :operation_name, :recovering, :routing, :exchange, :operations, :instance
 
   def initialize(options={})
     @operation_name = options[:operation_name]
+    @instance       = options[:instance]
     @operation_payloads = [];  @locks = []
+  end
+
+  def operations
+    [self]
   end
 
   def record_timestamp
@@ -55,14 +60,13 @@ class Promiscuous::Publisher::Operation::Base
     end
   end
 
-  def lock_instances_and_queue_recovered_payloads
-    instances.to_a.map { |instance| [instance.promiscuous.key, instance] }.
-      sort { |a,b| a[0] <=> b[0] }.each do |instance_key, instance|
-      lock_data = { :type               => self.operation_name,
+  def lock_operations_and_queue_recovered_payloads
+    operations.map { |operation| [operation.instance.promiscuous.key, operation] }.
+      sort { |a,b| a[0] <=> b[0] }.each do |instance_key, operation|
+      lock_data = { :type               => operation.operation_name,
                     :payload_attributes => self.payload_attributes,
-                    :class              => instance.class.to_s,
-                    :id                 => instance.id.to_s }
-      # TODO use Key class
+                    :class              => operation.instance.class.to_s,
+                    :id                 => operation.instance.id.to_s }
       @locks << Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s,
                                 lock_data,
                                 lock_options.merge(:redis => redis))
@@ -83,7 +87,8 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def recover_for_lock(lock)
-    queue_instance_payloads [fetch_instance_for_lock(lock)]
+    operation = self.class.new(:instance => fetch_instance_for_lock(lock), :operation_name => lock.data[:type])
+    queue_operation_payloads([operation])
   end
 
   def fetch_instance_for_lock(lock)
@@ -99,10 +104,11 @@ class Promiscuous::Publisher::Operation::Base
     @locks.each(&:unlock)
   end
 
-  def queue_instance_payloads(instances=self.instances)
-    @operation_payloads += instances.
-      map { |instance| instance.promiscuous.payload(:with_attributes => operation_name != :destroy).
-            merge(:operation => operation_name, :version => instance.attributes[Promiscuous::Config.version_field]) }
+  def queue_operation_payloads(operations = self.operations)
+    # XXX Store in hash by KEY so that messages are aggregated per doc
+    @operation_payloads += operations.
+      map { |operation| operation.instance.promiscuous.payload(:with_attributes => operation.operation_name != :destroy).
+            merge(:operation => operation.operation_name, :version => operation.instance.attributes[Promiscuous::Config.version_field]) if operation.instance }.compact
   end
 
   def payload
