@@ -46,7 +46,7 @@ module Promiscuous::Publisher::Model::Base
 
       # We can use the ephemeral because both are mongoid and ephemerals are atomic operations.
       Promiscuous::Publisher::Operation::Ephemeral.new(:instance => @instance,
-                                                       :operation => :update,
+                                                       :operation_name => :update,
                                                        :routing => target,
                                                        :exchange => Promiscuous::Config.sync_exchange).execute
     end

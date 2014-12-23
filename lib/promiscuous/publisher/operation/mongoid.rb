@@ -7,7 +7,7 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
   class PromiscuousCollectionOperation < Promiscuous::Publisher::Operation::Atomic
     def initialize(options={})
       super
-      @operation = :create
+      @operation_name = :create
       @collection = options[:collection]
       @document   = options[:document]
     end
@@ -36,7 +36,7 @@ class Moped::PromiscuousCollectionWrapper < Moped::Collection
   end
 
   def promiscuous_create_operation(options)
-    PromiscuousCollectionOperation.new(options.merge(:collection => self, :operation => :create))
+    PromiscuousCollectionOperation.new(options.merge(:collection => self, :operation_name => :create))
   end
 
   # Moped::Collection
@@ -136,7 +136,7 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
     def initialize(options={})
       super
-      @operation = :read
+      @operation_name = :read
       @query = options[:query]
     end
 
@@ -149,8 +149,8 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
     PromiscuousReadOperation.new(options.merge(:query => self))
   end
 
-  def promiscuous_write_operation(operation, options={})
-    PromiscuousWriteOperation.new(options.merge(:query => self, :operation => operation))
+  def promiscuous_write_operation(operation_name, options={})
+    PromiscuousWriteOperation.new(options.merge(:query => self, :operation_name => operation_name))
   end
 
   def selector=(value)

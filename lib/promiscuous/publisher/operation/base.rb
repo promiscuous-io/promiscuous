@@ -1,10 +1,10 @@
 require 'robust-redis-lock'
 
 class Promiscuous::Publisher::Operation::Base
-  attr_accessor :operation, :recovering, :routing, :exchange, :instances
+  attr_accessor :operation_name, :recovering, :routing, :exchange, :instances
 
   def initialize(options={})
-    @operation = options[:operation]
+    @operation_name = options[:operation_name]
     @operation_payloads = [];  @locks = []
   end
 
@@ -58,7 +58,7 @@ class Promiscuous::Publisher::Operation::Base
   def lock_instances_and_queue_recovered_payloads
     instances.to_a.map { |instance| [instance.promiscuous.key, instance] }.
       sort { |a,b| a[0] <=> b[0] }.each do |instance_key, instance|
-      lock_data = { :type               => self.operation,
+      lock_data = { :type               => self.operation_name,
                     :payload_attributes => self.payload_attributes,
                     :class              => instance.class.to_s,
                     :id                 => instance.id.to_s }
@@ -101,8 +101,8 @@ class Promiscuous::Publisher::Operation::Base
 
   def queue_instance_payloads(instances=self.instances)
     @operation_payloads += instances.
-      map { |instance| instance.promiscuous.payload(:with_attributes => operation != :destroy).
-            merge(:operation => self.operation, :version => instance.attributes[Promiscuous::Config.version_field]) }
+      map { |instance| instance.promiscuous.payload(:with_attributes => operation_name != :destroy).
+            merge(:operation => operation_name, :version => instance.attributes[Promiscuous::Config.version_field]) }
   end
 
   def payload

@@ -7,7 +7,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
   end
 
   def execute_instrumented(query)
-    if operation == :destroy
+    if operation_name == :destroy
       fetch_instance
     else
       increment_version_in_document
