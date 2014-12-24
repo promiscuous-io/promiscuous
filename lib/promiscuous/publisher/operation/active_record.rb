@@ -95,7 +95,7 @@ class ActiveRecord::Base
     def initialize(arel, name, binds, options={})
       super(options)
       @arel = arel
-      @operation_name = name
+      @name = name
       @binds = binds
       @connection = options[:connection]
     end
@@ -149,13 +149,13 @@ class ActiveRecord::Base
       # XXX This is only supported by Postgres and should be in the postgres driver
       @connection.transaction do
         if @connection.supports_returning_statments?
-          @connection.exec_insert("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
+          @connection.exec_insert("#{@connection.to_sql(@arel, @binds)} RETURNING *", @name, @binds).tap do |result|
             @operations = result.map do |row|
               Promiscuous::Publisher::Operation::NonPersistent.new(:instance => model.instantiate(row), :operation_name => @operation_name)
             end
           end
         else
-          @connection.exec_insert("#{@connection.to_sql(@arel, @binds)}", @operation_name, @binds)
+          @connection.exec_insert("#{@connection.to_sql(@arel, @binds)}", @name, @binds)
 
           id = @binds.select { |k,v| k.name == 'id' }.first.last rescue nil
           id ||= @connection.instance_eval { @connection.last_id }
@@ -204,7 +204,7 @@ class ActiveRecord::Base
       arel = @arel.dup
       arel.instance_eval { @ast = @ast.dup }
       arel.ast.values = []
-      arel.to_sql.sub(/^UPDATE /, 'SELECT * FROM ')
+      @connection.to_sql(arel, [@binds.last]).sub(/^UPDATE /, 'SELECT * FROM ')
     end
 
     def db_operation_and_select
@@ -212,14 +212,14 @@ class ActiveRecord::Base
       @arel.ast.values << Arel::Nodes::SqlLiteral.new("#{Promiscuous::Config.version_field} = COALESCE(#{Promiscuous::Config.version_field}, 0) + 1")
 
       if @connection.supports_returning_statments?
-        @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
+        @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @name, @binds).tap do |result|
           @operations = result.map do |row|
             Promiscuous::Publisher::Operation::NonPersistent.new(:instance => model.instantiate(row), :operation_name => @operation_name)
           end
         end.rows.size
       else
-        @connection.exec_update(@connection.to_sql(@arel, @binds), @operation_name, @binds).tap do
-          result = @connection.exec_query(sql_select_statment, @operation_name)
+        @connection.exec_update(@connection.to_sql(@arel, @binds), @name, @binds).tap do
+          result = @connection.exec_query(sql_select_statment, @name)
           @operations = result.map do |row|
             Promiscuous::Publisher::Operation::NonPersistent.new(:instance => model.instantiate(row), :operation_name => @operation_name)
           end
@@ -248,17 +248,17 @@ class ActiveRecord::Base
 
     def db_operation_and_select
       if @connection.supports_returning_statments?
-        @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @operation_name, @binds).tap do |result|
+        @connection.exec_query("#{@connection.to_sql(@arel, @binds)} RETURNING *", @name, @binds).tap do |result|
           @operations = result.map do |row|
             Promiscuous::Publisher::Operation::NonPersistent.new(:instance => model.instantiate(row), :operation_name => @operation_name)
           end
         end.rows.size
       else
-        result = @connection.exec_query(sql_select_statment, @operation_name, @binds)
+        result = @connection.exec_query(sql_select_statment, @name, @binds)
           @operations = result.map do |row|
             Promiscuous::Publisher::Operation::NonPersistent.new(:instance => model.instantiate(row), :operation_name => @operation_name)
           end
-        @connection.exec_delete(@connection.to_sql(@arel, @binds), @operation_name, @binds)
+        @connection.exec_delete(@connection.to_sql(@arel, @binds), @name, @binds)
       end
     end
   end
