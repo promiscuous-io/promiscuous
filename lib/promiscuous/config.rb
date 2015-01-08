@@ -60,8 +60,8 @@ module Promiscuous::Config
     self.socket_timeout       ||= 10
     self.heartbeat            ||= 60
     self.prefetch             ||= 1000
-    self.publisher_lock_expiration ||= 10.seconds
-    self.publisher_lock_timeout ||= 1.seconds
+    self.publisher_lock_expiration ||= 5.seconds
+    self.publisher_lock_timeout ||= 2.seconds
     self.recovery_interval    ||= 5.seconds
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
     self.subscriber_threads   ||= 10
