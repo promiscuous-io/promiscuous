@@ -76,6 +76,10 @@ class Promiscuous::AMQP::Bunny
     @exchanges[options[:exchange]].publish(options[:payload], :key => options[:key], :persistent => true)
   end
 
+  def wait_for_confirm
+    @channel.wait_for_confirms
+  end
+
   def publish(options={})
     raise "Exchange '#{options[:exchange]}' not one of: #{@exchanges.keys}" unless @exchanges[options[:exchange]]
 

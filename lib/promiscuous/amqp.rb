@@ -39,7 +39,7 @@ module Promiscuous::AMQP
       backend.new_connection(*args)
     end
 
-    delegate :publish, :connected?, :to => :backend
+    delegate :publish, :connected?, :wait_for_confirm, :to => :backend
 
     def const_missing(sym)
       backend_class.const_get(sym)
