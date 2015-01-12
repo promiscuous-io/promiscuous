@@ -146,7 +146,6 @@ class Promiscuous::Publisher::Operation::Base
                                   :key => routing.to_s,
                                   :payload => payload,
                                   :on_confirm => method(:unlock_all_locks))
-        Promiscuous::AMQP.wait_for_confirm
       rescue Exception => e
         Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
         e = Promiscuous::Error::Publisher.new(e, :payload => payload)
