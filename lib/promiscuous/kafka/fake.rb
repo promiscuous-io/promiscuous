@@ -42,9 +42,6 @@ class Promiscuous::Kafka::Fake
     def subscribe(options={}, &block)
     end
 
-    def recover
-    end
-
     def disconnect
     end
 

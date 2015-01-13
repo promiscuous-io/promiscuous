@@ -58,9 +58,6 @@ class Promiscuous::Kafka::File
       end
     end
 
-    def recover
-    end
-
     def disconnect
       @stop = true
     end
