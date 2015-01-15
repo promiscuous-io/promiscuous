@@ -63,34 +63,28 @@ class Promiscuous::Publisher::Operation::Base
   def lock_operations_and_queue_recovered_payloads
     operations.map { |operation| [operation.instance.promiscuous.key, operation] }.
       sort { |a,b| a[0] <=> b[0] }.each do |instance_key, operation|
-      lock_data = { :type               => operation.operation_name,
-                    :payload_attributes => self.payload_attributes,
-                    :class              => operation.instance.class.to_s,
-                    :id                 => operation.instance.id.to_s }
-      @locks << Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s,
-                                lock_data,
-                                lock_options.merge(:redis => redis))
-    end
+      recovery_data = { :type               => operation.operation_name,
+                        :payload_attributes => self.payload_attributes,
+                        :class              => operation.instance.class.to_s,
+                        :id                 => operation.instance.id.to_s }
 
-    @locks.each do |lock|
-      locked = lock.lock
-      case locked
-      when true
-        # All good
-      when false
+      @locks << lock = Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s, lock_options.merge(:redis => redis))
+      begin
+        lock.lock(:recovery_data => YAML.dump(recovery_data))
+      rescue Redis::Lock::Timeout
         unlock_all_locks
         raise Promiscuous::Error::LockUnavailable.new(lock.key)
-        # XXX A recovered lock should return the previous data otherwise you're
-        # using the wrong information!
-      else # Recovered
-        recover_for_lock(locked)
+      rescue Redis::Lock::Recovered
+        recover_for_lock(lock)
         lock.extend
       end
     end
   end
 
-  def recover_for_lock(lock_data)
-    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(lock_data), :operation_name => lock_data[:type])
+  def recover_for_lock(lock)
+    recovery_data = YAML.load(lock.recovery_data)
+    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(recovery_data),
+                                                                     :operation_name => recovery_data[:type])
     queue_operation_payloads([operation])
   end
 
@@ -104,7 +98,12 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def unlock_all_locks
-    @locks.each(&:unlock)
+    @locks.each do |lock|
+      begin
+        lock.unlock
+      rescue Redis::Lock::LostLock
+      end
+    end
   end
 
   def queue_operation_payloads(operations = self.operations)
