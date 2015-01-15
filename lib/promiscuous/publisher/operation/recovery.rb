@@ -5,11 +5,8 @@ class Promiscuous::Publisher::Operation::Recovery < Promiscuous::Publisher::Oper
   end
 
   def recover!
-    begin
-      @lock.recover
+    if @lock.try_lock
       recover_for_lock(@lock)
-    rescue Redis::Lock::Timeout, Redis::Lock::LostLock
-      # Another process recovered
     end
 
     publish_payloads_async
