@@ -138,14 +138,22 @@ class Promiscuous::Publisher::Operation::Base
 
     exchange    = options[:exchange]  || Promiscuous::Config.publisher_exchange
     routing     = options[:routing]   || Promiscuous::Config.sync_all_routing
+    topic       = options[:topic]     || Promiscuous::Config.publisher_topic
     raise_error = options[:raise_error].present? ? options[:raise_error] : false
 
     payloads.each do |payload|
       begin
-        Promiscuous::AMQP.publish(:exchange => exchange.to_s,
-                                  :key => routing.to_s,
-                                  :payload => payload,
-                                  :on_confirm => method(:unlock_all_locks))
+        # TODO: Kafka needs a key based on the model name for its partitions
+        payload_opts = {
+          :exchange   => exchange.to_s,
+          :key        => routing.to_s,
+          :on_confirm => method(:unlock_all_locks),
+          :payload    => payload,
+          :topic      => topic
+        }
+
+        Promiscuous::Kafka.publish(payload_opts)
+        Promiscuous::AMQP.publish(payload_opts)
       rescue Exception => e
         Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
         e = Promiscuous::Error::Publisher.new(e, :payload => payload)

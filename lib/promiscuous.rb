@@ -24,7 +24,7 @@ module Promiscuous
 
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
-           :CLI, :Error, :Loader, :AMQP, :Redis, :ZK, :Config, :DSL, :Key,
+           :CLI, :Error, :Loader, :AMQP, :Kafka, :Redis, :ZK, :Config, :DSL, :Key,
            :Convenience, :Dependency, :Timer, :Rabbit
 
   extend Promiscuous::DSL
@@ -44,6 +44,7 @@ module Promiscuous
 
     def connect
       AMQP.connect
+      Kafka.connect # TODO: needed?
       Redis.connect
 
       @should_be_connected = true
@@ -51,6 +52,7 @@ module Promiscuous
 
     def disconnect
       AMQP.disconnect
+      Kafka.disconnect
       Redis.disconnect
       @should_be_connected = false
     end
@@ -66,6 +68,12 @@ module Promiscuous
         AMQP.ensure_connected
       rescue Exception
         health[:amqp] = false
+      end
+
+      begin
+        Kafka.ensure_connected
+      rescue Exception
+        health[:kafka] = false
       end
 
       begin
