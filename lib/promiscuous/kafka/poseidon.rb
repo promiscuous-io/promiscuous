@@ -64,8 +64,9 @@ class Promiscuous::Kafka::Poseidon
     @connection.send_messages([Poseidon::MessageToSend.new(options[:topic], options[:payload], options[:key])])
   end
 
+  # TODO: key needs to be based on the model and not just __all__
   def publish(options={})
-    Promiscuous.debug "[publish] #{options[:topic]}/#{options[:key]} #{options[:payload]}"
+    Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:key]} #{options[:payload]}"
 
     @connection_lock.synchronize do
       raw_publish(options)
@@ -77,28 +78,23 @@ class Promiscuous::Kafka::Poseidon
   end
 
   module Subscriber
-    def subscribe(&block)
+    def subscribe(topic)
       require 'poseidon_cluster'
 
-      # require 'pry'; binding.pry
-      # TODO: one thread per topic?
-      @connections = []
-      @connections = Promiscuous::Config.subscriber_topics.map do |topic|
-        consumer = ::Poseidon::ConsumerGroup.new(Promiscuous::Config.app,
-                                               Promiscuous::Config.kafka_hosts,
-                                               Promiscuous::Config.zookeeper_hosts,
-                                               topic)
-        subscribe_topic(consumer, &block)
-        consumer
-      end
+      @consumer = ::Poseidon::ConsumerGroup.new(Promiscuous::Config.app,
+                                                Promiscuous::Config.kafka_hosts,
+                                                Promiscuous::Config.zookeeper_hosts,
+                                                topic, :trail => Promiscuous::Config.test_mode)
     end
 
-    def subscribe_topic(consumer, &block)
-      # XXX: blocking & seems to get more than one message at a time
-      consumer.fetch(:commit => false) do |partition, payloads|
+    def fetch_and_process_messages(&block)
+      # XXX: seems to get more than one message at a time
+      Promiscuous.debug "[kafka] Fetching messages topic:#{@consumer.topic} #{Thread.current}"
+      @consumer.fetch(:commit => false) do |partition, payloads|
+        Promiscuous.debug "[kafka] Received #{payloads.count} payloads topic:#{@consumer.topic} #{Thread.current}"
         payloads.each do |payload|
-          Promiscuous.debug "[subscribe] Fetched '#{payload.value}' at #{payload.offset} from #{partition}"
-          block.call(MetaData.new(consumer, partition, payload.offset), payload)
+          Promiscuous.debug "[kafka] Fetched '#{payload.value}' topic:#{@consumer.topic} offset:#{payload.offset} parition:#{partition}"
+          block.call(MetaData.new(@consumer, partition, payload.offset), payload)
         end
       end
     end
@@ -113,16 +109,19 @@ class Promiscuous::Kafka::Poseidon
         @consumer = consumer
         @partition = partition
         @offset = offset
+
+        Promiscuous.debug "[kafka] [metadata] topic:#{@consumer.topic} offset:#{offset} partition:#{partition}"
       end
 
       # TODO: rename to advance_offset or commit?
       def ack
-        @connection.commit(@partition, offset)
+        Promiscuous.debug "[kafka] [commit] topic:#{@consumer.topic} offset:#{@offset+1} partition:#{@partition}"
+        @consumer.commit(@partition, @offset+1)
       end
     end
 
     def disconnect
-      @connections.each {|connection| connection.close }
+      @consumer.close
     end
   end
 end
