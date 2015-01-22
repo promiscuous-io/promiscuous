@@ -7,9 +7,9 @@ require 'spec_helper'
 
     context 'when using only writes that hits' do
       it 'publishes proper dependencies' do
-        pub = PublisherModel.create(:field_1 => '1')
+        PublisherModel.create(:field_1 => '1')
 
-        op = Promiscuous::AMQP::Fake.get_next_payload['operations'].first
+        op = Promiscuous::Kafka::Fake.get_next_payload['operations'].first
         op['version'].should == 1
       end
     end
@@ -24,7 +24,7 @@ require 'spec_helper'
           PublisherModel.where(:id => 123).update(:field_1 => '1')
         end
 
-        Promiscuous::AMQP::Fake.get_next_message.should == nil
+        Promiscuous::Kafka::Fake.get_next_message.should == nil
       end
     end
 
@@ -34,13 +34,13 @@ require 'spec_helper'
         pub.update_attributes(:unpublished => 123)
         pub.update_attributes(:field_1 => 'ohai')
 
-        op = Promiscuous::AMQP::Fake.get_next_payload['operations'].first
+        op = Promiscuous::Kafka::Fake.get_next_payload['operations'].first
         op['version'].should == 1
 
-        op = Promiscuous::AMQP::Fake.get_next_payload['operations'].first
+        op = Promiscuous::Kafka::Fake.get_next_payload['operations'].first
         op['version'].should == 2
 
-        Promiscuous::AMQP::Fake.get_next_message.should == nil
+        Promiscuous::Kafka::Fake.get_next_message.should == nil
       end
     end
 
@@ -50,7 +50,7 @@ require 'spec_helper'
       it 'can update_all' do
         SubscriberModel.update_all(:field_1 => 'updated')
 
-        Promiscuous::AMQP::Fake.get_next_payload.should == nil
+        Promiscuous::Kafka::Fake.get_next_payload.should == nil
         SubscriberModel.all.each { |doc| doc.field_1.should == 'updated' }
       end
     end

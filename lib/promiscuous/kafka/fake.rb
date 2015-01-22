@@ -42,6 +42,9 @@ class Promiscuous::Kafka::Fake
     def subscribe(options={}, &block)
     end
 
+    def fetch_and_process_messages(&block)
+    end
+
     def disconnect
     end
 
