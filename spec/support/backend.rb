@@ -27,6 +27,7 @@ module BackendHelper
         block.call(config) if block
       end
     end
+    Promiscuous::Kafka::Poseidon.advance_offsets_forward!
     Promiscuous.ensure_connected
     Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it.
     [Promiscuous::Config.queue_name, Promiscuous::Config.error_queue_name].each { |queue| Promiscuous::Rabbit::Policy.delete(queue) }

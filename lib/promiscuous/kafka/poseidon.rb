@@ -1,3 +1,6 @@
+require 'poseidon'
+require 'poseidon_cluster'
+
 class Promiscuous::Kafka::Poseidon
   def self.hijack_poseidon
     return if @poseidon_hijacked
@@ -14,10 +17,36 @@ class Promiscuous::Kafka::Poseidon
     @poseidon_hijacked = true
   end
 
+  def self.advance_offsets_forward!
+    broker_pool = ::Poseidon::BrokerPool.new(::Poseidon::Cluster.guid,
+                                             Promiscuous::Config.kafka_hosts,
+                                             Promiscuous::Config.socket_timeout)
+
+    broker_host, broker_port = Promiscuous::Config.kafka_hosts.first.split(':')
+    broker_pool.update_known_brokers({ 0 => { :host => broker_host, :port => broker_port }})
+
+    # we assume that a topic maps to a ConsumerGroup one-to-one
+    zk = ZK.new(Promiscuous::Config.zookeeper_hosts.join(','))
+    Promiscuous::Config.subscriber_topics.each do |topic|
+      partitions_path = "/consumers/#{topic}/offsets/#{topic}"
+      zk.children(partitions_path).each do |partition|
+        partition_offset_requests = [::Poseidon::Protocol::PartitionOffsetRequest.new(partition.to_i, -1, 1000)]
+        offset_topic_requests = [::Poseidon::Protocol::TopicOffsetRequest.new(topic, partition_offset_requests)]
+        offset_responses = broker_pool.execute_api_call(0, :offset, offset_topic_requests)
+        latest_offset = offset_responses.first.partition_offsets.first.offsets.first.offset
+
+        zk.set([ partitions_path, partition ].join('/'), latest_offset.to_s)
+      end
+    end
+    zk.close
+    broker_pool.close
+
+    true
+  end
+
   attr_accessor :connection, :connection_lock
 
   def initialize_driver
-    require 'poseidon'
     self.class.hijack_poseidon
   end
 
@@ -45,6 +74,7 @@ class Promiscuous::Kafka::Poseidon
 
   def connect
     @connection = new_connection
+    # Poseidon.logger = Logger.new(STDOUT).tap { |l| l.level = 0 }
   end
 
   def disconnect
@@ -61,15 +91,20 @@ class Promiscuous::Kafka::Poseidon
   end
 
   def raw_publish(options)
-    @connection.send_messages([Poseidon::MessageToSend.new(options[:topic], options[:payload], options[:key])])
+    ok = false
+    10.times do
+      ok = @connection.send_messages([Poseidon::MessageToSend.new(options[:topic], options[:payload], options[:key])])
+      break if ok
+      sleep(1)
+    end
+    raise "Unable to send messages" if !ok
   end
 
   # TODO: key needs to be based on the model and not just __all__
   def publish(options={})
-    Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:key]} #{options[:payload]}"
-
     @connection_lock.synchronize do
       raw_publish(options)
+      Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:key]} #{options[:payload]}"
     end
   rescue Exception => e
     Promiscuous.warn("[publish] Failure publishing to kafka #{e}\n#{e.backtrace.join("\n")}")
@@ -79,8 +114,6 @@ class Promiscuous::Kafka::Poseidon
 
   module Subscriber
     def subscribe(topic)
-      require 'poseidon_cluster'
-
       @consumer = ::Poseidon::ConsumerGroup.new(Promiscuous::Config.app,
                                                 Promiscuous::Config.kafka_hosts,
                                                 Promiscuous::Config.zookeeper_hosts,

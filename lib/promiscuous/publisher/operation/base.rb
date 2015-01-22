@@ -152,8 +152,8 @@ class Promiscuous::Publisher::Operation::Base
           :topic      => topic
         }
 
-        Promiscuous::Kafka.publish(payload_opts)
         Promiscuous::AMQP.publish(payload_opts)
+        Promiscuous::Kafka.publish(payload_opts); unlock_all_locks 
       rescue Exception => e
         Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
         e = Promiscuous::Error::Publisher.new(e, :payload => payload)

@@ -13,6 +13,7 @@ class Promiscuous::Subscriber::Worker::Distributor
 
   def stop
     return unless @distributor_threads
+    Promiscuous.debug "[kafka] Stopping #{@distributor_threads.count} threads per topic"
 
     @distributor_threads.each { |distributor_thread| distributor_thread.stop }
     @distributor_threads = nil
@@ -28,8 +29,8 @@ class Promiscuous::Subscriber::Worker::Distributor
       # at runtime since we can have different backends.
       extend Promiscuous::Kafka::Subscriber
 
+      @topic = topic
       @kill_lock = Mutex.new
-      @consumer = subscribe(topic)
       @thread = Thread.new { main_loop }
       @thread.abort_on_exception = true
 
@@ -48,6 +49,7 @@ class Promiscuous::Subscriber::Worker::Distributor
     # TODO: make sure we're on the sync topic(s) as well
     # TODO: add sleep in loop?
     def main_loop
+      @consumer = subscribe(@topic)
       loop do
         @kill_lock.synchronize do
           fetch_and_process_messages(&method(:on_message))
@@ -60,7 +62,7 @@ class Promiscuous::Subscriber::Worker::Distributor
       if @kill_lock.locked? && @thread.stop?
         @thread.kill
       else
-        @kill_lock.synchronize { @thread.kill }
+        @kill_lock.synchronize { @consumer.close; @thread.kill }
       end
     end
 
