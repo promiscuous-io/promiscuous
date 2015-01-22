@@ -63,7 +63,7 @@ module Promiscuous::Config
     self.publisher_lock_expiration ||= 5.seconds
     self.publisher_lock_timeout ||= 2.seconds
     self.recovery_interval    ||= 5.seconds
-    self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
+    self.logger               ||= Logger.new(STDERR).tap { |l| l.level = ENV["LOGGER_LEVEL"].to_i || Logger::WARN }
     self.subscriber_threads   ||= 10
     self.error_notifier       ||= proc {}
     self.version_field        ||= '_v'
