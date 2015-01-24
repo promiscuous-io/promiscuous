@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe Promiscuous do
-  let(:lock_expiration) { 2 }
+  let(:lock_expiration) { 1 }
 
   before { use_real_backend { |config| config.logger.level = Logger::ERROR
                               config.publisher_lock_expiration = lock_expiration
@@ -10,7 +10,7 @@ describe Promiscuous do
   before { load_models }
   before { run_subscriber_worker! }
 
-  after { Promiscuous::Publisher::Operation::Base.expired.should be_empty }
+  after { redis_lock_count.should == 0 }
 
   context "when a recovery worker is running" do
     before { run_recovery_worker! }
@@ -26,13 +26,15 @@ describe Promiscuous do
 
           expect { pub.update_attributes(:field_1 => '2') }.to_not raise_error
 
-          sleep 0.1
+          sleep 10
 
-          SubscriberModel.count.should == 1
+          SubscriberModel.first.field_1.should == '1'
 
           amqp_up!
 
-          eventually { SubscriberModel.first.field_1.should == '2' }
+          eventually do
+            SubscriberModel.first.field_1.should == '2'
+          end
         end
       end
 
@@ -42,7 +44,7 @@ describe Promiscuous do
 
           expect { PublisherModel.create(:field_1 => '1') }.to_not raise_error
 
-          sleep 0.1
+          sleep 1
 
           SubscriberModel.count.should == 0
 
@@ -61,7 +63,7 @@ describe Promiscuous do
 
           amqp_up!
 
-          eventually { Promiscuous::Publisher::Operation::Base.expired.should be_empty }
+          eventually { redis_lock_count.should == 0 }
         end
       end
 
@@ -75,7 +77,7 @@ describe Promiscuous do
 
           expect { pub.destroy }.to_not raise_error
 
-          sleep 0.1
+          sleep 1
 
           SubscriberModel.count.should == 1
 
