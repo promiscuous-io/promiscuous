@@ -6,7 +6,7 @@ describe Promiscuous do
   before { use_real_backend { |config| config.logger.level = Logger::ERROR
                               config.publisher_lock_expiration = lock_expiration
                               config.publisher_lock_timeout    = 0.1
-                              config.recovery_interval = 0.01 } }
+                              config.recovery_interval = 1 } }
   before { load_models }
   before { run_subscriber_worker! }
 
@@ -106,7 +106,7 @@ describe Promiscuous do
   end
 
   context "when a recovery worker is not running" do
-    context "when a lock expires" do
+    context "rabbit dies" do
       let(:lock_expiration) { 0.1 }
 
       before { $callback_counter = 0 }
@@ -115,17 +115,23 @@ describe Promiscuous do
           after_save { $callback_counter += 1 }
         end
       end
-      before do
-        amqp_down!
+      before { amqp_down! }
+
+      it "multiple subsequent operation on the same object publishes the previous state of the database" do
         @pub = PublisherModel.create(:field_1 => 1)
         sleep 1
-        amqp_up!
-      end
-
-      it "a subsequent operation on the same object publishes the previous state of the database" do
         @pub.update_attributes(:field_2 => 2)
+        sleep 1
+        @pub.update_attributes(:field_2 => 3)
+        sleep 1
 
-        eventually { $callback_counter.should == 2 }
+        amqp_up!
+        @pub.update_attributes(:field_2 => 4)
+
+        eventually do
+          SubscriberModel.first.field_2.should == 4
+          $callback_counter.should == 4
+        end
       end
     end
   end

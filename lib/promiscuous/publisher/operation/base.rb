@@ -68,9 +68,9 @@ class Promiscuous::Publisher::Operation::Base
                         :class              => operation.instance.class.to_s,
                         :id                 => operation.instance.id.to_s }
 
-      @locks << lock = Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s, lock_options.merge(:redis => redis))
+      lock = Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s, lock_options.merge(:redis => redis))
       begin
-        lock.lock(:recovery_data => YAML.dump(recovery_data))
+        lock.lock(:recovery_data => YAML.dump([recovery_data]))
       rescue Redis::Lock::Timeout
         unlock_all_locks
         raise Promiscuous::Error::LockUnavailable.new(lock.key)
@@ -78,19 +78,25 @@ class Promiscuous::Publisher::Operation::Base
         begin
           lock.extend
           recover_for_lock(lock)
-        rescue Redis::Lock::LostLock
+          lock.unlock
+          existing_recovery_data = YAML.load(lock.recovery_data)
+          lock.lock(:recovery_data => YAML.dump(existing_recovery_data << recovery_data))
+        rescue
           unlock_all_locks
           raise Promiscuous::Error::LockUnavailable.new(lock.key)
         end
       end
+
+      @locks << lock
     end
   end
 
   def recover_for_lock(lock)
-    recovery_data = YAML.load(lock.recovery_data)
-    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(recovery_data),
-                                                                     :operation_name => recovery_data[:type])
-    queue_operation_payloads([operation])
+    YAML.load(lock.recovery_data).each do |recovery_data|
+      operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(recovery_data),
+                                                                       :operation_name => recovery_data[:type])
+      queue_operation_payloads([operation])
+    end
   end
 
   def fetch_instance_for_lock_data(lock_data)
@@ -103,7 +109,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def unlock_all_locks
-    @locks.each { |lock| puts lock.try_unlock }
+    @locks.each { |lock| lock.try_unlock }
   end
 
   def queue_operation_payloads(operations = self.operations)
