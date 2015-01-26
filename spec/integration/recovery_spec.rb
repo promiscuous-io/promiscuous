@@ -3,7 +3,7 @@ require 'spec_helper'
 describe Promiscuous do
   let(:lock_expiration) { 1 }
 
-  before { use_real_backend { |config| config.logger.level = ENV["LOGGER_LEVEL"].to_i || Logger::ERROR
+  before { use_real_backend { |config| config.logger.level = Logger::ERROR
                               config.publisher_lock_expiration = lock_expiration
                               config.publisher_lock_timeout    = 0.1
                               config.recovery_interval = 0.01 } }

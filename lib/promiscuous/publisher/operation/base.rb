@@ -75,10 +75,10 @@ class Promiscuous::Publisher::Operation::Base
         unlock_all_locks
         raise Promiscuous::Error::LockUnavailable.new(lock.key)
       rescue Redis::Lock::Recovered
-        recover_for_lock(lock)
         begin
           lock.extend
-        rescue
+          recover_for_lock(lock)
+        rescue Redis::Lock::LostLock
           unlock_all_locks
           raise Promiscuous::Error::LockUnavailable.new(lock.key)
         end
@@ -103,7 +103,7 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def unlock_all_locks
-    @locks.each { |lock| lock.try_unlock }
+    @locks.each { |lock| puts lock.try_unlock }
   end
 
   def queue_operation_payloads(operations = self.operations)

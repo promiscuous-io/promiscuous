@@ -17,3 +17,5 @@ end
 group :development do
   gem 'pry'
 end
+
+gem 'robust-redis-lock', :path => '../robust-redis-lock'
