@@ -59,10 +59,13 @@ class Promiscuous::Subscriber::Worker::Distributor
     end
 
     def stop
-      if @kill_lock.locked? && @thread.stop?
+      Promiscuous.debug "[distributor] stopping status:#{@thread.status} #{@thread}"
+
+      # We wait in case the consumer is responsible for more than one partition
+      # see: https://github.com/bsm/poseidon_cluster/blob/master/lib/poseidon/consumer_group.rb#L229
+      @kill_lock.synchronize do
+        @consumer.close if @consumer
         @thread.kill
-      else
-        @kill_lock.synchronize { @consumer.close; @thread.kill }
       end
     end
 
