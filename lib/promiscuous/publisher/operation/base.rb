@@ -63,18 +63,17 @@ class Promiscuous::Publisher::Operation::Base
   def lock_operations_and_queue_recovered_payloads
     operations.map { |operation| [operation.instance.promiscuous.key, operation] }.
       sort { |a,b| a[0] <=> b[0] }.each do |instance_key, operation|
-      recovery_data = [{ :type               => operation.operation_name,
+      recovery_data = { :type               => operation.operation_name,
                         :payload_attributes => self.payload_attributes,
                         :class              => operation.instance.class.to_s,
-                        :id                 => operation.instance.id.to_s }]
-
-      lock = Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s, lock_options.merge(:redis => redis))
+                        :id                 => operation.instance.id.to_s }
 
       begin
+        lock = Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s, lock_options.merge(:redis => redis))
         lock.lock(:recovery_data => YAML.dump(recovery_data))
       rescue Redis::Lock::Recovered
-        recover_for_lock(lock)
-        lock.extend(:recovery_data => YAML.dump(YAML.load(lock.recovery_data) + recovery_data))
+        Promiscuous::Publisher::Operation::Recovery.new(:lock => lock).recover!
+        retry
       end
 
       @locks << lock
@@ -82,23 +81,6 @@ class Promiscuous::Publisher::Operation::Base
   rescue Redis::Lock::Timeout, Redis::Lock::LostLock => e
     unlock_all_locks
     raise Promiscuous::Error::LockUnavailable.new(e.lock.key)
-  end
-
-  def recover_for_lock(lock)
-    YAML.load(lock.recovery_data).each do |recovery_data|
-      operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(recovery_data),
-                                                                       :operation_name => recovery_data[:type])
-      queue_operation_payloads([operation])
-    end
-  end
-
-  def fetch_instance_for_lock_data(lock_data)
-    klass = lock_data[:class].constantize
-    if lock_data[:type] == :destroy
-      klass.new.tap { |new_instance| new_instance.id = lock_data[:id] }
-    else
-      klass.where(:id => lock_data[:id]).first
-    end
   end
 
   def unlock_all_locks

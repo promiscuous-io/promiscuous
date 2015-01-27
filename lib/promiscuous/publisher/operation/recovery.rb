@@ -6,13 +6,25 @@ class Promiscuous::Publisher::Operation::Recovery < Promiscuous::Publisher::Oper
 
   def recover!
     @locks.each do |lock|
-      if lock.try_extend
-        recover_for_lock(lock)
-        publish_payloads
-      else
-        # It's ok if the lock has been stolen. Another process is recovering.
-        Promiscuous.warn "[recovery] Lock #{lock} was stolen during the recovery process"
-      end
+      lock.extend
+      recover_for_lock(lock)
+      publish_payloads
+    end
+  end
+
+  def recover_for_lock(lock)
+    recovery_data = YAML.load(lock.recovery_data)
+    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(recovery_data),
+                                                                     :operation_name => recovery_data[:type])
+    queue_operation_payloads([operation])
+  end
+
+  def fetch_instance_for_lock_data(lock_data)
+    klass = lock_data[:class].constantize
+    if lock_data[:type] == :destroy
+      klass.new.tap { |new_instance| new_instance.id = lock_data[:id] }
+    else
+      klass.where(:id => lock_data[:id]).first
     end
   end
 end
