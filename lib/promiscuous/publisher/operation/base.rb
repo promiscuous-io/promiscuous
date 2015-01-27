@@ -68,38 +68,19 @@ class Promiscuous::Publisher::Operation::Base
                         :class              => operation.instance.class.to_s,
                         :id                 => operation.instance.id.to_s }
 
-      @locks << lock = Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s, lock_options.merge(:redis => redis))
       begin
+        lock = Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s, lock_options.merge(:redis => redis))
         lock.lock(:recovery_data => YAML.dump(recovery_data))
-      rescue Redis::Lock::Timeout
-        unlock_all_locks
-        raise Promiscuous::Error::LockUnavailable.new(lock.key)
       rescue Redis::Lock::Recovered
-        recover_for_lock(lock)
-        begin
-          lock.extend
-        rescue
-          unlock_all_locks
-          raise Promiscuous::Error::LockUnavailable.new(lock.key)
-        end
+        Promiscuous::Publisher::Operation::Recovery.new(:lock => lock).recover!
+        retry
       end
-    end
-  end
 
-  def recover_for_lock(lock)
-    recovery_data = YAML.load(lock.recovery_data)
-    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(recovery_data),
-                                                                     :operation_name => recovery_data[:type])
-    queue_operation_payloads([operation])
-  end
-
-  def fetch_instance_for_lock_data(lock_data)
-    klass = lock_data[:class].constantize
-    if lock_data[:type] == :destroy
-      klass.new.tap { |new_instance| new_instance.id = lock_data[:id] }
-    else
-      klass.where(:id => lock_data[:id]).first
+      @locks << lock
     end
+  rescue Redis::Lock::Timeout, Redis::Lock::LostLock => e
+    unlock_all_locks
+    raise Promiscuous::Error::LockUnavailable.new(e.lock.key)
   end
 
   def unlock_all_locks
@@ -132,26 +113,19 @@ class Promiscuous::Publisher::Operation::Base
     end
   end
 
-  def publish_payloads_async(options={})
+  def publish_payloads(options={})
     unlock_all_locks and return if @operation_payloads.blank?
 
-    exchange    = options[:exchange]  || Promiscuous::Config.publisher_exchange
-    routing     = options[:routing]   || Promiscuous::Config.sync_all_routing
-    raise_error = options[:raise_error].present? ? options[:raise_error] : false
+    exchange = options[:exchange]  || Promiscuous::Config.publisher_exchange
+    routing  = options[:routing]   || Promiscuous::Config.sync_all_routing
+    async    = !!options[:async]
 
     payloads.each do |payload|
-      begin
-        Promiscuous::AMQP.publish(:exchange => exchange.to_s,
-                                  :key => routing.to_s,
-                                  :payload => payload,
-                                  :on_confirm => method(:unlock_all_locks))
-      rescue Exception => e
-        Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
-        e = Promiscuous::Error::Publisher.new(e, :payload => payload)
-        Promiscuous::Config.error_notifier.call(e)
-
-        raise e.inner if raise_error
-      end
+      Promiscuous::AMQP.publish(:exchange => exchange.to_s,
+                                :key => routing.to_s,
+                                :payload => payload,
+                                :on_confirm => method(:unlock_all_locks),
+                                :async => async)
     end
   end
 

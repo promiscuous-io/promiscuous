@@ -28,10 +28,9 @@ class Promiscuous::Publisher::Worker
       Promiscuous::Publisher::Operation::Recovery.new(:lock => lock).recover!
       Promiscuous.info "[publish][recovery] #{lock.key} recovered"
     end
-  rescue Promiscuous::Error::LockUnavailable
+  rescue Redis::Lock::LostLock
     # this is expected from within recovery
   rescue => e
-    puts e; puts e.backtrace.join("\n")
     Promiscuous::Config.error_notifier.call(e)
   end
 end

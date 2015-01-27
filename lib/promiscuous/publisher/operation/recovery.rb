@@ -6,23 +6,25 @@ class Promiscuous::Publisher::Operation::Recovery < Promiscuous::Publisher::Oper
 
   def recover!
     @locks.each do |lock|
-      case lock.try_lock
-      when :recovered
-        # It's possible that if the lock was not recovered and the unlock
-        # attempt below fails that we have a lock with no data.
-        if lock.recovery_data
-          recover_for_lock(lock)
-          publish_payloads_async
-        else
-          lock.try_unlock
-        end
-      when true
-        # Someone else completed recovery process. We don't need this lock
-        lock.try_unlock
-      when false
-        # It's ok if the lock is unavailable as this means another recovery
-        # process stole the lock and is processing the recovery
-      end
+      lock.extend
+      recover_for_lock(lock)
+      publish_payloads
+    end
+  end
+
+  def recover_for_lock(lock)
+    recovery_data = YAML.load(lock.recovery_data)
+    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(recovery_data),
+                                                                     :operation_name => recovery_data[:type])
+    queue_operation_payloads([operation])
+  end
+
+  def fetch_instance_for_lock_data(lock_data)
+    klass = lock_data[:class].constantize
+    if lock_data[:type] == :destroy
+      klass.new.tap { |new_instance| new_instance.id = lock_data[:id] }
+    else
+      klass.where(:id => lock_data[:id]).first
     end
   end
 end

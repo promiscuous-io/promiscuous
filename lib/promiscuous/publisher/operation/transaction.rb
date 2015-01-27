@@ -30,6 +30,6 @@ class Promiscuous::Publisher::Operation::Transaction < Promiscuous::Publisher::O
 
     queue_operation_payloads
 
-    publish_payloads_async
+    publish_payloads(:async => true)
   end
 end
