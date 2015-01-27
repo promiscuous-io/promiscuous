@@ -131,26 +131,19 @@ class Promiscuous::Publisher::Operation::Base
     end
   end
 
-  def publish_payloads_async(options={})
+  def publish_payloads(options={})
     unlock_all_locks and return if @operation_payloads.blank?
 
     exchange    = options[:exchange]  || Promiscuous::Config.publisher_exchange
     routing     = options[:routing]   || Promiscuous::Config.sync_all_routing
-    raise_error = options[:raise_error].present? ? options[:raise_error] : false
+    async       = !!options[:async]
 
     payloads.each do |payload|
-      begin
-        Promiscuous::AMQP.publish(:exchange => exchange.to_s,
-                                  :key => routing.to_s,
-                                  :payload => payload,
-                                  :on_confirm => method(:unlock_all_locks))
-      rescue Exception => e
-        Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
-        e = Promiscuous::Error::Publisher.new(e, :payload => payload)
-        Promiscuous::Config.error_notifier.call(e)
-
-        raise e.inner if raise_error
-      end
+      Promiscuous::AMQP.publish(:exchange => exchange.to_s,
+                                :key => routing.to_s,
+                                :payload => payload,
+                                :on_confirm => method(:unlock_all_locks),
+                                :async => async)
     end
   end
 

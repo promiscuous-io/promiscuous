@@ -31,7 +31,6 @@ class Promiscuous::Publisher::Worker
   rescue Promiscuous::Error::LockUnavailable
     # this is expected from within recovery
   rescue => e
-    puts e; puts e.backtrace.join("\n")
     Promiscuous::Config.error_notifier.call(e)
   end
 end

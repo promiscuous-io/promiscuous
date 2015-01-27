@@ -82,14 +82,30 @@ class Promiscuous::AMQP::Bunny
     Promiscuous.debug "[publish] #{options[:exchange]}/#{options[:key]} #{options[:payload]}"
 
     @connection_lock.synchronize do
-      tag = @channel.next_publish_seq_no if options[:on_confirm]
-      @callback_mapping[tag] = options[:on_confirm] if options[:on_confirm]
+      if options[:async]
+        tag = @channel.next_publish_seq_no if options[:on_confirm]
+        @callback_mapping[tag] = options[:on_confirm] if options[:on_confirm]
+      end
+
       raw_publish(options)
+
+      unless options[:async]
+        if @channel.wait_for_confirms
+          options[:on_confirm].call if options[:on_confirm]
+        else
+          raise Promiscuous::Error::PublishUnacknowledged.new(options[:payload])
+        end
+      end
     end
   rescue Exception => e
     Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
     e = Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
-    Promiscuous::Config.error_notifier.call(e)
+
+    if options[:async]
+      Promiscuous::Config.error_notifier.call(e)
+    else
+      raise e
+    end
   end
 
   def on_confirm(tag, multiple, nack=false)
