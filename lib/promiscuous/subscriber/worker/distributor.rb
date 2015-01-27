@@ -5,15 +5,15 @@ class Promiscuous::Subscriber::Worker::Distributor
 
   def start
     num_threads = Promiscuous::Config.subscriber_threads
-    Promiscuous.debug "[kafka] Booting #{num_threads} threads per topic"
     Promiscuous::Config.subscriber_topics.each do |topic|
       @distributor_threads ||= num_threads.times.map { DistributorThread.new(topic) }
+      Promiscuous.debug "[distributor] Started #{num_threads} thread#{'s' if num_threads>1} topic:#{topic}"
     end
   end
 
   def stop
     return unless @distributor_threads
-    Promiscuous.debug "[kafka] Stopping #{@distributor_threads.count} threads per topic"
+    Promiscuous.debug "[distributor] Stopping #{@distributor_threads.count} threads"
 
     @distributor_threads.each { |distributor_thread| distributor_thread.stop }
     @distributor_threads = nil
@@ -34,11 +34,11 @@ class Promiscuous::Subscriber::Worker::Distributor
       @thread = Thread.new { main_loop }
       @thread.abort_on_exception = true
 
-      Promiscuous.debug "[kafka] Subscribing to topic:#{topic} #{@thread}"
+      Promiscuous.debug "[distributor] Subscribing to topic:#{topic} #{@thread}"
     end
 
     def on_message(metadata, payload)
-      Promiscuous.debug "[kafka] [receive] #{payload.value} #{Thread.current}"
+      Promiscuous.debug "[kafka] [receive] #{payload.value} #{@thread}"
       msg = Promiscuous::Subscriber::Message.new(payload.value, :metadata => metadata, :root_worker => @root)
       msg.process
     rescue Exception => e
