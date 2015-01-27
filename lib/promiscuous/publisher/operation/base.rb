@@ -121,15 +121,15 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def payloads
-    @operation_payloads.map do |_, operation_payloads|
+    @operation_payloads.map do |lock_key, operation_payloads|
       payload              = {}
       payload[:operations] = operation_payloads
       payload[:app]        = Promiscuous::Config.app
       payload[:timestamp]  = Time.now
       payload[:generation] = Promiscuous::Config.generation
       payload[:host]       = Socket.gethostname
+      payload[:key]        = lock_key
       payload.merge!(self.payload_attributes)
-      MultiJson.dump(payload)
     end
   end
 
@@ -143,17 +143,17 @@ class Promiscuous::Publisher::Operation::Base
 
     payloads.each do |payload|
       begin
-        # TODO: Kafka needs a key based on the model name for its partitions
         payload_opts = {
           :exchange   => exchange.to_s,
           :key        => routing.to_s,
           :on_confirm => method(:unlock_all_locks),
-          :payload    => payload,
-          :topic      => topic
+          :topic      => topic,
+          :topic_key  => payload.delete(:key),
+          :payload    => MultiJson.dump(payload)
         }
 
         Promiscuous::AMQP.publish(payload_opts)
-        Promiscuous::Kafka.publish(payload_opts); unlock_all_locks 
+        Promiscuous::Kafka.publish(payload_opts); unlock_all_locks
       rescue Exception => e
         Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
         e = Promiscuous::Error::Publisher.new(e, :payload => payload)

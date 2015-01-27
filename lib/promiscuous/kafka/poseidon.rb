@@ -100,11 +100,10 @@ class Promiscuous::Kafka::Poseidon
     raise "Unable to send messages" if !ok
   end
 
-  # TODO: key needs to be based on the model and not just __all__
   def publish(options={})
     @connection_lock.synchronize do
       raw_publish(options)
-      Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:key]} #{options[:payload]}"
+      Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:topic_key]} #{options[:payload]}"
     end
   rescue Exception => e
     Promiscuous.warn("[publish] Failure publishing to kafka #{e}\n#{e.backtrace.join("\n")}")
@@ -121,7 +120,6 @@ class Promiscuous::Kafka::Poseidon
     end
 
     def fetch_and_process_messages(&block)
-      # XXX: seems to get more than one message at a time
       Promiscuous.debug "[kafka] Fetching messages topic:#{@consumer.topic} #{Thread.current}"
       @consumer.fetch(:commit => false) do |partition, payloads|
         Promiscuous.debug "[kafka] Received #{payloads.count} payloads topic:#{@consumer.topic} #{Thread.current}"
