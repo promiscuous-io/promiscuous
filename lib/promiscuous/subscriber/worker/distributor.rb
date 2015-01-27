@@ -47,14 +47,13 @@ class Promiscuous::Subscriber::Worker::Distributor
     end
 
     # TODO: make sure we're on the sync topic(s) as well
-    # TODO: add sleep in loop?
     def main_loop
       @consumer = subscribe(@topic)
       loop do
         @kill_lock.synchronize do
           fetch_and_process_messages(&method(:on_message))
         end
-        sleep 0.2
+        sleep 0.1
       end
     end
 
