@@ -32,7 +32,7 @@ class Promiscuous::Subscriber::Worker::Distributor
       @topic = topic
       @kill_lock = Mutex.new
       @thread = Thread.new { main_loop }
-      @thread.abort_on_exception = true
+      # @thread.abort_on_exception = true
 
       Promiscuous.debug "[distributor] Subscribing to topic:#{topic} #{@thread}"
     end

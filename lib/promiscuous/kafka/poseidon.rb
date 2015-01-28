@@ -2,21 +2,6 @@ require 'poseidon'
 require 'poseidon_cluster'
 
 class Promiscuous::Kafka::Poseidon
-  def self.hijack_poseidon
-    return if @poseidon_hijacked
-    ::Poseidon::Connection.class_eval do
-      alias_method :raise_connection_failed_error_without_promiscuous, :raise_connection_failed_error
-
-      def raise_connection_failed_error
-        exception = Poseidon::Connection::ConnectionFailedError.new("Failed to connect to #{Promiscuous::Config.kafka_hosts}")
-        Promiscuous.warn "[kafka] #{exception}. Reconnecting..."
-        Promiscuous::Config.error_notifier.call(exception)
-        raise exception
-      end
-    end
-    @poseidon_hijacked = true
-  end
-
   def self.advance_offsets_forward!
     broker_pool = ::Poseidon::BrokerPool.new(::Poseidon::Cluster.guid,
                                              Promiscuous::Config.kafka_hosts,
@@ -46,21 +31,15 @@ class Promiscuous::Kafka::Poseidon
 
   attr_accessor :connection, :connection_lock
 
-  def initialize_driver
-    self.class.hijack_poseidon
-  end
-
   def initialize
-    initialize_driver
     # The poseidon socket doesn't like when multiple threads access to it apparently
     @connection_lock = Mutex.new
   end
 
   def new_connection
-    # TODO: might have to go to a lower level than this, Producers and
-    # Subscribers need to use different libraries
-    # also, client id needs to be unique across the system, use hostname+rand?
-    connection = ::Poseidon::Producer.new(Promiscuous::Config.kafka_hosts, "promiscuous.#{Promiscuous::Config.app}",
+    # TODO: client id needs to be unique across the system, use hostname+rand?
+    client_id = ['promiscuous', Promiscuous::Config.app, Poseidon::Cluster.guid].join('.')
+    connection = ::Poseidon::Producer.new(Promiscuous::Config.kafka_hosts, client_id,
                                           :type => :sync,
                                           :compression_codec => :none,
                                           :metadata_refresh_interval_ms => 600_000,
