@@ -29,8 +29,8 @@ class Promiscuous::Subscriber::Worker::Distributor
       # at runtime since we can have different backends.
       extend Promiscuous::Kafka::Subscriber
 
+      @stop = false
       @topic = topic
-      @kill_lock = Mutex.new
       @thread = Thread.new { main_loop }
       # @thread.abort_on_exception = true
 
@@ -49,12 +49,16 @@ class Promiscuous::Subscriber::Worker::Distributor
     # TODO: make sure we're on the sync topic(s) as well
     def main_loop
       @consumer = subscribe(@topic)
-      loop do
-        @kill_lock.synchronize do
+      while not @stop do
+        begin
           fetch_and_process_messages(&method(:on_message))
+        rescue Poseidon::Connection::ConnectionFailedError
+          @consumer = subscribe(@topic)
         end
         sleep 0.1
       end
+      @consumer.close if @consumer
+      @consumer = nil
     end
 
     def stop
@@ -62,10 +66,8 @@ class Promiscuous::Subscriber::Worker::Distributor
 
       # We wait in case the consumer is responsible for more than one partition
       # see: https://github.com/bsm/poseidon_cluster/blob/master/lib/poseidon/consumer_group.rb#L229
-      @kill_lock.synchronize do
-        @consumer.close if @consumer
-        @thread.kill
-      end
+      @stop = true
+      @thread.join
     end
 
     def show_stop_status(num_requests)

@@ -102,7 +102,7 @@ class Promiscuous::Kafka::Poseidon
       @consumer = ::Poseidon::ConsumerGroup.new(Promiscuous::Config.app,
                                                 Promiscuous::Config.kafka_hosts,
                                                 Promiscuous::Config.zookeeper_hosts,
-                                                topic, :trail => Promiscuous::Config.test_mode)
+                                                topic, :trail => Promiscuous::Config.test_mode, :max_wait_ms => 10)
     end
 
     def fetch_and_process_messages(&block)
