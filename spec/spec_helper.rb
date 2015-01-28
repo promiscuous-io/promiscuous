@@ -37,6 +37,7 @@ RSpec.configure do |config|
   config.include CallbacksHelper
   config.include DependencyHelper
   config.include MocksHelper
+  config.include RedisLockHelper
 
   I18n.enforce_available_locales = false
 

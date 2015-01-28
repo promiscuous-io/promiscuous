@@ -82,6 +82,7 @@ class Promiscuous::Kafka::Poseidon
   def publish(options={})
     @connection_lock.synchronize do
       raw_publish(options)
+      options[:on_confirm].call if options[:on_confirm]
       Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:topic_key]} #{options[:payload]}"
     end
   rescue Exception => e

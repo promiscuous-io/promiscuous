@@ -12,7 +12,7 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
 
     queue_operation_payloads
 
-    publish_payloads_async
+    publish_payloads(:async => true)
   end
 
   def increment_version_in_document

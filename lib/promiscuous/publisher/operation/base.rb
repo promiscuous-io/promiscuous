@@ -63,48 +63,28 @@ class Promiscuous::Publisher::Operation::Base
   def lock_operations_and_queue_recovered_payloads
     operations.map { |operation| [operation.instance.promiscuous.key, operation] }.
       sort { |a,b| a[0] <=> b[0] }.each do |instance_key, operation|
-      lock_data = { :type               => operation.operation_name,
-                    :payload_attributes => self.payload_attributes,
-                    :class              => operation.instance.class.to_s,
-                    :id                 => operation.instance.id.to_s }
-      @locks << Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s,
-                                lock_data,
-                                lock_options.merge(:redis => redis))
-    end
+      recovery_data = { :type               => operation.operation_name,
+                        :payload_attributes => self.payload_attributes,
+                        :class              => operation.instance.class.to_s,
+                        :id                 => operation.instance.id.to_s }
 
-    @locks.each do |lock|
-      locked = lock.lock
-      case locked
-      when true
-        # All good
-      when false
-        unlock_all_locks
-        raise Promiscuous::Error::LockUnavailable.new(lock.key)
-        # XXX A recovered lock should return the previous data otherwise you're
-        # using the wrong information!
-      else # Recovered
-        recover_for_lock(locked)
-        lock.extend
+      begin
+        lock = Redis::Lock.new(Promiscuous::Key.new(:pub).join(instance_key).to_s, lock_options.merge(:redis => redis))
+        lock.lock(:recovery_data => YAML.dump(recovery_data))
+      rescue Redis::Lock::Recovered
+        Promiscuous::Publisher::Operation::Recovery.new(:lock => lock).recover!
+        retry
       end
-    end
-  end
 
-  def recover_for_lock(lock_data)
-    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(lock_data), :operation_name => lock_data[:type])
-    queue_operation_payloads([operation])
-  end
-
-  def fetch_instance_for_lock_data(lock_data)
-    klass = lock_data[:class].constantize
-    if lock_data[:type] == :destroy
-      klass.new.tap { |new_instance| new_instance.id = lock_data[:id] }
-    else
-      klass.where(:id => lock_data[:id]).first
+      @locks << lock
     end
+  rescue Redis::Lock::Timeout, Redis::Lock::LostLock => e
+    unlock_all_locks
+    raise Promiscuous::Error::LockUnavailable.new(e.lock.key)
   end
 
   def unlock_all_locks
-    @locks.each(&:unlock)
+    @locks.each { |lock| lock.try_unlock }
   end
 
   def queue_operation_payloads(operations = self.operations)
@@ -133,34 +113,24 @@ class Promiscuous::Publisher::Operation::Base
     end
   end
 
-  def publish_payloads_async(options={})
+  def publish_payloads(options={})
     unlock_all_locks and return if @operation_payloads.blank?
 
-    exchange    = options[:exchange]  || Promiscuous::Config.publisher_exchange
-    routing     = options[:routing]   || Promiscuous::Config.sync_all_routing
-    topic       = options[:topic]     || Promiscuous::Config.publisher_topic
-    raise_error = options[:raise_error].present? ? options[:raise_error] : false
+    exchange = options[:exchange]  || Promiscuous::Config.publisher_exchange
+    routing  = options[:routing]   || Promiscuous::Config.sync_all_routing
+    topic    = options[:topic]     || Promiscuous::Config.publisher_topic
+    async    = !!options[:async]
 
     payloads.each do |payload|
-      begin
-        payload_opts = {
-          :exchange   => exchange.to_s,
-          :key        => routing.to_s,
-          :on_confirm => method(:unlock_all_locks),
-          :topic      => topic,
-          :topic_key  => payload.delete(:key),
-          :payload    => MultiJson.dump(payload)
-        }
-
-        Promiscuous::AMQP.publish(payload_opts)
-        Promiscuous::Kafka.publish(payload_opts); unlock_all_locks
-      rescue Exception => e
-        Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
-        e = Promiscuous::Error::Publisher.new(e, :payload => payload)
-        Promiscuous::Config.error_notifier.call(e)
-
-        raise e.inner if raise_error
-      end
+      payload_opts = { :exchange   => exchange.to_s,
+                       :key        => routing.to_s,
+                       :on_confirm => method(:unlock_all_locks),
+                       :topic      => topic,
+                       :topic_key  => payload.delete(:key),
+                       :payload    => MultiJson.dump(payload),
+                       :async      => async }
+       Promiscuous::AMQP.publish(payload_opts)
+       Promiscuous::Kafka.publish(payload_opts)
     end
   end
 

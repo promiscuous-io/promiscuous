@@ -9,7 +9,7 @@ class Promiscuous::Publisher::Operation::Ephemeral < Promiscuous::Publisher::Ope
 
   def execute_instrumented(query)
     queue_operation_payloads
-    publish_payloads_async(:exchange => @exchange, :routing => @routing, :raise_error => true)
+    publish_payloads(:exchange => @exchange, :routing => @routing)
   end
 
   def increment_version_in_document

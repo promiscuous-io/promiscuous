@@ -1,10 +1,31 @@
 class Promiscuous::Publisher::Operation::Recovery < Promiscuous::Publisher::Operation::Base
-  def recover!(lock)
-    @instance = fetch_instance_for_lock_data(lock.data)
+  def initialize(options)
+    super
+    @locks = [options[:lock]]
+  end
 
-    lock_operations_and_queue_recovered_payloads
+  def recover!
+    @locks.each do |lock|
+      lock.extend
+      recover_for_lock(lock)
+      publish_payloads
+    end
+  end
 
-    publish_payloads_async
+  def recover_for_lock(lock)
+    recovery_data = YAML.load(lock.recovery_data)
+    operation = Promiscuous::Publisher::Operation::NonPersistent.new(:instance => fetch_instance_for_lock_data(recovery_data),
+                                                                     :operation_name => recovery_data[:type])
+    queue_operation_payloads([operation])
+  end
+
+  def fetch_instance_for_lock_data(lock_data)
+    klass = lock_data[:class].constantize
+    if lock_data[:type] == :destroy
+      klass.new.tap { |new_instance| new_instance.id = lock_data[:id] }
+    else
+      klass.where(:id => lock_data[:id]).first
+    end
   end
 end
 

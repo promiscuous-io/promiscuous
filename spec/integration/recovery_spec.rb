@@ -1,16 +1,16 @@
 require 'spec_helper'
 
 describe Promiscuous do
-  let(:lock_expiration) { 2 }
+  let(:lock_expiration) { 1 }
 
   before { use_real_backend { |config| config.logger.level = Logger::ERROR
                               config.publisher_lock_expiration = lock_expiration
                               config.publisher_lock_timeout    = 0.1
-                              config.recovery_interval = 0.01 } }
+                              config.recovery_interval = 0.1 } }
   before { load_models }
   before { run_subscriber_worker! }
 
-  after { Promiscuous::Publisher::Operation::Base.expired.should be_empty }
+  after { redis_lock_count.should == 0 }
 
   context "when a recovery worker is running" do
     before { run_recovery_worker! }
@@ -26,13 +26,15 @@ describe Promiscuous do
 
           expect { pub.update_attributes(:field_1 => '2') }.to_not raise_error
 
-          sleep 0.1
+          sleep 10
 
-          SubscriberModel.count.should == 1
+          SubscriberModel.first.field_1.should == '1'
 
           amqp_up!
 
-          eventually { SubscriberModel.first.field_1.should == '2' }
+          eventually do
+            SubscriberModel.first.field_1.should == '2'
+          end
         end
       end
 
@@ -42,7 +44,7 @@ describe Promiscuous do
 
           expect { PublisherModel.create(:field_1 => '1') }.to_not raise_error
 
-          sleep 0.1
+          sleep 1
 
           SubscriberModel.count.should == 0
 
@@ -61,7 +63,7 @@ describe Promiscuous do
 
           amqp_up!
 
-          eventually { Promiscuous::Publisher::Operation::Base.expired.should be_empty }
+          eventually { redis_lock_count.should == 0 }
         end
       end
 
@@ -75,7 +77,7 @@ describe Promiscuous do
 
           expect { pub.destroy }.to_not raise_error
 
-          sleep 0.1
+          sleep 1
 
           SubscriberModel.count.should == 1
 
@@ -104,26 +106,32 @@ describe Promiscuous do
   end
 
   context "when a recovery worker is not running" do
-    context "when a lock expires" do
+    context "rabbit dies" do
       let(:lock_expiration) { 0.1 }
 
-      before { $callback_counter = 0 }
+      before { $field_values = [] }
       before do
         SubscriberModel.class_eval do
-          after_save { $callback_counter += 1 }
+          after_save { $field_values << self.field_2 }
         end
       end
-      before do
-        amqp_down!
-        @pub = PublisherModel.create(:field_1 => 1)
+      before { amqp_down! }
+
+      it "multiple subsequent operation fail if rabbit is down until rabbit comes back up" do
+        @pub = PublisherModel.create(:field_2 => 1)
         sleep 1
+        expect { @pub.update_attributes(:field_2 => 2) }.to raise_error
+        sleep 1
+        expect { @pub.update_attributes(:field_2 => 3) }.to raise_error
+        sleep 1
+
         amqp_up!
-      end
 
-      it "a subsequent operation on the same object publishes the previous state of the database" do
-        @pub.update_attributes(:field_2 => 2)
+        expect { @pub.update_attributes(:field_2 => 4) }.to_not raise_error
 
-        eventually { $callback_counter.should == 2 }
+        eventually do
+          $field_values.should == [1, 4]
+        end
       end
     end
   end
