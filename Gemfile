@@ -1,1 +1,1 @@
-gemfiles/active_record32.gemfile
+gemfiles/mongoid40.gemfile

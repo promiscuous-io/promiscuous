@@ -46,16 +46,17 @@ describe Promiscuous do
       pub = PublisherModel.create(:field_1 => '1')
       eventually { SubscriberModel.count.should == 1 }
 
-      amqp_delayed!
+      kafka_delayed!
 
       pub.update_attributes(:field_1 => '2')
+      purge_locks! # Message will be published anyway but we want to release the locks to test this case for the specs
 
-      amqp_up!
+      kafka_up!
 
       pub.update_attributes(:field_1 => '3')
       sleep 0.1
 
-      amqp_process_delayed!
+      kafka_process_delayed!
     end
 
     it 'subscribes to messages in the correct order (by dropping the last message)' do
@@ -71,16 +72,17 @@ describe Promiscuous do
     before { Promiscuous::Config.logger.level = Logger::FATAL }
 
     before do
-      amqp_delayed!
+      kafka_delayed!
 
       pub = PublisherModel.create(:field_1 => '1')
+      purge_locks! # Message will be published anyway but we want to release the locks to test this case for the specs
 
-      amqp_up!
+      kafka_up!
 
       pub.update_attributes(:field_1 => '2')
       sleep 0.1
 
-      amqp_process_delayed!
+      kafka_process_delayed!
 
       sleep 0.1
     end
@@ -97,16 +99,17 @@ describe Promiscuous do
     before { Promiscuous::Config.logger.level = Logger::FATAL }
 
     before do
-      amqp_delayed!
+      kafka_delayed!
 
       pub = PublisherModel.create(:field_1 => '1')
+      purge_locks!
 
-      amqp_up!
+      kafka_up!
 
       pub.destroy
       sleep 0.1
 
-      amqp_process_delayed!
+      kafka_process_delayed!
       sleep 0.1
     end
 
@@ -164,11 +167,12 @@ describe Promiscuous do
       pub = PublisherModel.create(:field_1 => '1')
       eventually { SubscriberModel.count.should == 1 }
 
-      amqp_down!
+      kafka_down!
 
       pub.update_attributes(:field_1 => '2') # this payload will never be sent
+      purge_locks! # Message we want to release the locks to test the case where an update is lost
 
-      amqp_up!
+      kafka_up!
 
       pub.update_attributes(:field_1 => '3')
     end
@@ -197,4 +201,8 @@ def define_callback(cb)
     cattr_accessor "#{cb}_instance"
     __send__("after_#{cb}", proc { self.class.send("#{cb}_instance=", self) })
   end
+end
+
+def purge_locks!
+  Promiscuous::Redis.connection.flushdb
 end

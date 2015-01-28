@@ -40,8 +40,9 @@ class Promiscuous::Subscriber::UnitOfWork
       on_message
     rescue Exception => e
       Promiscuous::Config.error_notifier.call(e)
-      message.nack
+      # message.nack
       raise e if Promiscuous::Config.test_mode
+      sleep Promiscuous::Config.error_ttl / 1000.0; retry
     end
   end
 
@@ -55,14 +56,16 @@ class Promiscuous::Subscriber::UnitOfWork
     key = "#{app}:#{operation.key}"
     lock = Redis::Lock.new(key, LOCK_OPTIONS.merge(:redis => Promiscuous::Redis.connection))
 
-    unless lock.lock
+    begin
+      lock.lock
+    rescue Redis::Lock::Timeout
       raise Promiscuous::Error::LockUnavailable.new(lock.key)
     end
 
     begin
       yield
     ensure
-      unless lock.unlock
+      unless lock.try_unlock
         # TODO Be safe in case we have a duplicate message and lost the lock on it
         raise "The subscriber lost the lock during its operation. It means that someone else\n"+
           "received a duplicate message, and we got screwed.\n"

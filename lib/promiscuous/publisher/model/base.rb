@@ -16,7 +16,7 @@ module Promiscuous::Publisher::Model::Base
 
     def payload(options={})
       msg = {}
-      msg[:types] = @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+      msg[:types] = types
       msg[:id]    = @instance.id.to_s
       unless options[:with_attributes] == false
         # promiscuous_payload is useful to implement relays
@@ -41,16 +41,29 @@ module Promiscuous::Publisher::Model::Base
     end
 
     def sync(target)
+      Promiscuous.ensure_connected
+
       raise "Model cannot be dirty (have changes) when syncing" if @instance.changed?
       raise "Model has to be reloaded if it was saved" if @instance.previous_changes.present?
 
+      # XXX Temporary while until we sync on seperate topics
+      topic = target == Promiscuous::Config.sync_all_routing ? Promiscuous::Config.app : target
+
       # We can use the ephemeral because both are mongoid and ephemerals are atomic operations.
       Promiscuous::Publisher::Operation::Ephemeral.new(:instance => @instance,
-                                                       :operation => :update,
+                                                       :operation_name => :update,
                                                        :routing => target,
+                                                       :topic   => topic,
                                                        :exchange => Promiscuous::Config.sync_exchange).execute
     end
 
+    def types
+      @instance.class.ancestors.select { |a| a < Promiscuous::Publisher::Model::Base }.map(&:publish_as)
+    end
+
+    def key
+      [Promiscuous::Config.app,types.first,id].join('/')
+    end
   end
 
   class PromiscuousMethods

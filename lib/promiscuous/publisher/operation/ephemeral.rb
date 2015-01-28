@@ -2,16 +2,15 @@ class Promiscuous::Publisher::Operation::Ephemeral < Promiscuous::Publisher::Ope
   def initialize(options={})
     super
     @instance = options[:instance]
-    @routing = options[:routing]
-    @exchange = options[:exchange]
-  end
 
-  def instances
-    [@instance].compact
+    @routing  = options[:routing]
+    @exchange = options[:exchange]
+    @topic    = options[:topic]
   end
 
   def execute_instrumented(query)
-    create_transport_batch([self], :exchange => @exchange, :routing => @routing).publish(true)
+    queue_operation_payloads
+    publish_payloads(:exchange => @exchange, :routing => @routing, :topic => @topic)
   end
 
   def increment_version_in_document

@@ -1,6 +1,8 @@
 require 'active_support/dependencies/autoload'
+require 'active_support/deprecation'
 require 'active_support/core_ext'
 require 'active_model/callbacks'
+
 require 'multi_json'
 
 module Promiscuous
@@ -22,7 +24,7 @@ module Promiscuous
 
   extend Promiscuous::Autoload
   autoload :Common, :Publisher, :Subscriber, :Observer, :Worker, :Ephemeral,
-           :CLI, :Error, :Loader, :AMQP, :Redis, :ZK, :Config, :DSL, :Key,
+           :CLI, :Error, :Loader, :AMQP, :Kafka, :Redis, :ZK, :Config, :DSL, :Key,
            :Convenience, :Dependency, :Timer, :Rabbit
 
   extend Promiscuous::DSL
@@ -42,6 +44,7 @@ module Promiscuous
 
     def connect
       AMQP.connect
+      Kafka.connect # TODO: needed?
       Redis.connect
 
       @should_be_connected = true
@@ -49,6 +52,7 @@ module Promiscuous
 
     def disconnect
       AMQP.disconnect
+      Kafka.disconnect
       Redis.disconnect
       @should_be_connected = false
     end
@@ -57,13 +61,35 @@ module Promiscuous
       !!@should_be_connected
     end
 
+    def health_check
+      health = { :amqp  => true, :redis => true }
+
+      begin
+        AMQP.ensure_connected
+      rescue Exception
+        health[:amqp] = false
+      end
+
+      begin
+        Kafka.ensure_connected
+      rescue Exception
+        health[:kafka] = false
+      end
+
+      begin
+        Redis.ensure_connected
+      rescue Exception
+        health[:redis] = false
+      end
+
+      health[:status]  = health.all?{|key, value| value == true} ?  :ok : :service_unavailable
+      health[:expired] = Promiscuous::Publisher::Operation::Base.expired.length
+
+      health
+    end
+
     def healthy?
-      AMQP.ensure_connected
-      Redis.ensure_connected
-    rescue Exception
-      false
-    else
-      true
+      health_check[:status] == :ok
     end
 
     def ensure_connected

@@ -1,5 +1,7 @@
 module BackendHelper
   def reconfigure_backend(&block)
+    STDERR.sync = true
+
     Promiscuous.configure do |config|
       config.reset
       config.amqp_url = amqp_url
@@ -7,7 +9,7 @@ module BackendHelper
       config.redis_url = redis_url
       config.queue_options = {:auto_delete => true}
       config.logger = Logger.new(STDERR)
-      config.logger.level = ENV["LOGGER_LEVEL"] ? ENV["LOGGER_LEVEL"].to_i : Logger::WARN
+      config.logger.level = ENV["LOGGER_LEVEL"] ? ENV["LOGGER_LEVEL"].to_i : Logger::ERROR
       config.stats_interval = 0
       config.destroy_timeout = 0
       config.destroy_check_interval = 0
@@ -27,6 +29,7 @@ module BackendHelper
         block.call(config) if block
       end
     end
+    Promiscuous::Kafka::Poseidon.advance_offsets_forward!
     Promiscuous.ensure_connected
     Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it.
     [Promiscuous::Config.queue_name, Promiscuous::Config.error_queue_name].each { |queue| Promiscuous::Rabbit::Policy.delete(queue) }
@@ -41,7 +44,7 @@ module BackendHelper
 
   def run_recovery_worker!
     @recovery_worker.stop if @recovery_worker
-    @recovery_worker = Promiscuous::Publisher::Transport::Worker.new
+    @recovery_worker = Promiscuous::Publisher::Worker.new
     @recovery_worker.start
   end
 

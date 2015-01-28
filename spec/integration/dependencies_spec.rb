@@ -1,7 +1,8 @@
 require 'spec_helper'
 
 describe Promiscuous do
-  before { use_real_backend }
+  before { use_real_backend { |config| config.publisher_lock_expiration = 10
+                                       config.publisher_lock_timeout    = 5 } }
   before { load_models }
   before { record_callbacks(SubscriberModel) }
 

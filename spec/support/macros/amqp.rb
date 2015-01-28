@@ -2,15 +2,15 @@ module AMQPMacro
   extend self
 
   def amqp_up!
-    if Promiscuous::AMQP.backend.respond_to?(:orig_publish)
-      Promiscuous::AMQP.backend.class_eval { alias_method :publish, :orig_publish }
+    if Promiscuous::AMQP.backend.respond_to?(:orig_raw_publish)
+      Promiscuous::AMQP.backend.class_eval { alias_method :raw_publish, :orig_raw_publish }
     end
   end
 
   def amqp_down!
     prepare
 
-    Promiscuous::AMQP.backend.class_eval { def publish(*args); raise RuntimeError.new("amqp DOWN!!!"); end }
+    Promiscuous::AMQP.backend.class_eval { def raw_publish(*args); raise RuntimeError.new("amqp DOWN!!!"); end }
   end
 
   def amqp_delayed!
@@ -20,20 +20,20 @@ module AMQPMacro
       cattr_accessor :delayed
       self.delayed = []
 
-      def publish(*args)
+      def raw_publish(*args)
         self.delayed << args
       end
     end
   end
 
   def amqp_process_delayed!
-    Promiscuous::AMQP.backend.delayed.each { |args| Promiscuous::AMQP.backend.publish(*args) }
+    Promiscuous::AMQP.backend.delayed.each { |args| Promiscuous::AMQP.backend.raw_publish(*args) }
   end
 
   private
 
   def prepare
-    Promiscuous::AMQP.backend.class_eval { alias_method :orig_publish, :publish }
+    Promiscuous::AMQP.backend.class_eval { alias_method :orig_raw_publish, :raw_publish }
   end
 end
 

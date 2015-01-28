@@ -1,31 +1,18 @@
 class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operation::Base
-  # XXX instance can be a selector representation.
-  attr_accessor :instance
-
-  def instances
-    [@instance].compact
-  end
-
   def execute_instrumented(query)
-    if operation == :destroy
+    if operation_name == :destroy
       fetch_instance
     else
       increment_version_in_document
     end
 
-    transport_batch = create_transport_batch([self])
-    transport_batch.prepare
+    lock_operations_and_queue_recovered_payloads
 
     query.call_and_remember_result(:instrumented)
 
-    unless operation == :destroy
-      # Refresh the operation on the batch to include the updated instance
-      # reflecting the executed operation so that we publish the correct data.
-      transport_batch.clear
-      transport_batch.add query.operation.operation, query.operation.instances
-    end
+    queue_operation_payloads
 
-    transport_batch.publish
+    publish_payloads(:async => true)
   end
 
   def increment_version_in_document
