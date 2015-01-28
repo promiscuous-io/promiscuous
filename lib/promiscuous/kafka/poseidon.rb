@@ -94,7 +94,12 @@ class Promiscuous::Kafka::Poseidon
   rescue Exception => e
     Promiscuous.warn("[publish] Failure publishing to kafka #{e}\n#{e.backtrace.join("\n")}")
     e = Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
-    Promiscuous::Config.error_notifier.call(e)
+
+    if options[:async]
+      Promiscuous::Config.error_notifier.call(e)
+    else
+      raise e
+    end
   end
 
   module Subscriber

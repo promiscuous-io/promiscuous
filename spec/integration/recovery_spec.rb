@@ -22,7 +22,7 @@ describe Promiscuous do
 
           eventually { SubscriberModel.count.should == 1 }
 
-          amqp_down!
+          kafka_down!
 
           expect { pub.update_attributes(:field_1 => '2') }.to_not raise_error
 
@@ -30,7 +30,7 @@ describe Promiscuous do
 
           SubscriberModel.first.field_1.should == '1'
 
-          amqp_up!
+          kafka_up!
 
           eventually do
             SubscriberModel.first.field_1.should == '2'
@@ -40,7 +40,7 @@ describe Promiscuous do
 
       context 'for creates' do
         it 'still publishes message updates' do
-          amqp_down!
+          kafka_down!
 
           expect { PublisherModel.create(:field_1 => '1') }.to_not raise_error
 
@@ -48,7 +48,7 @@ describe Promiscuous do
 
           SubscriberModel.count.should == 0
 
-          amqp_up!
+          kafka_up!
 
           eventually { SubscriberModel.first.field_1.should == '1' }
         end
@@ -56,12 +56,12 @@ describe Promiscuous do
 
       context "for two operations on the same document" do
         it "raises for the second operation as the lock has not expired" do
-          amqp_down!
+          kafka_down!
 
           pub = PublisherModel.create(:field_1 => '1')
           expect { pub.destroy }.to raise_error
 
-          amqp_up!
+          kafka_up!
 
           eventually { redis_lock_count.should == 0 }
         end
@@ -73,7 +73,7 @@ describe Promiscuous do
 
           eventually { SubscriberModel.count.should == 1 }
 
-          amqp_down!
+          kafka_down!
 
           expect { pub.destroy }.to_not raise_error
 
@@ -81,7 +81,7 @@ describe Promiscuous do
 
           SubscriberModel.count.should == 1
 
-          amqp_up!
+          kafka_up!
 
           eventually { SubscriberModel.count.should == 0 }
         end
@@ -91,12 +91,12 @@ describe Promiscuous do
         before { load_ephemerals }
 
         it 'raises if unable to publish' do
-          amqp_down!
+          kafka_down!
 
           expect { ModelEphemeral.create(:field_1 => '1') }.to raise_error
           SubscriberModel.count.should == 0
 
-          amqp_up!
+          kafka_up!
 
           expect { ModelEphemeral.create(:field_1 => '1') }.to_not raise_error
           eventually { SubscriberModel.first.field_1.should == '1' }
@@ -115,7 +115,7 @@ describe Promiscuous do
           after_save { $field_values << self.field_2 }
         end
       end
-      before { amqp_down! }
+      before { kafka_down! }
 
       it "multiple subsequent operation fail if rabbit is down until rabbit comes back up" do
         @pub = PublisherModel.create(:field_2 => 1)
@@ -125,7 +125,7 @@ describe Promiscuous do
         expect { @pub.update_attributes(:field_2 => 3) }.to raise_error
         sleep 1
 
-        amqp_up!
+        kafka_up!
 
         expect { @pub.update_attributes(:field_2 => 4) }.to_not raise_error
 
