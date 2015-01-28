@@ -1,5 +1,7 @@
 module BackendHelper
   def reconfigure_backend(&block)
+    STDERR.sync = true
+
     Promiscuous.configure do |config|
       config.reset
       config.amqp_url = amqp_url
