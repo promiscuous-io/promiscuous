@@ -5,7 +5,7 @@ module BackendHelper
     Promiscuous.configure do |config|
       config.reset
       config.amqp_url = amqp_url
-      config.app = 'promiscuous-test'
+      config.app = 'test'
       config.redis_url = redis_url
       config.queue_options = {:auto_delete => true}
       config.logger = Logger.new(STDERR)

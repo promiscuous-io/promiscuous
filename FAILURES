@@ -1,7 +1,3 @@
-rspec ./spec/integration/consistency_spec.rb:90
-rspec ./spec/integration/consistency_spec.rb:180
-rspec ./spec/integration/manual_sync_spec.rb:37
-rspec ./spec/integration/polymorphic_embedded_spec.rb:35
 rspec ./spec/integration/recovery_spec.rb:20
 rspec ./spec/integration/recovery_spec.rb:42
 rspec ./spec/integration/recovery_spec.rb:58
