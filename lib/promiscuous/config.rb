@@ -1,16 +1,16 @@
 module Promiscuous::Config
-  mattr_accessor :app, :kafka_backend, :kafka_hosts, :zookeeper_hosts, :publisher_topic,
+  mattr_accessor :app, :backend, :kafka_backend, :kafka_hosts, :zookeeper_hosts, :publisher_topic,
                  :subscriber_topics, :redis_url, :redis_stats_url, :stats_interval,
                  :socket_timeout, :heartbeat, :sync_all_routing, :prefetch,
                  :publisher_lock_expiration, :publisher_lock_timeout,
                  :recovery_interval, :logger, :subscriber_threads, :version_field,
                  :error_notifier, :test_mode, :on_stats, :max_retries, :generation,
-                 :destroy_timeout, :destroy_check_interval,
+                 :destroy_timeout, :destroy_check_interval, :error_ttl,
     # vvvv REMOVE AFTER AMQP IS GONE vvvv
-                 :backend, :amqp_url, :publisher_amqp_url, :subscriber_amqp_url,
+                 :amqp_url, :publisher_amqp_url, :subscriber_amqp_url,
                  :publisher_exchange, :subscriber_exchanges, :sync_exchange, :queue_name,
                  :queue_options, :error_queue_name, :rabbit_mgmt_url, :queue_policy,
-                 :error_exchange, :error_routing, :retry_routing, :error_ttl
+                 :error_exchange, :error_routing, :retry_routing
 
   def self.backend=(value)
     @@backend = value
@@ -41,15 +41,16 @@ module Promiscuous::Config
     block.call(self) if block
 
     self.app                  ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
+    self.backend              ||= best_amqp_backend
     self.kafka_backend        ||= :poseidon
     self.kafka_hosts          ||= ['localhost:9092']
     self.zookeeper_hosts      ||= ['localhost:2181']
     self.publisher_topic      ||= self.app
     self.subscriber_topics    ||= [self.publisher_topic]
     self.sync_all_routing     ||= :__all__
+    self.error_ttl            ||= 30000
 
     # vvvv REMOVE AFTER AMQP IS GONE vvvv
-    self.backend              ||= best_amqp_backend
     self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
     self.rabbit_mgmt_url      ||= 'http://guest:guest@localhost:15672'
     self.publisher_amqp_url   ||= self.amqp_url
@@ -62,7 +63,6 @@ module Promiscuous::Config
     self.error_queue_name     ||= "#{self.app}.error"
     self.error_routing        ||= :__error__
     self.retry_routing        ||= :__retry__
-    self.error_ttl            ||= 30000
     self.queue_policy         ||= { 'ha-mode' => 'all' }
     self.queue_options        ||= { :durable => true }
     # ^^^^ REMOVE AFTER AMQP IS GONE ^^^^
@@ -78,7 +78,7 @@ module Promiscuous::Config
     self.publisher_lock_timeout ||= 2.seconds
     self.recovery_interval    ||= 5.seconds
     self.logger               ||= defined?(Rails) ? Rails.logger : Logger.new(STDERR).tap { |l| l.level = Logger::WARN }
-    self.subscriber_threads   ||= 1
+    self.subscriber_threads   ||= 10
     self.error_notifier       ||= proc {}
     self.version_field        ||= '_v'
     self.on_stats             ||= proc { |rate, latency| }
