@@ -1,1 +1,0 @@
-rspec ./spec/integration/retry_exceptions_spec.rb:26
