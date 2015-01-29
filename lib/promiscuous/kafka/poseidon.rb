@@ -112,12 +112,18 @@ class Promiscuous::Kafka::Poseidon
 
     def fetch_and_process_messages(&block)
       Promiscuous.debug "[kafka] Fetching messages topic:#{@consumer.topic} #{Thread.current}"
-      @consumer.fetch(:commit => false) do |partition, payloads|
-        Promiscuous.debug "[kafka] Received #{payloads.count} payloads topic:#{@consumer.topic} #{Thread.current}"
+      payload_count = 0
+      fetched_messages = @consumer.fetch(:commit => false) do |partition, payloads|
+        payload_count = payloads.count
+        Promiscuous.debug "[kafka] Received #{payload_count} payloads topic:#{@consumer.topic} #{Thread.current}"
         payloads.each do |payload|
           Promiscuous.debug "[kafka] Fetched '#{payload.value}' topic:#{@consumer.topic} offset:#{payload.offset} parition:#{partition}"
           block.call(MetaData.new(@consumer, partition, payload.offset), payload)
         end
+      end
+
+      if !fetched_messages || payload_count == 0
+        sleep 0.1
       end
     end
 

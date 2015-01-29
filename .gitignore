@@ -7,3 +7,5 @@ coverage
 .coveralls.yml
 rspec.failures
 .bundle
+kafka_*
+tmp

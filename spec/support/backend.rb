@@ -1,3 +1,5 @@
+require 'securerandom'
+
 module BackendHelper
   def reconfigure_backend(&block)
     STDERR.sync = true
@@ -15,6 +17,8 @@ module BackendHelper
       config.destroy_check_interval = 0
       config.max_retries = 0
       config.rabbit_mgmt_url = rabbit_mgmt_url
+      # config.kafka_hosts = kafka_hosts
+      # config.zookeeper_hosts = zookeeper_hosts
       block.call(config) if block
     end
     Promiscuous.connect
@@ -76,14 +80,29 @@ module BackendHelper
   def rabbit_mgmt_url
     ENV['BOXEN_RABBITMQ_MGMT_URL'] || 'http://guest:guest@localhost:15672'
   end
+
+  def kafka_hosts
+    ["localhost:#{TestCluster::KAFKA_PORT}"]
+  end
+
+  def zookeeper_hosts
+    ["localhost:#{TestCluster::ZOOKP_PORT}"]
+  end
 end
 
 RSpec.configure do |config|
+  # config.before do
+    # $tc ||= TestCluster.new
+    # $tc.start
+  # end
+
   config.after do
     @worker.try { |worker| worker.pump.delete_queues }
     [@recovery_worker, @worker].compact.each do |worker|
       worker.stop
       worker = nil
     end
+
+    # $tc.stop
   end
 end
