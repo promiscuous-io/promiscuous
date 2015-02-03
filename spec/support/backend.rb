@@ -121,6 +121,11 @@ module BackendHelper
   end
 end
 
+if ENV['POSEIDON_LOGGER_LEVEL']
+  require 'poseidon'
+  Poseidon.logger = Logger.new(STDOUT).tap { |l| l.level = ENV['POSEIDON_LOGGER_LEVEL'].to_i }
+end
+
 RSpec.configure do |config|
   # config.before do
     # $tc ||= TestCluster.new
