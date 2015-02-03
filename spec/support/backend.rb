@@ -1,6 +1,37 @@
 require 'securerandom'
 
 module BackendHelper
+  def advance_offsets_forward!
+    broker_pool = ::Poseidon::BrokerPool.new(::Poseidon::Cluster.guid,
+                                             Promiscuous::Config.kafka_hosts,
+                                             Promiscuous::Config.socket_timeout)
+
+    broker_host, broker_port = Promiscuous::Config.kafka_hosts.first.split(':')
+    broker_pool.update_known_brokers({ 0 => { :host => broker_host, :port => broker_port }})
+
+    # we assume that a topic maps to a ConsumerGroup one-to-one
+    zk = ZK.new(Promiscuous::Config.zookeeper_hosts.join(','))
+    begin
+      Promiscuous::Config.subscriber_topics.each do |topic|
+        partitions_path = "/consumers/#{topic}/offsets/#{topic}"
+        zk.children(partitions_path).each do |partition|
+          partition_offset_requests = [::Poseidon::Protocol::PartitionOffsetRequest.new(partition.to_i, -1, 1000)]
+          offset_topic_requests = [::Poseidon::Protocol::TopicOffsetRequest.new(topic, partition_offset_requests)]
+          offset_responses = broker_pool.execute_api_call(0, :offset, offset_topic_requests)
+          latest_offset = offset_responses.first.partition_offsets.first.offsets.first.offset
+
+          zk.set([ partitions_path, partition ].join('/'), latest_offset.to_s)
+        end
+      end
+    rescue ZK::Exceptions::NoNode
+      # It's ok. Nothing to advance.
+    end
+    zk.close
+    broker_pool.close
+
+    true
+  end
+
   def reconfigure_backend(&block)
     STDERR.sync = true
 
@@ -33,7 +64,7 @@ module BackendHelper
         block.call(config) if block
       end
     end
-    Promiscuous::Kafka::Poseidon.advance_offsets_forward!
+    advance_offsets_forward!
     Promiscuous.ensure_connected
     Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it.
     [Promiscuous::Config.queue_name, Promiscuous::Config.error_queue_name].each { |queue| Promiscuous::Rabbit::Policy.delete(queue) }
