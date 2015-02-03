@@ -10,7 +10,6 @@ class Promiscuous::Kafka::Poseidon
   end
 
   def new_connection
-    # TODO: client id needs to be unique across the system, use hostname+rand?
     client_id = ['promiscuous', Promiscuous::Config.app, Poseidon::Cluster.guid].join('.')
     connection = ::Poseidon::Producer.new(Promiscuous::Config.kafka_hosts, client_id,
                                           :type => :sync,
@@ -26,7 +25,6 @@ class Promiscuous::Kafka::Poseidon
 
   def connect
     @connection = new_connection
-    # Poseidon.logger = Logger.new(STDOUT).tap { |l| l.level = 0 }
   end
 
   def disconnect
