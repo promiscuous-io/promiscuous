@@ -41,13 +41,9 @@ class Promiscuous::Kafka::Poseidon
   end
 
   def raw_publish(options)
-    ok = false
-    10.times do
-      ok = @connection.send_messages([Poseidon::MessageToSend.new(options[:topic], options[:payload], options[:key])])
-      break if ok
-      sleep(1)
-    end
+    ok = @connection.send_messages([Poseidon::MessageToSend.new(options[:topic], options[:payload], options[:key])])
     raise "Unable to send messages" if !ok
+    Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:topic_key]} #{options[:payload]}"
   end
 
   def publish(options={})
