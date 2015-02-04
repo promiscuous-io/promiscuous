@@ -44,7 +44,6 @@ class Promiscuous::Subscriber::Worker::Distributor
       Promiscuous::Config.error_notifier.call(e)
     end
 
-    # TODO: make sure we're on the sync topic(s) as well
     def main_loop(topic)
       @consumer = subscribe(topic)
       while not @stop do
