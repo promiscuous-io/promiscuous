@@ -32,11 +32,11 @@ class Promiscuous::Subscriber::Worker::Distributor
       @stop = false
       @thread = Thread.new(topic) {|t| main_loop(t) }
 
-      Promiscuous.debug "[distributor] Subscribing to topic:#{topic} #{@thread}"
+      Promiscuous.debug "[distributor] Subscribing to topic:#{topic} [#{@thread.object_id}]"
     end
 
     def on_message(metadata, payload)
-      Promiscuous.debug "[kafka] [receive] #{payload.value} #{@thread}"
+      Promiscuous.debug "[kafka] [receive] #{payload.value} [#{@thread.object_id}]"
       msg = Promiscuous::Subscriber::Message.new(payload.value, :metadata => metadata, :root_worker => @root)
       msg.process
     rescue Exception => e
@@ -51,6 +51,7 @@ class Promiscuous::Subscriber::Worker::Distributor
         begin
           fetch_and_process_messages(&method(:on_message))
         rescue Poseidon::Connection::ConnectionFailedError
+          Promiscuous.debug "[kafka] Reconnecting... [#{@thread.object_id}]"
           @consumer = subscribe(@topic)
         end
         sleep 0.1
@@ -60,12 +61,13 @@ class Promiscuous::Subscriber::Worker::Distributor
     end
 
     def stop
-      Promiscuous.debug "[distributor] stopping status:#{@thread.status} #{@thread}"
+      Promiscuous.debug "[distributor] stopping status:#{@thread.status} [#{@thread.object_id}]"
 
       # We wait in case the consumer is responsible for more than one partition
       # see: https://github.com/bsm/poseidon_cluster/blob/master/lib/poseidon/consumer_group.rb#L229
       @stop = true
       @thread.join
+      Promiscuous.debug "[distributor] stopped [#{@thread.object_id}]"
     end
 
     def show_stop_status(num_requests)
