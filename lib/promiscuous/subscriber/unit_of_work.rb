@@ -36,13 +36,21 @@ class Promiscuous::Subscriber::UnitOfWork
   end
 
   def process_message
+    retries = 0
+    retry_max = 50
+
     begin
       on_message
     rescue Exception => e
       Promiscuous::Config.error_notifier.call(e)
       # message.nack
       raise e if Promiscuous::Config.test_mode
-      sleep Promiscuous::Config.error_ttl / 1000.0; retry
+
+      if retries < retry_max
+        retries += 1
+        sleep Promiscuous::Config.error_ttl / 1000.0
+        retry
+      end
     end
   end
 
