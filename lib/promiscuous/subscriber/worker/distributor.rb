@@ -30,9 +30,7 @@ class Promiscuous::Subscriber::Worker::Distributor
       extend Promiscuous::Kafka::Subscriber
 
       @stop = false
-      @topic = topic
-      @thread = Thread.new { main_loop }
-      # @thread.abort_on_exception = true
+      @thread = Thread.new(topic) {|t| main_loop(t) }
 
       Promiscuous.debug "[distributor] Subscribing to topic:#{topic} #{@thread}"
     end
@@ -47,8 +45,8 @@ class Promiscuous::Subscriber::Worker::Distributor
     end
 
     # TODO: make sure we're on the sync topic(s) as well
-    def main_loop
-      @consumer = subscribe(@topic)
+    def main_loop(topic)
+      @consumer = subscribe(topic)
       while not @stop do
         begin
           fetch_and_process_messages(&method(:on_message))
