@@ -50,7 +50,6 @@ class Promiscuous::Kafka::Poseidon
     @connection_lock.synchronize do
       raw_publish(options)
       options[:on_confirm].call if options[:on_confirm]
-      Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:topic_key]} #{options[:payload]}"
     end
   rescue Exception => e
     Promiscuous.warn("[publish] Failure publishing to kafka #{e}\n#{e.backtrace.join("\n")}")
@@ -72,19 +71,13 @@ class Promiscuous::Kafka::Poseidon
     end
 
     def fetch_and_process_messages(&block)
-      Promiscuous.debug "[kafka] Fetching messages topic:#{@consumer.topic} #{Thread.current}"
-      payload_count = 0
-      fetched_messages = @consumer.fetch(:commit => false) do |partition, payloads|
-        payload_count = payloads.count
-        Promiscuous.debug "[kafka] Received #{payload_count} payloads topic:#{@consumer.topic} #{Thread.current}"
+      Promiscuous.debug "[kafka] Fetching messages topic:#{@consumer.topic} #{Thread.current.object_id}"
+      @consumer.fetch(:commit => false) do |partition, payloads|
+        Promiscuous.debug "[kafka] Fetched payloads:#{payloads.count} topic:#{@consumer.topic} partition:#{partition} #{Thread.current.object_id}"
         payloads.each do |payload|
-          Promiscuous.debug "[kafka] Fetched '#{payload.value}' topic:#{@consumer.topic} offset:#{payload.offset} parition:#{partition}"
+          Promiscuous.debug "[kafka] Processing '#{payload.value}' topic:#{@consumer.topic} offset:#{payload.offset} parition:#{partition} #{Thread.current.object_id}"
           block.call(MetaData.new(@consumer, partition, payload.offset), payload)
         end
-      end
-
-      if !fetched_messages || payload_count == 0
-        sleep 0.1
       end
     end
 
