@@ -11,7 +11,7 @@ class Promiscuous::Kafka::Poseidon
 
   def new_connection
     client_id = ['promiscuous', Promiscuous::Config.app, Poseidon::Cluster.guid].join('.')
-    connection = ::Poseidon::Producer.new(Promiscuous::Config.kafka_hosts, client_id,
+    @connection = ::Poseidon::Producer.new(Promiscuous::Config.kafka_hosts, client_id,
                                           :type => :sync,
                                           :compression_codec => :none,
                                           :metadata_refresh_interval_ms => 600_000,
@@ -20,7 +20,7 @@ class Promiscuous::Kafka::Poseidon
                                           :required_acks => 1,
                                           :ack_timeout_ms => 1000,
                                           :socket_timeout_ms => Promiscuous::Config.socket_timeout)
-    connection
+    @connection
   end
 
   def connect
@@ -35,9 +35,9 @@ class Promiscuous::Kafka::Poseidon
     end
   end
 
-  #TODO: broken
+  # TODO: extend Poseidon with a connected? method
   def connected?
-    !!@connection.try(:connected?)
+    !@connection.nil?
   end
 
   def raw_publish(options)
