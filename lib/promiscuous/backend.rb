@@ -5,12 +5,14 @@ module Promiscuous::Backend
   class << self
     attr_accessor :driver
     attr_accessor :driver_class
+    attr_accessor :subscriber_class
     attr_accessor :subscriber_worker_module
 
     def driver=(value)
       disconnect
       @driver_class = value.nil? ? nil : "Promiscuous::Backend::#{value.to_s.camelize.gsub(/backend/, 'Backend')}".constantize
-      @subscriber_worker_module = @driver_class.nil? ? nil : "#{@driver_class}::Subscriber::Worker".constantize
+      @subscriber_class = @driver_class.nil? ? nil : "#{@driver_class}::Subscriber".constantize
+      @subscriber_worker_module = @subscriber_class.nil? ? nil : "#{@subscriber_class}::Worker".constantize
     end
 
     def lost_connection_exception(options={})

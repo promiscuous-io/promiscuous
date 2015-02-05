@@ -1,7 +1,7 @@
 class Promiscuous::Subscriber::Worker::Recorder
   def initialize(log_file)
     @log_file = log_file
-    extend Promiscuous::Kafka::Subscriber
+    extend Promiscuous::Backend.subscriber_class
   end
 
   def start
