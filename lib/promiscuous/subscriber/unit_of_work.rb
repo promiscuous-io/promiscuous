@@ -43,13 +43,17 @@ class Promiscuous::Subscriber::UnitOfWork
       on_message
     rescue Exception => e
       Promiscuous::Config.error_notifier.call(e)
-      # message.nack
       raise e if Promiscuous::Config.test_mode
 
-      if retries < retry_max
-        retries += 1
-        sleep Promiscuous::Config.error_ttl / 1000.0
-        retry
+      # TODO: use dependency injection here instead
+      if Promiscuous::Config.backend == :poseidon
+        if retries < retry_max
+          retries += 1
+          sleep Promiscuous::Config.error_ttl / 1000.0
+          retry
+        end
+      else
+        message.nack
       end
     end
   end

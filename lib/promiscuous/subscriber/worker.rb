@@ -5,32 +5,33 @@ class Promiscuous::Subscriber::Worker
   attr_accessor :pump, :runner, :stats, :eventual_destroyer
 
   def initialize
-    @pump = Pump.new(self)
-    @distributor = Distributor.new(self)
-    @runner = Runner.new(self)
+    # inject what we need for our backend
+    extend Promiscuous::Backend.subscriber_worker_module
+
     @stats = Stats.new
     @eventual_destroyer = EventualDestroyer.new
+
+    backend_subscriber_initialize(self)
   end
 
   def start
-    @pump.connect
-    @distributor.start
-    @runner.start
     @stats.connect
     @eventual_destroyer.try(:start)
+
+    backend_subscriber_start
   end
 
   def stop
     @stats.disconnect
-    @runner.stop
-    @pump.disconnect
-    @distributor.stop
     @eventual_destroyer.try(:stop)
+
+    backend_subscriber_stop
   end
 
   def show_stop_status
     @num_show_stop_requests ||= 0
     @num_show_stop_requests += 1
-    @runner.show_stop_status(@num_show_stop_requests)
+
+    backend_subscriber_show_stop_status(@num_show_stop_requests)
   end
 end

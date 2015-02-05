@@ -1,7 +1,7 @@
 require 'poseidon'
 require 'poseidon_cluster'
 
-class Promiscuous::Kafka::Poseidon
+class Promiscuous::Backend::Poseidon
   attr_accessor :connection, :connection_lock
 
   def initialize
@@ -49,6 +49,7 @@ class Promiscuous::Kafka::Poseidon
   def publish(options={})
     @connection_lock.synchronize do
       raw_publish(options)
+      # TODO: Rabbit is in control of the unlocking for now
       options[:on_confirm].call if options[:on_confirm]
     end
   rescue Exception => e
@@ -99,6 +100,24 @@ class Promiscuous::Kafka::Poseidon
       def ack
         Promiscuous.debug "[kafka] [commit] topic:#{@consumer.topic} offset:#{@offset+1} partition:#{@partition}"
         @consumer.commit(@partition, @offset+1)
+      end
+    end
+
+    module Worker
+      def backend_subscriber_initialize(subscriber_worker)
+        @distributor = Promiscuous::Subscriber::Worker::Distributor.new(subscriber_worker)
+      end
+
+      def backend_subscriber_start
+        @distributor.start
+      end
+
+      def backend_subscriber_stop
+        @distributor.stop
+      end
+
+      def backend_subscriber_show_stop_status(num_show_stop_requests)
+        @distributor.show_stop_status(num_show_stop_requests)
       end
     end
 

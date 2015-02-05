@@ -1,4 +1,4 @@
-class Promiscuous::AMQP::Bunny
+class Promiscuous::Backend::Bunny
   def self.hijack_bunny
     return if @bunny_hijacked
     ::Bunny::Session.class_eval do
@@ -130,7 +130,7 @@ class Promiscuous::AMQP::Bunny
       connection_options = { :url       => Promiscuous::Config.subscriber_amqp_url,
                              :exchanges => options[:bindings].keys,
                              :prefetch  => @prefetch }
-      @connection, @channel, exchanges = Promiscuous::AMQP.new_connection(connection_options)
+      @connection, @channel, exchanges = Promiscuous::Backend.new_connection(connection_options)
 
       create_queues(@channel)
 
@@ -204,6 +204,27 @@ class Promiscuous::AMQP::Bunny
 
       def nack
         @subscriber.nack_message(@delivery_info.delivery_tag)
+      end
+    end
+
+    module Worker
+      def backend_subscriber_initialize(subscriber_worker)
+        @pump = Promiscuous::Subscriber::Worker::Pump.new(subscriber_worker)
+        @runner = Promiscuous::Subscriber::Worker::Runner.new(subscriber_worker)
+      end
+
+      def backend_subscriber_start
+        @pump.connect
+        @runner.start
+      end
+
+      def backend_subscriber_stop
+        @runner.stop
+        @pump.disconnect
+      end
+
+      def backend_subscriber_show_stop_status(num_show_stop_requests)
+        @runner.show_stop_status(num_show_stop_requests)
       end
     end
 

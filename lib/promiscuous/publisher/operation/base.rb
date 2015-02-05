@@ -129,8 +129,7 @@ class Promiscuous::Publisher::Operation::Base
                        :topic_key  => payload.delete(:key),
                        :payload    => MultiJson.dump(payload),
                        :async      => async }
-       Promiscuous::AMQP.publish(payload_opts)
-       Promiscuous::Kafka.publish(payload_opts)
+      Promiscuous::Backend.publish(payload_opts)
     end
   end
 

@@ -1,7 +1,9 @@
 language: ruby
 bundler_args: --without development
 script: bundle exec rspec spec
-env: TIMEOUT=10
+env:
+  - TIMEOUT=10
+  - PROMISCUOUS_BACKEND=bunny
 rvm:
   - ruby-2.0.0
   - ruby-2.1.0

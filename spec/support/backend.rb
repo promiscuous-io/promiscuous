@@ -27,6 +27,7 @@ module BackendHelper
       # It's ok. Nothing to advance.
     end
     zk.close
+    zk.close! # otherwise connections lay around
     broker_pool.close
 
     true
@@ -56,19 +57,29 @@ module BackendHelper
   end
 
   def use_real_backend(options={}, &block)
-    real_backend = RUBY_PLATFORM == 'java' ? :hot_bunnies : :bunny
-    if Promiscuous::Config.backend != real_backend || block
+    real_backends = [:bunny, :poseidon]
+    if !real_backends.include?(Promiscuous::Config.backend) || block
       reconfigure_backend do |config|
-        config.backend = real_backend
+        config.backend = (ENV['PROMISCUOUS_BACKEND'])? ENV['PROMISCUOUS_BACKEND'].to_sym : :poseidon
         Promiscuous::Config.error_notifier = options[:error_notifier] if options[:error_notifier]
         block.call(config) if block
       end
     end
-    advance_offsets_forward!
+
     Promiscuous.ensure_connected
     Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it.
-    [Promiscuous::Config.queue_name, Promiscuous::Config.error_queue_name].each { |queue| Promiscuous::Rabbit::Policy.delete(queue) }
 
+    send("#{Promiscuous::Config.backend}_after_use_real_backend")
+  end
+
+  def bunny_after_use_real_backend
+    [Promiscuous::Config.queue_name, Promiscuous::Config.error_queue_name].each do |queue|
+      Promiscuous::Rabbit::Policy.delete(queue)
+    end
+  end
+
+  def poseidon_after_use_real_backend
+    advance_offsets_forward!
   end
 
   def run_subscriber_worker!
@@ -133,7 +144,7 @@ RSpec.configure do |config|
   # end
 
   config.after do
-    @worker.try { |worker| worker.pump.delete_queues }
+    @worker.try { |worker| worker.pump.delete_queues } if Promiscuous::Config.backend == :bunny
     [@recovery_worker, @worker].compact.each do |worker|
       worker.stop
       worker = nil

@@ -3,7 +3,7 @@ class Promiscuous::Subscriber::Worker::Pump
     @root = root
     # late include of CelluloidSubscriber because the class is resolved
     # at runtime since we can have different backends.
-    extend Promiscuous::AMQP::Subscriber
+    extend Promiscuous::Backend::Bunny::Subscriber
   end
 
   def connect

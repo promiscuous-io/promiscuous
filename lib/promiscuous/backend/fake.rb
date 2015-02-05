@@ -1,9 +1,9 @@
-class Promiscuous::AMQP::Fake
+class Promiscuous::Backend::Fake
   attr_accessor :messages
 
   class << self
     def backend
-      Promiscuous::AMQP.backend
+      Promiscuous::Backend.driver
     end
     delegate :num_messages, :get_next_message, :get_next_payload, :to => :backend
   end
@@ -42,7 +42,7 @@ class Promiscuous::AMQP::Fake
     def subscribe(options={}, &block)
     end
 
-    def recover
+    def fetch_and_process_messages(&block)
     end
 
     def disconnect

@@ -46,17 +46,17 @@ describe Promiscuous do
       pub = PublisherModel.create(:field_1 => '1')
       eventually { SubscriberModel.count.should == 1 }
 
-      kafka_delayed!
+      backend_delayed!
 
       pub.update_attributes(:field_1 => '2')
       purge_locks! # Message will be published anyway but we want to release the locks to test this case for the specs
 
-      kafka_up!
+      backend_up!
 
       pub.update_attributes(:field_1 => '3')
       sleep 0.1
 
-      kafka_process_delayed!
+      backend_process_delayed!
     end
 
     it 'subscribes to messages in the correct order (by dropping the last message)' do
@@ -72,17 +72,17 @@ describe Promiscuous do
     before { Promiscuous::Config.logger.level = Logger::FATAL }
 
     before do
-      kafka_delayed!
+      backend_delayed!
 
       pub = PublisherModel.create(:field_1 => '1')
       purge_locks! # Message will be published anyway but we want to release the locks to test this case for the specs
 
-      kafka_up!
+      backend_up!
 
       pub.update_attributes(:field_1 => '2')
       sleep 0.1
 
-      kafka_process_delayed!
+      backend_process_delayed!
 
       sleep 0.1
     end
@@ -99,17 +99,17 @@ describe Promiscuous do
     before { Promiscuous::Config.logger.level = Logger::FATAL }
 
     before do
-      kafka_delayed!
+      backend_delayed!
 
       pub = PublisherModel.create(:field_1 => '1')
       purge_locks!
 
-      kafka_up!
+      backend_up!
 
       pub.destroy
       sleep 0.1
 
-      kafka_process_delayed!
+      backend_process_delayed!
       sleep 0.1
     end
 
@@ -167,12 +167,12 @@ describe Promiscuous do
       pub = PublisherModel.create(:field_1 => '1')
       eventually { SubscriberModel.count.should == 1 }
 
-      kafka_down!
+      backend_down!
 
       pub.update_attributes(:field_1 => '2') # this payload will never be sent
       purge_locks! # Message we want to release the locks to test the case where an update is lost
 
-      kafka_up!
+      backend_up!
 
       pub.update_attributes(:field_1 => '3')
     end

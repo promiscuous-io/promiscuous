@@ -14,13 +14,11 @@ module Promiscuous::Config
 
   def self.backend=(value)
     @@backend = value
-    Promiscuous::AMQP.backend = value
-    Promiscuous::Kafka.backend = (value == :bunny)? :poseidon : value
+    Promiscuous::Backend.driver = value
   end
 
   def self.reset
-    Promiscuous::AMQP.backend = nil
-    Promiscuous::Kafka.backend = nil
+    Promiscuous::Backend.driver = nil
     class_variables.each { |var| class_variable_set(var, nil) }
   end
 
@@ -41,8 +39,7 @@ module Promiscuous::Config
     block.call(self) if block
 
     self.app                  ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
-    self.backend              ||= best_amqp_backend
-    self.kafka_backend        ||= :poseidon
+    self.backend              ||= :poseidon
     self.kafka_hosts          ||= ['localhost:9092']
     self.zookeeper_hosts      ||= ['localhost:2181']
     self.publisher_topic      ||= self.app

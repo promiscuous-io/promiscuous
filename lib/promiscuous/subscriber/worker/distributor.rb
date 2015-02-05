@@ -27,7 +27,7 @@ class Promiscuous::Subscriber::Worker::Distributor
     def initialize(topic)
       # late include of CelluloidSubscriber because the class is resolved
       # at runtime since we can have different backends.
-      extend Promiscuous::Kafka::Subscriber
+      extend Promiscuous::Backend::Poseidon::Subscriber
 
       @stop = false
       @thread = Thread.new(topic) {|t| main_loop(t) }
