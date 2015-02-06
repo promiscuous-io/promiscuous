@@ -45,7 +45,7 @@ class Promiscuous::Subscriber::Worker::Distributor
     end
 
     def main_loop(topic)
-      @consumer = subscribe(topic)
+      @consumer = subscribe(:topic => topic)
       while not @stop do
         begin
           fetch_and_process_messages(&method(:on_message))

@@ -63,11 +63,13 @@ class Promiscuous::Backend::Poseidon
   end
 
   module Subscriber
-    def subscribe(topic)
+    def subscribe(options)
+      raise "No topic specified" unless options[:topic]
+
       @consumer = ::Poseidon::ConsumerGroup.new(Promiscuous::Config.app,
                                                 Promiscuous::Config.kafka_hosts,
                                                 Promiscuous::Config.zookeeper_hosts,
-                                                topic, :trail => Promiscuous::Config.test_mode, :max_wait_ms => 10)
+                                                options[:topic], :trail => Promiscuous::Config.test_mode, :max_wait_ms => 10)
     end
 
     def fetch_and_process_messages(&block)
