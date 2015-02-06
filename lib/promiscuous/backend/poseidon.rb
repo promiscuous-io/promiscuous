@@ -20,7 +20,6 @@ class Promiscuous::Backend::Poseidon
                                           :required_acks => 1,
                                           :ack_timeout_ms => 1000,
                                           :socket_timeout_ms => Promiscuous::Config.socket_timeout)
-    @connection
   end
 
   def connect
@@ -37,7 +36,7 @@ class Promiscuous::Backend::Poseidon
 
   # TODO: extend Poseidon with a connected? method
   def connected?
-    !@connection.nil?
+    @connection.present?
   end
 
   def raw_publish(options)

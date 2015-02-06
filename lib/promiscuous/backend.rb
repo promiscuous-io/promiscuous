@@ -10,9 +10,9 @@ module Promiscuous::Backend
 
     def driver=(value)
       disconnect
-      @driver_class = value.nil? ? nil : "Promiscuous::Backend::#{value.to_s.camelize.gsub(/backend/, 'Backend')}".constantize
-      @subscriber_class = @driver_class.nil? ? nil : "#{@driver_class}::Subscriber".constantize
-      @subscriber_worker_module = @subscriber_class.nil? ? nil : "#{@subscriber_class}::Worker".constantize
+      @driver_class = value.try { |v| "Promiscuous::Backend::#{v.to_s.camelize.gsub(/backend/, 'Backend')}".constantize }
+      @subscriber_class = @driver_class.try { |dc| "#{dc}::Subscriber".constantize rescue nil }
+      @subscriber_worker_module = @subscriber_class.try { |sc| "#{sc}::Worker".constantize rescue nil }
     end
 
     def lost_connection_exception(options={})
