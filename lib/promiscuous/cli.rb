@@ -71,8 +71,7 @@ class Promiscuous::CLI
   def replay_payload(payload)
     endpoint = MultiJson.load(payload)['__amqp__']
     if endpoint
-      Promiscuous::Kafka.publish(:key => endpoint, :payload => payload)
-      Promiscuous::AMQP.publish(:key => endpoint, :payload => payload)
+      Promiscuous::Backend.publish(:key => endpoint, :topic => endpoint, :payload => payload)
       @num_msg += 1
     else
       puts "[warn] missing destination in #{payload}"
