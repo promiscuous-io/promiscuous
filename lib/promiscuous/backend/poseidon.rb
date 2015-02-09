@@ -43,13 +43,7 @@ class Promiscuous::Backend::Poseidon
     if @connection.send_messages([Poseidon::MessageToSend.new(options[:topic], options[:payload], options[:key])])
       Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:topic_key]} #{options[:payload]}"
     else
-      e = Promiscuous::Error::Publisher.new(Exception.new('Unable to send message'), :payload => options[:payload])
-
-      if options[:async]
-        Promiscuous::Config.error_notifier.call(e)
-      else
-        raise e
-      end
+      raise Promiscuous::Error::Publisher.new(Exception.new('Unable to send message'), :payload => options[:payload])
     end
   end
 
