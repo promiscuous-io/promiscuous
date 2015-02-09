@@ -43,7 +43,7 @@ module Promiscuous::Backend
       driver.new_connection(*args)
     end
 
-    delegate :publish, :connected?, :to => :driver
+    delegate :publish, :connected?, :process_message, :to => :driver
 
     def const_missing(sym)
       driver_class.const_get(sym)

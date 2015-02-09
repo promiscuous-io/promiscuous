@@ -120,6 +120,16 @@ class Promiscuous::Backend::Bunny
     end
   end
 
+  def process_message(message)
+    begin
+      Promiscuous::Subscriber::UnitOfWork.process(message)
+    rescue Exception => e
+      Promiscuous::Config.error_notifier.call(e)
+      raise e if Promiscuous::Config.test_mode
+      message.nack
+    end
+  end
+
   module Subscriber
     def subscribe(options={}, &block)
       @lock = Mutex.new

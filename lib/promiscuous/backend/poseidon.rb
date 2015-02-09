@@ -70,6 +70,24 @@ class Promiscuous::Backend::Poseidon
     end
   end
 
+  def process_message(message)
+    retries = 0
+    retry_max = 50
+
+    begin
+      Promiscuous::Subscriber::UnitOfWork.process(message)
+    rescue Exception => e
+      Promiscuous::Config.error_notifier.call(e)
+      raise e if Promiscuous::Config.test_mode
+
+      if retries < retry_max
+        retries += 1
+        sleep Promiscuous::Config.error_ttl / 1000.0
+        retry
+      end
+    end
+  end
+
   module Subscriber
     def subscribe(options)
       raise "No topic specified" unless options[:topic]

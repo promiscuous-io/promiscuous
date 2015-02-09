@@ -21,7 +21,7 @@ class Promiscuous::Subscriber::UnitOfWork
 
     begin
       self.current = new(*args)
-      self.current.process_message
+      self.current.on_message
     ensure
       self.current = nil
     end
@@ -33,29 +33,6 @@ class Promiscuous::Subscriber::UnitOfWork
 
   def self.current=(value)
     Thread.current[:promiscuous_message_processor] = value
-  end
-
-  def process_message
-    retries = 0
-    retry_max = 50
-
-    begin
-      on_message
-    rescue Exception => e
-      Promiscuous::Config.error_notifier.call(e)
-      raise e if Promiscuous::Config.test_mode
-
-      # TODO: use dependency injection here instead
-      if Promiscuous::Config.backend == :poseidon
-        if retries < retry_max
-          retries += 1
-          sleep Promiscuous::Config.error_ttl / 1000.0
-          retry
-        end
-      else
-        message.nack
-      end
-    end
   end
 
   LOCK_OPTIONS = { :timeout => 1.5.minute, # after 1.5 minute, we give up

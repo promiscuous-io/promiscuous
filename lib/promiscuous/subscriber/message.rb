@@ -52,7 +52,7 @@ class Promiscuous::Subscriber::Message
   end
 
   def process
-    Promiscuous::Subscriber::UnitOfWork.process(self)
+    Promiscuous::Backend.process_message(self)
   rescue Exception => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
     Promiscuous.warn "[receive] #{payload} #{e}\n#{e.backtrace.join("\n")}"
