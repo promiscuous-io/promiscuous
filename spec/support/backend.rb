@@ -60,7 +60,7 @@ module BackendHelper
     real_backends = [:bunny, :poseidon]
     if !real_backends.include?(Promiscuous::Config.backend) || block
       reconfigure_backend do |config|
-        config.backend = (ENV['PROMISCUOUS_BACKEND'])? ENV['PROMISCUOUS_BACKEND'].to_sym : :poseidon
+        config.backend = (ENV['BACKEND'])? ENV['BACKEND'].to_sym : :poseidon
         Promiscuous::Config.error_notifier = options[:error_notifier] if options[:error_notifier]
         block.call(config) if block
       end
