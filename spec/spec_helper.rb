@@ -31,6 +31,8 @@ RSpec.configure do |config|
 
   config.include AsyncHelper
   config.include BackendHelper
+  config.include AMQPHelper
+  config.include KafkaHelper
   config.include ModelsHelper
   config.include ObserversHelper
   config.include EphemeralsHelper
