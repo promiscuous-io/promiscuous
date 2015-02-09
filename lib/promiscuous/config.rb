@@ -39,7 +39,7 @@ module Promiscuous::Config
     block.call(self) if block
 
     self.app                  ||= Rails.application.class.parent_name.underscore rescue nil if defined?(Rails)
-    self.backend              ||= :poseidon
+    self.backend              ||= :both
     self.kafka_hosts          ||= ['localhost:9092']
     self.zookeeper_hosts      ||= ['localhost:2181']
     self.publisher_topic      ||= self.app

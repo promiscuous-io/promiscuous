@@ -1,6 +1,6 @@
 module Promiscuous::Backend
   extend Promiscuous::Autoload
-  autoload :Bunny, :Poseidon, :Null, :Fake, :File
+  autoload :Both, :Bunny, :Poseidon, :Null, :Fake, :File
 
   class << self
     attr_accessor :driver

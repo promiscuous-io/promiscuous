@@ -50,8 +50,7 @@ class Promiscuous::Backend::Poseidon
   def publish(options={})
     @connection_lock.synchronize do
       raw_publish(options)
-      # TODO: Rabbit is in control of the unlocking for now
-      options[:on_confirm].call if options[:on_confirm]
+      options[:on_confirm].call if options[:on_confirm] && Promiscuous::Config.backend == :poseidon
     end
   rescue Exception => e
     Promiscuous.warn("[publish] Failure publishing to kafka #{e}\n#{e.backtrace.join("\n")}")

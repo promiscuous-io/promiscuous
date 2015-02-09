@@ -21,7 +21,7 @@ module BackendHelper
   end
 
   def use_real_backend(options={}, &block)
-    real_backends = [:bunny, :poseidon]
+    real_backends = [:both, :bunny, :poseidon]
     if !real_backends.include?(Promiscuous::Config.backend) || block
       reconfigure_backend do |config|
         config.backend = (ENV['BACKEND'])? ENV['BACKEND'].to_sym : :poseidon
