@@ -15,7 +15,7 @@ describe Promiscuous do
   context "when a recovery worker is running" do
     before { run_recovery_worker! }
 
-    context 'when rabbit dies' do
+    context 'when backend dies' do
       context 'for updates' do
         it 'still publishes message' do
           pub = PublisherModel.create(:field_1 => '1')
@@ -106,7 +106,7 @@ describe Promiscuous do
   end
 
   context "when a recovery worker is not running" do
-    context "rabbit dies" do
+    context "backend dies" do
       let(:lock_expiration) { 0.1 }
 
       before { $field_values = [] }
@@ -117,7 +117,7 @@ describe Promiscuous do
       end
       before { backend_down! }
 
-      it "multiple subsequent operation fail if rabbit is down until rabbit comes back up" do
+      it "multiple subsequent operation fail if backend is down until backend comes back up" do
         @pub = PublisherModel.create(:field_2 => 1)
         sleep 1
         expect { @pub.update_attributes(:field_2 => 2) }.to raise_error
