@@ -84,7 +84,10 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def unlock_all_locks
-    @locks.each { |lock| lock.try_unlock }
+    @locks.each do |lock|
+      Promiscuous.debug "[lock] Unlocking #{lock.key}"
+      lock.try_unlock
+    end
   end
 
   def queue_operation_payloads(operations = self.operations)
