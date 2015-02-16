@@ -45,6 +45,8 @@ class Promiscuous::Backend::Poseidon
     else
       raise Promiscuous::Error::Publisher.new(Exception.new('Unable to send message'), :payload => options[:payload])
     end
+  rescue Poseidon::Errors::UnableToFetchMetadata
+    Promiscuous.error "[publish] [kafka] Unable to fetch metatdata from the cluster"
   end
 
   def publish(options={})
