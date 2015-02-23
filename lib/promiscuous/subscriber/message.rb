@@ -8,7 +8,11 @@ class Promiscuous::Subscriber::Message
   end
 
   def parsed_payload
-    @parsed_payload ||= MultiJson.load(payload)
+    @parsed_payload ||= if payload.is_a?(Hash)
+      payload
+    else
+      MultiJson.load(payload)
+    end
   end
 
   def app
