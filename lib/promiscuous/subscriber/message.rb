@@ -9,7 +9,7 @@ class Promiscuous::Subscriber::Message
 
   def parsed_payload
     @parsed_payload ||= if payload.is_a?(Hash)
-      payload
+      payload.with_indifferent_access
     else
       MultiJson.load(payload)
     end
