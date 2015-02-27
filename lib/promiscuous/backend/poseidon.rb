@@ -40,13 +40,21 @@ class Promiscuous::Backend::Poseidon
   end
 
   def raw_publish(options)
+    tries ||= 5
     if @connection.send_messages([Poseidon::MessageToSend.new(options[:topic], options[:payload], options[:topic_key])])
       Promiscuous.debug "[publish] [kafka] #{options[:topic]}/#{options[:topic_key]} #{options[:payload]}"
     else
-      raise Promiscuous::Error::Publisher.new(Exception.new('Unable to send message'), :payload => options[:payload])
+      raise Promiscuous::Error::Publisher.new(Exception.new('There were no messages to publish?'), :payload => options[:payload])
     end
-  rescue Poseidon::Errors::UnableToFetchMetadata
-    Promiscuous.error "[publish] [kafka] Unable to fetch metatdata from the cluster"
+  rescue Poseidon::Errors::UnableToFetchMetadata => e
+    Promiscuous.error "[publish] [kafka] Unable to fetch metadata from the cluster (#{tries} tries left)"
+    if (tries -= 1) > 0
+      retry
+    else
+      raise e
+    end
+  rescue StandardError => e
+    raise Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
   end
 
   def publish(options={})
@@ -54,7 +62,7 @@ class Promiscuous::Backend::Poseidon
       raw_publish(options)
       options[:on_confirm].call if options[:on_confirm] && Promiscuous::Config.backend == :poseidon
     end
-  rescue Exception => e
+  rescue StandardError => e
     Promiscuous.warn("[publish] Failure publishing to kafka #{e}\n#{e.backtrace.join("\n")}")
     e = Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
 
