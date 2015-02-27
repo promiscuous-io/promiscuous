@@ -36,7 +36,6 @@ class Promiscuous::Subscriber::Worker::Distributor
     end
 
     def on_message(metadata, payload)
-      Promiscuous.debug "[kafka] [receive] #{payload.value} [#{@thread.object_id}]"
       msg = Promiscuous::Subscriber::Message.new(payload.value, :metadata => metadata, :root_worker => @root)
       msg.process
     rescue Exception => e
