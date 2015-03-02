@@ -68,7 +68,7 @@ module Promiscuous::Config
     # TODO self.redis_slave_url ||= nil
     self.redis_stats_url      ||= self.redis_url
     self.stats_interval       ||= 0
-    self.socket_timeout       ||= 10
+    self.socket_timeout       ||= 50
     self.heartbeat            ||= 60
     self.prefetch             ||= 1000
     self.publisher_lock_expiration ||= 5.seconds
