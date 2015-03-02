@@ -124,7 +124,6 @@ class Promiscuous::Backend::Poseidon
         Promiscuous.debug "[kafka] [metadata] topic:#{@consumer.topic} offset:#{offset} partition:#{partition}"
       end
 
-      # TODO: rename to advance_offset or commit?
       def ack
         Promiscuous.debug "[kafka] [commit] topic:#{@consumer.topic} offset:#{@offset+1} partition:#{@partition}"
         @consumer.commit(@partition, @offset+1)
