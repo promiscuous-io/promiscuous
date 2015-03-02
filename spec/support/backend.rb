@@ -13,8 +13,8 @@ module BackendHelper
       config.destroy_check_interval = 0
       config.max_retries = 0
       config.rabbit_mgmt_url = rabbit_mgmt_url
-      # config.kafka_hosts = kafka_hosts
-      # config.zookeeper_hosts = zookeeper_hosts
+      config.kafka_hosts = kafka_hosts
+      config.zookeeper_hosts = zookeeper_hosts
       block.call(config) if block
     end
     Promiscuous.connect

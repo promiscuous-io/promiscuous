@@ -50,12 +50,12 @@ if ENV['POSEIDON_LOGGER_LEVEL']
 end
 
 RSpec.configure do |config|
-  config.before do
-    # $tc ||= TestCluster.new
-    # $tc.start
+  config.before(:suite) do
+    $tc ||= TestCluster.new
+    $tc.start
   end
 
-  config.after do
-    # $tc.stop
+  config.after(:suite) do
+    $tc.stop
   end
 end
