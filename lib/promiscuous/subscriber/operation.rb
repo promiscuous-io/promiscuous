@@ -37,7 +37,7 @@ class Promiscuous::Subscriber::Operation
       instance.__promiscuous_update(self)
       instance.save!
     end
-  rescue Exception => e
+  rescue StandardError => e
     if model.__promiscuous_duplicate_key_exception?(e)
       options[:on_already_created] ||= proc { warn "ignoring already created record" }
       options[:on_already_created].call

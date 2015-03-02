@@ -188,7 +188,7 @@ class Promiscuous::CLI
     options
   rescue SystemExit
     exit
-  rescue Exception => e
+  rescue StandardError => e
     puts e
     exit
   end

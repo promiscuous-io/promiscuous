@@ -97,7 +97,7 @@ class Promiscuous::Backend::Bunny
         end
       end
     end
-  rescue Exception => e
+  rescue StandardError => e
     Promiscuous.warn("[publish] Failure publishing to rabbit #{e}\n#{e.backtrace.join("\n")}")
     e = Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
 
@@ -123,7 +123,7 @@ class Promiscuous::Backend::Bunny
   def process_message(message)
     begin
       Promiscuous::Subscriber::UnitOfWork.process(message)
-    rescue Exception => e
+    rescue StandardError => e
       Promiscuous::Config.error_notifier.call(e)
       raise e if Promiscuous::Config.test_mode
       message.nack

@@ -126,7 +126,7 @@ module Promiscuous::Config
         end
         Promiscuous.connect
         pid
-      rescue Exception => e
+      rescue StandardError => e
         puts e
         puts e.backtrace.join("\n")
         raise e

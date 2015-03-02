@@ -79,7 +79,7 @@ class Promiscuous::Backend::Poseidon
 
     begin
       Promiscuous::Subscriber::UnitOfWork.process(message)
-    rescue Exception => e
+    rescue StandardError => e
       Promiscuous::Config.error_notifier.call(e)
       raise e if Promiscuous::Config.test_mode
 

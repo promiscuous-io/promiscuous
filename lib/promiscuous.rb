@@ -64,13 +64,13 @@ module Promiscuous
 
       begin
         Backend.ensure_connected
-      rescue Exception
+      rescue StandardError
         health[:backend] = false
       end
 
       begin
         Redis.ensure_connected
-      rescue Exception
+      rescue StandardError
         health[:redis] = false
       end
 

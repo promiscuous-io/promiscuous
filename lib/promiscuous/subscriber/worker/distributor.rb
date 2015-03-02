@@ -38,7 +38,7 @@ class Promiscuous::Subscriber::Worker::Distributor
     def on_message(metadata, payload)
       msg = Promiscuous::Subscriber::Message.new(payload.value, :metadata => metadata, :root_worker => @root)
       msg.process
-    rescue Exception => e
+    rescue StandardError => e
       Promiscuous.warn "[kafka] [receive] cannot process message: #{e}\n#{e.backtrace.join("\n")}"
       Promiscuous::Config.error_notifier.call(e)
     end
