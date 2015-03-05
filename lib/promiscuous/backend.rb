@@ -16,7 +16,12 @@ module Promiscuous::Backend
     end
 
     def lost_connection_exception(options={})
-      Promiscuous::Error::Connection.new(Promiscuous::Config.backend_url, options)
+      backends = {
+        :amqp_url        => Promiscuous::Config.amqp_url,
+        :kafka_hosts     => Promiscuous::Config.kafka_hosts,
+        :zookeeper_hosts => Promiscuous::Config.zookeeper_hosts
+      }
+      Promiscuous::Error::Connection.new(backends, options)
     end
 
     def ensure_connected
