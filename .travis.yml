@@ -5,7 +5,8 @@ env: TIMEOUT=10
 rvm:
   - ruby-1.9.3
   - ruby-2.0.0
-  - ruby-2.1.0
+  - ruby-2.1.5
+  - ruby-2.2.0
 gemfile:
   - gemfiles/mongoid31.gemfile
   - gemfiles/mongoid40.gemfile
