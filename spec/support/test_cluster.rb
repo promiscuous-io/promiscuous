@@ -5,7 +5,7 @@ require 'pathname'
 
 class TestCluster
   ROOT    = Pathname.new(File.expand_path("../../../", __FILE__))
-  VERSION = "0.8.1.1"
+  VERSION = "0.8.2.1"
   SERVER  = ROOT.join "kafka_2.10-#{VERSION}"
   TOPIC   = 'test'
 
@@ -40,14 +40,29 @@ class TestCluster
 
     spawn KAFKA_BIN, KAFKA_CFG
     spawn ZOOKP_BIN, ZOOKP_CFG
-    sleep(10)
+
+    print "Testing Kafka connection"
+    socket_connected = false
+    20.times do
+      begin
+        print '.'
+        socket = tcp_connect('127.0.0.1', KAFKA_PORT, 1)
+        socket.close
+        socket_connected = true
+        break
+      rescue
+        sleep(1)
+      end
+    end
+    abort('Unable to connect to Kafka') unless socket_connected
+    puts
 
     create_test_topic
   end
 
   def stop
     @pids.each do |_, pid|
-      Process.kill :TERM, pid
+      Process.kill :KILL, pid
     end
   end
 
@@ -95,5 +110,32 @@ class TestCluster
   def spawn(*args)
     cmd = args.join(" ")
     @pids[cmd] = Process.spawn(cmd)
+  end
+
+  # from: http://spin.atomicobject.com/2013/09/30/socket-connection-timeout-ruby/
+  def tcp_connect(host, port, timeout = 1)
+    addr = Socket.getaddrinfo(host, nil)
+    sockaddr = Socket.pack_sockaddr_in(port, addr[0][3])
+
+    Socket.new(Socket.const_get(addr[0][0]), Socket::SOCK_STREAM, 0).tap do |socket|
+      socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
+      begin
+        socket.connect_nonblock(sockaddr)
+      rescue IO::WaitWritable
+        if IO.select(nil, [socket], nil, timeout)
+          begin
+            socket.connect_nonblock(sockaddr)
+          rescue Errno::EISCONN
+            # connected!
+          rescue
+            socket.close
+            raise
+          end
+        else
+          socket.close
+          raise "Connection timeout"
+        end
+      end
+    end
   end
 end
