@@ -49,13 +49,15 @@ if ENV['POSEIDON_LOGGER_LEVEL']
   Poseidon.logger = Logger.new(STDOUT).tap { |l| l.level = ENV['POSEIDON_LOGGER_LEVEL'].to_i }
 end
 
-RSpec.configure do |config|
-  config.before(:suite) do
-    $tc ||= TestCluster.new
-    $tc.start
-  end
+if ENV['BACKEND'] != 'bunny'
+  RSpec.configure do |config|
+    config.before(:suite) do
+      $tc ||= TestCluster.new
+      $tc.start
+    end
 
-  config.after(:suite) do
-    $tc.stop
+    config.after(:suite) do
+      $tc.stop
+    end
   end
 end
