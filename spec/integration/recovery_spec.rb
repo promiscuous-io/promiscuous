@@ -118,19 +118,19 @@ describe Promiscuous do
       before { backend_down! }
 
       it "multiple subsequent operation fail if backend is down until backend comes back up" do
-        @pub = PublisherModel.create(:field_2 => 1)
+        @pub = PublisherModel.create(:field_2 => '1')
         sleep 1
-        expect { @pub.update_attributes(:field_2 => 2) }.to raise_error
+        expect { @pub.update_attributes(:field_2 => '2') }.to raise_error
         sleep 1
-        expect { @pub.update_attributes(:field_2 => 3) }.to raise_error
+        expect { @pub.update_attributes(:field_2 => '3') }.to raise_error
         sleep 1
 
         backend_up!
 
-        expect { @pub.update_attributes(:field_2 => 4) }.to_not raise_error
+        expect { @pub.update_attributes(:field_2 => '4') }.to_not raise_error
 
         eventually do
-          $field_values.should == [1, 4]
+          $field_values.should == ['1', '4']
         end
       end
     end
