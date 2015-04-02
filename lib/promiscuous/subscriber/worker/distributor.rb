@@ -1,18 +1,19 @@
 class Promiscuous::Subscriber::Worker::Distributor
   def initialize(root)
     @root = root
+    @distributor_threads = []
   end
 
   def start
     num_threads = Promiscuous::Config.subscriber_threads
     Promiscuous::Config.subscriber_topics.each do |topic|
-      @distributor_threads ||= num_threads.times.map { DistributorThread.new(topic) }
-      Promiscuous.debug "[distributor] Started #{num_threads} thread#{'s' if num_threads>1} topic:#{topic}"
+      @distributor_threads << num_threads.times.map { DistributorThread.new(topic) }
+      Promiscuous.info "[distributor] Started #{num_threads} thread#{'s' if num_threads>1} topic:#{topic}"
     end
   end
 
   def stop
-    return unless @distributor_threads
+    return if @distributor_threads.empty?
     Promiscuous.debug "[distributor] Stopping #{@distributor_threads.count} threads"
 
     @distributor_threads.each { |distributor_thread| distributor_thread.stop }
