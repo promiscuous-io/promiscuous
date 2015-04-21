@@ -5,11 +5,12 @@ class Promiscuous::Publisher::Operation::Ephemeral < Promiscuous::Publisher::Ope
 
     @routing  = options[:routing]
     @exchange = options[:exchange]
+    @topic    = options[:topic]
   end
 
   def execute_instrumented(query)
     queue_operation_payloads
-    publish_payloads(:exchange => @exchange, :routing => @routing)
+    publish_payloads(:exchange => @exchange, :routing => @routing, :topic => @topic)
   end
 
   def increment_version_in_document

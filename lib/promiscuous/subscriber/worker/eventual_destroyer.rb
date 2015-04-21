@@ -16,7 +16,7 @@ class Promiscuous::Subscriber::Worker::EventualDestroyer
     loop do
       begin
         PendingDestroy.next(Promiscuous::Config.destroy_timeout).each(&:perform)
-      rescue Exception => e
+      rescue StandardError => e
         Promiscuous.warn "[eventual destroyer] #{e}\n#{e.backtrace.join("\n")}"
         Promiscuous::Config.error_notifier.call(e)
       end

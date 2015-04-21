@@ -30,7 +30,7 @@ class Promiscuous::Publisher::Operation::ProxyForQuery
   def call_and_remember_result(which)
     raise "Fatal: #{which} query unspecified" unless @queries[which]
     @result = @queries[which].call(@operation)
-  rescue Exception => e
+  rescue StandardError => e
     @exception = e
   end
 

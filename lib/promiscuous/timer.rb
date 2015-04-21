@@ -8,7 +8,7 @@ class Promiscuous::Timer
 
   def run_callback
     @block.call
-  rescue Exception => e
+  rescue StandardError => e
     # Report the exception only once
     unless @last_exception == e.to_s
       @last_exception = e.to_s

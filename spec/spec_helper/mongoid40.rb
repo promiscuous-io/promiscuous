@@ -5,8 +5,8 @@ Mongoid.configure do |config|
 
   config.sessions = { :default => { :uri => uri } }
 
-  if ENV['LOGGER_LEVEL']
-    Moped.logger = Logger.new(STDOUT).tap { |l| l.level = ENV['LOGGER_LEVEL'].to_i }
+  if ENV['MOPED_LOGGER_LEVEL']
+    Moped.logger = Logger.new(STDOUT).tap { |l| l.level = ENV['MOPED_LOGGER_LEVEL'].to_i }
   end
 end
 

@@ -84,7 +84,10 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def unlock_all_locks
-    @locks.each { |lock| lock.try_unlock }
+    @locks.each do |lock|
+      Promiscuous.debug "[lock] Unlocking #{lock.key}"
+      lock.try_unlock
+    end
   end
 
   def queue_operation_payloads(operations = self.operations)
@@ -101,15 +104,15 @@ class Promiscuous::Publisher::Operation::Base
   end
 
   def payloads
-    @operation_payloads.map do |_, operation_payloads|
+    @operation_payloads.map do |lock_key, operation_payloads|
       payload              = {}
       payload[:operations] = operation_payloads
       payload[:app]        = Promiscuous::Config.app
       payload[:timestamp]  = Time.now
       payload[:generation] = Promiscuous::Config.generation
       payload[:host]       = Socket.gethostname
+      payload[:key]        = lock_key
       payload.merge!(self.payload_attributes)
-      MultiJson.dump(payload)
     end
   end
 
@@ -118,14 +121,18 @@ class Promiscuous::Publisher::Operation::Base
 
     exchange = options[:exchange]  || Promiscuous::Config.publisher_exchange
     routing  = options[:routing]   || Promiscuous::Config.sync_all_routing
+    topic    = options[:topic]     || Promiscuous::Config.publisher_topic
     async    = !!options[:async]
 
     payloads.each do |payload|
-      Promiscuous::AMQP.publish(:exchange => exchange.to_s,
-                                :key => routing.to_s,
-                                :payload => payload,
-                                :on_confirm => method(:unlock_all_locks),
-                                :async => async)
+      payload_opts = { :exchange   => exchange.to_s,
+                       :key        => routing.to_s,
+                       :on_confirm => method(:unlock_all_locks),
+                       :topic      => topic,
+                       :topic_key  => payload.delete(:key),
+                       :payload    => MultiJson.dump(payload),
+                       :async      => async }
+      Promiscuous::Backend.publish(payload_opts)
     end
   end
 

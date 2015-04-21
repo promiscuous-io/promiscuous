@@ -1,4 +1,4 @@
-class Promiscuous::AMQP::Null
+class Promiscuous::Backend::Null
   def connect
   end
 

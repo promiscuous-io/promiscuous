@@ -8,10 +8,6 @@ class Promiscuous::Subscriber::UnitOfWork
     self.message = message
   end
 
-  def app
-    message.parsed_payload['app']
-  end
-
   def operations
     message.parsed_payload['operations'].map { |op| Promiscuous::Subscriber::Operation.new(op) }
   end
@@ -21,7 +17,7 @@ class Promiscuous::Subscriber::UnitOfWork
 
     begin
       self.current = new(*args)
-      self.current.process_message
+      self.current.on_message
     ensure
       self.current = nil
     end
@@ -35,16 +31,6 @@ class Promiscuous::Subscriber::UnitOfWork
     Thread.current[:promiscuous_message_processor] = value
   end
 
-  def process_message
-    begin
-      on_message
-    rescue Exception => e
-      Promiscuous::Config.error_notifier.call(e)
-      message.nack
-      raise e if Promiscuous::Config.test_mode
-    end
-  end
-
   LOCK_OPTIONS = { :timeout => 1.5.minute, # after 1.5 minute, we give up
                    :sleep   => 0.1,        # polling every 100ms.
                    :expire  => 1.minute }  # after one minute, we are considered dead
@@ -52,7 +38,7 @@ class Promiscuous::Subscriber::UnitOfWork
   def with_instance_locked_for(operation, &block)
     return yield unless operation.version
 
-    key = "#{app}:#{operation.key}"
+    key  = Promiscuous::Key.new(:sub).join(operation.key).to_s
     lock = Redis::Lock.new(key, LOCK_OPTIONS.merge(:redis => Promiscuous::Redis.connection))
 
     begin

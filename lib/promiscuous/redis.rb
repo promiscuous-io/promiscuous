@@ -12,7 +12,7 @@ class Promiscuous::Redis
 
     begin
       connection.ping
-    rescue Exception => e
+    rescue StandardError => e
       raise lost_connection_exception(node, :inner => e)
     end
   end

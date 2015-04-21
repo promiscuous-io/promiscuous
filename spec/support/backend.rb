@@ -6,31 +6,34 @@ module BackendHelper
       config.app = 'test'
       config.redis_url = redis_url
       config.queue_options = {:auto_delete => true}
-      config.logger = Logger.new(STDERR)
+      config.logger = Logger.new(STDERR); STDERR.sync = true
       config.logger.level = ENV["LOGGER_LEVEL"] ? ENV["LOGGER_LEVEL"].to_i : Logger::ERROR
       config.stats_interval = 0
       config.destroy_timeout = 0
       config.destroy_check_interval = 0
       config.max_retries = 0
       config.rabbit_mgmt_url = rabbit_mgmt_url
+      config.kafka_hosts = kafka_hosts
+      config.zookeeper_hosts = zookeeper_hosts
       block.call(config) if block
     end
     Promiscuous.connect
   end
 
   def use_real_backend(options={}, &block)
-    real_backend = RUBY_PLATFORM == 'java' ? :hot_bunnies : :bunny
-    if Promiscuous::Config.backend != real_backend || block
+    real_backends = [:both, :bunny, :poseidon]
+    if !real_backends.include?(Promiscuous::Config.backend) || block
       reconfigure_backend do |config|
-        config.backend = real_backend
+        config.backend = (ENV['BACKEND'])? ENV['BACKEND'].to_sym : :poseidon
         Promiscuous::Config.error_notifier = options[:error_notifier] if options[:error_notifier]
         block.call(config) if block
       end
     end
+
     Promiscuous.ensure_connected
     Promiscuous::Redis.connection.flushdb # not the ideal place to put it, deal with it.
-    [Promiscuous::Config.queue_name, Promiscuous::Config.error_queue_name].each { |queue| Promiscuous::Rabbit::Policy.delete(queue) }
 
+    send("#{Promiscuous::Config.backend}_after_use_real_backend")
   end
 
   def run_subscriber_worker!
@@ -65,19 +68,10 @@ module BackendHelper
   def redis_url
     ENV["BOXEN_REDIS_URL"] || "redis://localhost/"
   end
-
-  def amqp_url
-    ENV['BOXEN_RABBITMQ_URL'] || 'amqp://guest:guest@localhost:5672'
-  end
-
-  def rabbit_mgmt_url
-    ENV['BOXEN_RABBITMQ_MGMT_URL'] || 'http://guest:guest@localhost:15672'
-  end
 end
 
 RSpec.configure do |config|
   config.after do
-    @worker.try { |worker| worker.pump.delete_queues }
     [@recovery_worker, @worker].compact.each do |worker|
       worker.stop
       worker = nil

@@ -38,7 +38,7 @@ describe Promiscuous do
     end
 
     context 'when the ttl is longer then the subscriber is expected to receive the message' do
-      let(:ttl) { 99999 }
+      let(:ttl) { 2000 }
 
       it "doesn't retry when an exception is raised as its shorter then the ttl" do
         sleep 1

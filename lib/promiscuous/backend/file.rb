@@ -1,4 +1,4 @@
-class Promiscuous::AMQP::File
+class Promiscuous::Backend::File
   def connect
   end
 
@@ -56,9 +56,6 @@ class Promiscuous::AMQP::File
         # will shutdown the CLI gracefully
         Process.kill("SIGTERM", Process.pid)
       end
-    end
-
-    def recover
     end
 
     def disconnect

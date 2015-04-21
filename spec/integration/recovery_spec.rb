@@ -15,14 +15,14 @@ describe Promiscuous do
   context "when a recovery worker is running" do
     before { run_recovery_worker! }
 
-    context 'when rabbit dies' do
+    context 'when backend dies' do
       context 'for updates' do
         it 'still publishes message' do
           pub = PublisherModel.create(:field_1 => '1')
 
           eventually { SubscriberModel.count.should == 1 }
 
-          amqp_down!
+          backend_down!
 
           expect { pub.update_attributes(:field_1 => '2') }.to_not raise_error
 
@@ -30,7 +30,7 @@ describe Promiscuous do
 
           SubscriberModel.first.field_1.should == '1'
 
-          amqp_up!
+          backend_up!
 
           eventually do
             SubscriberModel.first.field_1.should == '2'
@@ -40,7 +40,7 @@ describe Promiscuous do
 
       context 'for creates' do
         it 'still publishes message updates' do
-          amqp_down!
+          backend_down!
 
           expect { PublisherModel.create(:field_1 => '1') }.to_not raise_error
 
@@ -48,7 +48,7 @@ describe Promiscuous do
 
           SubscriberModel.count.should == 0
 
-          amqp_up!
+          backend_up!
 
           eventually { SubscriberModel.first.field_1.should == '1' }
         end
@@ -56,12 +56,12 @@ describe Promiscuous do
 
       context "for two operations on the same document" do
         it "raises for the second operation as the lock has not expired" do
-          amqp_down!
+          backend_down!
 
           pub = PublisherModel.create(:field_1 => '1')
           expect { pub.destroy }.to raise_error
 
-          amqp_up!
+          backend_up!
 
           eventually { redis_lock_count.should == 0 }
         end
@@ -73,7 +73,7 @@ describe Promiscuous do
 
           eventually { SubscriberModel.count.should == 1 }
 
-          amqp_down!
+          backend_down!
 
           expect { pub.destroy }.to_not raise_error
 
@@ -81,7 +81,7 @@ describe Promiscuous do
 
           SubscriberModel.count.should == 1
 
-          amqp_up!
+          backend_up!
 
           eventually { SubscriberModel.count.should == 0 }
         end
@@ -91,12 +91,12 @@ describe Promiscuous do
         before { load_ephemerals }
 
         it 'raises if unable to publish' do
-          amqp_down!
+          backend_down!
 
           expect { ModelEphemeral.create(:field_1 => '1') }.to raise_error
           SubscriberModel.count.should == 0
 
-          amqp_up!
+          backend_up!
 
           expect { ModelEphemeral.create(:field_1 => '1') }.to_not raise_error
           eventually { SubscriberModel.first.field_1.should == '1' }
@@ -106,7 +106,7 @@ describe Promiscuous do
   end
 
   context "when a recovery worker is not running" do
-    context "rabbit dies" do
+    context "backend dies" do
       let(:lock_expiration) { 0.1 }
 
       before { $field_values = [] }
@@ -115,22 +115,22 @@ describe Promiscuous do
           after_save { $field_values << self.field_2 }
         end
       end
-      before { amqp_down! }
+      before { backend_down! }
 
-      it "multiple subsequent operation fail if rabbit is down until rabbit comes back up" do
-        @pub = PublisherModel.create(:field_2 => 1)
+      it "multiple subsequent operation fail if backend is down until backend comes back up" do
+        @pub = PublisherModel.create(:field_2 => '1')
         sleep 1
-        expect { @pub.update_attributes(:field_2 => 2) }.to raise_error
+        expect { @pub.update_attributes(:field_2 => '2') }.to raise_error
         sleep 1
-        expect { @pub.update_attributes(:field_2 => 3) }.to raise_error
+        expect { @pub.update_attributes(:field_2 => '3') }.to raise_error
         sleep 1
 
-        amqp_up!
+        backend_up!
 
-        expect { @pub.update_attributes(:field_2 => 4) }.to_not raise_error
+        expect { @pub.update_attributes(:field_2 => '4') }.to_not raise_error
 
         eventually do
-          $field_values.should == [1, 4]
+          $field_values.should == ['1', '4']
         end
       end
     end

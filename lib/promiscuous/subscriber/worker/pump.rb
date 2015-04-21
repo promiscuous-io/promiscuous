@@ -3,7 +3,7 @@ class Promiscuous::Subscriber::Worker::Pump
     @root = root
     # late include of CelluloidSubscriber because the class is resolved
     # at runtime since we can have different backends.
-    extend Promiscuous::AMQP::Subscriber
+    extend Promiscuous::Backend::Bunny::Subscriber
   end
 
   def connect
@@ -27,7 +27,7 @@ class Promiscuous::Subscriber::Worker::Pump
   def on_message(metadata, payload)
     msg = Promiscuous::Subscriber::Message.new(payload, :metadata => metadata, :root_worker => @root)
     @root.runner.messages_to_process << msg
-  rescue Exception => e
+  rescue StandardError => e
     Promiscuous.warn "[receive] cannot process message: #{e}\n#{e.backtrace.join("\n")}"
     Promiscuous::Config.error_notifier.call(e)
   end
