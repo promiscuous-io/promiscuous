@@ -8,10 +8,6 @@ class Promiscuous::Subscriber::UnitOfWork
     self.message = message
   end
 
-  def app
-    message.parsed_payload['app']
-  end
-
   def operations
     message.parsed_payload['operations'].map { |op| Promiscuous::Subscriber::Operation.new(op) }
   end
@@ -42,7 +38,7 @@ class Promiscuous::Subscriber::UnitOfWork
   def with_instance_locked_for(operation, &block)
     return yield unless operation.version
 
-    key = "#{app}:#{operation.key}"
+    key  = Promiscuous::Key.new(:sub).join(operation.key).to_s
     lock = Redis::Lock.new(key, LOCK_OPTIONS.merge(:redis => Promiscuous::Redis.connection))
 
     begin
