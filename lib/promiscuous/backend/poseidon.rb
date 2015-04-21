@@ -95,10 +95,22 @@ class Promiscuous::Backend::Poseidon
     def subscribe(options)
       raise "No topic specified" unless options[:topic]
 
-      @consumer = ::Poseidon::ConsumerGroup.new(Promiscuous::Config.app,
+      # NOTE due to a limitation with poseidon_cluster, we need to include both
+      # our app and topic in the consumer group name
+      consumer_group_name = [Promiscuous::Config.app, options[:topic]].join(':')
+      consumer_opts = {
+        :max_bytes         => 1048576, # 1MB
+        :min_bytes         => 0, # Send data as its ready
+        :max_wait_ms       => 10,
+        # :claim_timeout     => 120, # s
+        :socket_timeout_ms => 500, # ms
+        :trail             => Promiscuous::Config.test_mode
+      }
+      @consumer = ::Poseidon::ConsumerGroup.new(consumer_group_name,
                                                 Promiscuous::Config.kafka_hosts,
                                                 Promiscuous::Config.zookeeper_hosts,
-                                                options[:topic], :trail => Promiscuous::Config.test_mode, :max_wait_ms => 10)
+                                                options[:topic],
+                                                consumer_opts)
     end
 
     def fetch_and_process_messages(&block)
