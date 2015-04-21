@@ -7,9 +7,10 @@ class Promiscuous::Subscriber::Worker::Distributor
   def start
     num_threads = Promiscuous::Config.subscriber_threads
     Promiscuous::Config.subscriber_topics.each do |topic|
-      @distributor_threads << num_threads.times.map { DistributorThread.new(topic) }
+      num_threads.times { @distributor_threads << DistributorThread.new(topic) }
       Promiscuous.info "[distributor] Started #{num_threads} thread#{'s' if num_threads>1} topic:#{topic}"
     end
+    Promiscuous.info "[distributor] Started #{@distributor_threads.count} total threads"
   end
 
   def stop
@@ -33,7 +34,7 @@ class Promiscuous::Subscriber::Worker::Distributor
       @stop = false
       @thread = Thread.new(topic) {|t| main_loop(t) }
 
-      Promiscuous.debug "[distributor] Subscribing to topic:#{topic} [#{@thread.object_id}]"
+      Promiscuous.info "[distributor] Subscribing to topic:#{topic} [#{@thread.object_id}]"
     end
 
     def on_message(metadata, payload)
