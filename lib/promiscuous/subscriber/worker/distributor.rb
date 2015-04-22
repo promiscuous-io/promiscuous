@@ -14,7 +14,7 @@ class Promiscuous::Subscriber::Worker::Distributor
   end
 
   def stop
-    return if @distributor_threads.empty?
+    return if @distributor_threads.blank?
     Promiscuous.debug "[distributor] Stopping #{@distributor_threads.count} threads"
 
     @distributor_threads.each { |distributor_thread| distributor_thread.stop }
