@@ -102,7 +102,7 @@ class Promiscuous::Backend::Poseidon
         :max_bytes         => 1048576, # 1MB
         :min_bytes         => 0, # Send data as its ready
         :max_wait_ms       => 10,
-        # :claim_timeout     => 120, # s
+        :claim_timeout     => 120, # s
         :socket_timeout_ms => 500, # ms
         :trail             => Promiscuous::Config.test_mode
       }
