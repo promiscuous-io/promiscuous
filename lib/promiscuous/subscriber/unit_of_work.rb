@@ -36,6 +36,15 @@ class Promiscuous::Subscriber::UnitOfWork
   end
 
   def process_message
+
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "Promiscuous::Subscriber::UnitOfWork - process_message"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+
+    #binding.pry
+
     begin
       on_message
     rescue Exception => e
@@ -72,12 +81,32 @@ class Promiscuous::Subscriber::UnitOfWork
 
   # XXX Used for hooking into e.g. by promiscuous-newrelic
   def execute_operation(operation)
+
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "Promiscuous::Subscriber::UnitOfWork - execute_operation"
+    Promiscuous.debug "Promiscuous::Subscriber::UnitOfWork - operation: #{operation}"
+    #Promiscuous.debug "Promiscuous::Subscriber::UnitOfWork - routing: #{self.routing.to_s}"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+
     with_instance_locked_for(operation) do
       operation.execute
     end
   end
 
   def on_message
+
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "Promiscuous::Subscriber::UnitOfWork - on_message"
+    Promiscuous.debug "Promiscuous::Subscriber::UnitOfWork - operations1: #{self}"
+    #Promiscuous.debug "Promiscuous::Subscriber::UnitOfWork - operations2: #{self.operations}"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+
+    #binding.pry
+
     with_transaction do
       self.operations.each { |op| execute_operation(op) if op.model }
     end

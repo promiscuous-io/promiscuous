@@ -51,6 +51,7 @@ module Promiscuous::Config
     self.subscriber_amqp_url  ||= self.amqp_url
     self.publisher_exchange   ||= 'promiscuous'
     self.sync_exchange        ||= 'promiscuous.sync'
+    #self.sync_exchange        ||= 'promiscuous'
     self.subscriber_exchanges ||= [self.publisher_exchange]
     self.sync_all_routing     ||= :__all__
     self.queue_name           ||= "#{self.app}.subscriber"

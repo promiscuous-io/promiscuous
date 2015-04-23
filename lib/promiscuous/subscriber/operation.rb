@@ -3,6 +3,16 @@ class Promiscuous::Subscriber::Operation
   delegate :message, :to => :unit_of_work
 
   def initialize(payload)
+
+
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "Promiscuous::Subscriber::Operation - initialize - payload: #{payload}"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+
+    #binding.pry
+
     if payload.is_a?(Hash)
       self.id         = payload['id']
       self.operation  = payload['operation'].try(:to_sym)
@@ -27,9 +37,11 @@ class Promiscuous::Subscriber::Operation
     nil
   end
 
+
   def warn(msg)
     Promiscuous.warn "[receive] #{msg} #{message.payload}"
   end
+
 
   def create(options={})
     model.__promiscuous_fetch_new(id).tap do |instance|
@@ -46,7 +58,15 @@ class Promiscuous::Subscriber::Operation
     end
   end
 
+
   def update(should_create_on_failure=true)
+    
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "Promiscuous::Subscriber::Operation - update"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+
     model.__promiscuous_fetch_existing(id).tap do |instance|
       if instance.__promiscuous_eventual_consistency_update(self)
         instance.__promiscuous_update(self)
@@ -58,6 +78,7 @@ class Promiscuous::Subscriber::Operation
     create :on_already_created => proc { update(false) if should_create_on_failure }
   end
 
+
   def destroy
     Promiscuous::Subscriber::Worker::EventualDestroyer.postpone_destroy(model, id)
     model.__promiscuous_fetch_existing(id).destroy
@@ -65,11 +86,25 @@ class Promiscuous::Subscriber::Operation
     warn "record doesn't exist"
   end
 
+
   def execute
+
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "Promiscuous::Subscriber::Operation - execute - operation: #{operation}"
+    Promiscuous.debug "****************************************"
+    Promiscuous.debug "****************************************"
+
     case operation
-    when :create  then create
-    when :update  then update
-    when :destroy then destroy
+    when :create
+      Promiscuous.debug "*** create"
+      create
+    when :update
+      Promiscuous.debug "*** update"
+      update
+    when :destroy
+      Promiscuous.debug "*** destroy"
+      destroy
     end
   end
 
