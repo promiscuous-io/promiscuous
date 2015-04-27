@@ -89,6 +89,7 @@ describe Promiscuous do
 
     it 'subscribes to messages in the correct order (by dropping the last message)' do
       eventually do
+        SubscriberModel.count.should == 1
         SubscriberModel.first.field_1.should == '2'
         $callback_counter.should == 1
       end
