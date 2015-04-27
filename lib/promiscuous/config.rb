@@ -5,7 +5,7 @@ module Promiscuous::Config
                  :publisher_lock_expiration, :publisher_lock_timeout,
                  :recovery_interval, :logger, :subscriber_threads, :version_field,
                  :error_notifier, :test_mode, :on_stats, :max_retries, :generation,
-                 :destroy_timeout, :destroy_check_interval, :error_ttl,
+                 :destroy_timeout, :destroy_check_interval, :error_retry_max, :error_ttl,
     # vvvv REMOVE AFTER AMQP IS GONE vvvv
                  :amqp_url, :publisher_amqp_url, :subscriber_amqp_url,
                  :publisher_exchange, :subscriber_exchanges, :sync_exchange, :queue_name,
@@ -45,6 +45,7 @@ module Promiscuous::Config
     self.publisher_topic      ||= self.app
     self.subscriber_topics    ||= [self.publisher_topic]
     self.sync_all_routing     ||= :__all__
+    self.error_retry_max      ||= 10
     self.error_ttl            ||= 1000
 
     # vvvv REMOVE AFTER AMQP IS GONE vvvv
