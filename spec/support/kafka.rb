@@ -11,7 +11,7 @@ module KafkaHelper
     zk = ZK.new(Promiscuous::Config.zookeeper_hosts.join(','))
     begin
       Promiscuous::Config.subscriber_topics.each do |topic|
-        partitions_path = "/consumers/#{topic}/offsets/#{topic}"
+        partitions_path = "/consumers/#{topic}:#{topic}/offsets/#{topic}"
         zk.children(partitions_path).each do |partition|
           partition_offset_requests = [::Poseidon::Protocol::PartitionOffsetRequest.new(partition.to_i, -1, 1000)]
           offset_topic_requests = [::Poseidon::Protocol::TopicOffsetRequest.new(topic, partition_offset_requests)]
