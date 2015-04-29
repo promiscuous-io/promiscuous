@@ -4,6 +4,7 @@ describe Promiscuous do
   before { load_models }
   before { use_real_backend { |config| config.logger.level = Logger::FATAL
                                        config.error_ttl = ttl
+                                       config.error_retry_max = 100
                                        config.error_notifier = proc { $error = true } } }
   before { run_subscriber_worker! }
   before { $raise = true }
