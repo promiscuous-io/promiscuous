@@ -153,7 +153,7 @@ class Promiscuous::Publisher::Operation::Base
     { :timeout => Promiscuous::Config.publisher_lock_timeout.seconds,
       :sleep   => 0.01,
       :expire  => Promiscuous::Config.publisher_lock_expiration.seconds,
-      :key_group => :pub }
+      :key_group => Promiscuous::Key.new(:pub) }
   end
 
   def lock_options
