@@ -18,8 +18,8 @@ class Promiscuous::Backend::Poseidon
                                           :max_send_retries => 10,
                                           :retry_backoff_ms => 100,
                                           :required_acks => 1,
-                                          :ack_timeout_ms => 1000,
-                                          :socket_timeout_ms => Promiscuous::Config.socket_timeout)
+                                          :ack_timeout_ms => 2000,
+                                          :socket_timeout_ms => 10_000)
   end
 
   def connect
@@ -102,7 +102,6 @@ class Promiscuous::Backend::Poseidon
         :min_bytes         => 0, # Send data as its ready
         :max_wait_ms       => 10,
         :claim_timeout     => 120, # s
-        :socket_timeout_ms => 500, # ms
         :trail             => Promiscuous::Config.test_mode
       }
       @consumer = ::Poseidon::ConsumerGroup.new(consumer_group_name,
