@@ -8,6 +8,10 @@ class Promiscuous::Subscriber::UnitOfWork
     self.message = message
   end
 
+  def app
+    message.parsed_payload['app']
+  end
+
   def operations
     message.parsed_payload['operations'].map { |op| Promiscuous::Subscriber::Operation.new(op) }
   end
