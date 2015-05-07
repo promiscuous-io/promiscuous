@@ -90,6 +90,7 @@ class TestCluster
 
   def create_test_topic
     sh "#{KAFKA_TOPIC} --zookeeper localhost:#{ZOOKP_PORT} --create --topic #{TOPIC} --partitions 1 --replication-factor 1"
+    sh "#{KAFKA_TOPIC} --zookeeper localhost:#{ZOOKP_PORT} --create --topic #{TOPIC}.sync --partitions 1 --replication-factor 1"
   end
 
   def download

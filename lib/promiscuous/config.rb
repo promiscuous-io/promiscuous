@@ -1,7 +1,7 @@
 module Promiscuous::Config
   mattr_accessor :app, :backend, :kafka_backend, :kafka_hosts, :zookeeper_hosts, :publisher_topic,
                  :subscriber_topics, :redis_url, :redis_stats_url, :stats_interval,
-                 :socket_timeout, :heartbeat, :sync_all_routing, :prefetch,
+                 :socket_timeout, :heartbeat, :sync_all_routing, :sync_topic, :prefetch,
                  :publisher_lock_expiration, :publisher_lock_timeout,
                  :recovery_interval, :logger, :subscriber_threads, :version_field,
                  :error_notifier, :test_mode, :on_stats, :max_retries, :generation,
@@ -102,6 +102,9 @@ module Promiscuous::Config
       unless self.app
         raise "Promiscuous.configure: please give a name to your app with \"config.app = 'your_app_name'\""
       end
+
+      # Automatically subscribe to our personal sync topic
+      self.subscriber_topics << self.sync_topic
     end
 
     hook_fork
@@ -141,6 +144,10 @@ module Promiscuous::Config
 
   def self.configured?
     self.app != nil
+  end
+
+  def self.sync_topic
+    [self.app, 'sync'].join('.')
   end
 
   private
