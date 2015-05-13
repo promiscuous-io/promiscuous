@@ -101,7 +101,7 @@ class Promiscuous::Backend::Poseidon
         :max_bytes         => 1048576, # 1MB
         :min_bytes         => 0, # Send data as its ready
         :max_wait_ms       => 10,
-        :claim_timeout     => 120, # s
+        :claim_timeout     => 600, # s
         :trail             => Promiscuous::Config.test_mode
       }
       @consumer = ::Poseidon::ConsumerGroup.new(consumer_group_name,
