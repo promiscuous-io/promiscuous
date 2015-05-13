@@ -104,7 +104,7 @@ module Promiscuous::Config
       end
 
       # Automatically subscribe to our personal sync topic
-      self.subscriber_topics << self.sync_topic
+      self.subscriber_topics << self.sync_topic(self.app)
     end
 
     hook_fork
@@ -146,8 +146,8 @@ module Promiscuous::Config
     self.app != nil
   end
 
-  def self.sync_topic
-    [self.app, 'sync'].join('.')
+  def self.sync_topic(target)
+    [target, 'sync'].join('.')
   end
 
   private

@@ -47,7 +47,7 @@ module Promiscuous::Publisher::Model::Base
       raise "Model has to be reloaded if it was saved" if @instance.previous_changes.present?
 
       # XXX Temporary while until we sync on seperate topics
-      topic = target == Promiscuous::Config.sync_all_routing ? Promiscuous::Config.app : Promiscuous::Config.sync_topic
+      topic = (target == Promiscuous::Config.sync_all_routing)? Promiscuous::Config.app : Promiscuous::Config.sync_topic(target)
 
       # We can use the ephemeral because both are mongoid and ephemerals are atomic operations.
       Promiscuous::Publisher::Operation::Ephemeral.new(:instance => @instance,
