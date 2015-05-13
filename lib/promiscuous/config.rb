@@ -45,8 +45,8 @@ module Promiscuous::Config
     self.publisher_topic      ||= self.app
     self.subscriber_topics    ||= [self.publisher_topic]
     self.sync_all_routing     ||= :__all__
-    self.error_retry_max      ||= 10
-    self.error_ttl            ||= 1000
+    self.error_retry_max      ||= 5
+    self.error_ttl            ||= 200
 
     # vvvv REMOVE AFTER AMQP IS GONE vvvv
     self.amqp_url             ||= 'amqp://guest:guest@localhost:5672'
