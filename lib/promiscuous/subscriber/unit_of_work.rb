@@ -49,6 +49,8 @@ class Promiscuous::Subscriber::UnitOfWork
       lock.lock
     rescue Redis::Lock::Timeout
       raise Promiscuous::Error::LockUnavailable.new(lock.key)
+    rescue Redis::Lock::Recovered
+      # read recovery data?
     end
 
     begin
