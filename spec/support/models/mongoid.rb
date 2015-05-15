@@ -12,6 +12,18 @@ module ModelsHelper
       publish :field_1, :field_2, :field_3
     end
 
+    define_constant :IndexedPublisherModel do
+      include Mongoid::Document
+      include Promiscuous::Publisher
+
+      field :field_1
+
+      index({:field_1 => 1}, {:unique => 1})
+      create_indexes
+
+      publish :field_1
+    end
+
     define_constant :PublisherModelOther do
       include Mongoid::Document
       include Promiscuous::Publisher
@@ -137,6 +149,17 @@ module ModelsHelper
       field :publisher_id, :type => BSON::ObjectId
 
       subscribe :field_1, :field_2, :field_3, :as => :PublisherModel
+    end
+
+    define_constant :IndexedSubscriberModel do
+      include Mongoid::Document
+      include Promiscuous::Subscriber
+
+      field :field_1
+
+      field :publisher_id, :type => BSON::ObjectId
+
+      subscribe :field_1, :as => :IndexedPublisherModel
     end
 
     define_constant :SubscriberModelOther do

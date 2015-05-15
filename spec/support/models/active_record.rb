@@ -5,6 +5,11 @@ module ModelsHelper
       publish :field_1, :field_2, :field_3
     end
 
+    define_constant :IndexedPublisherModel, ActiveRecord::Base do
+      include Promiscuous::Publisher
+      publish :field_1
+    end
+
     define_constant :PublisherModelOther, ActiveRecord::Base do
       include Promiscuous::Publisher
       publish :field_1, :field_2, :field_3
@@ -38,6 +43,11 @@ module ModelsHelper
     define_constant :SubscriberModel, ActiveRecord::Base do
       include Promiscuous::Subscriber
       subscribe :field_1, :field_2, :field_3, :as => :PublisherModel
+    end
+
+    define_constant :IndexedSubscriberModel, ActiveRecord::Base do
+      include Promiscuous::Subscriber
+      subscribe :field_1, :as => :IndexedPublisherModel
     end
 
     define_constant :SubscriberModelOther, ActiveRecord::Base do

@@ -78,4 +78,15 @@ describe Promiscuous do
       eventually { SubscriberModel.count.should == 0 }
     end
   end
+
+  context 'when a database operation fails' do
+    it 'does not replicate' do
+      IndexedPublisherModel.create(:field_1 => '1')
+      expect { IndexedPublisherModel.create(:field_1 => '1') }.to raise_error
+
+      sleep 1
+
+      IndexedSubscriberModel.count.should == 1
+    end
+  end
 end

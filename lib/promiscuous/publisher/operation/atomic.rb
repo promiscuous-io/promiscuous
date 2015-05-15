@@ -7,12 +7,12 @@ class Promiscuous::Publisher::Operation::Atomic < Promiscuous::Publisher::Operat
     end
 
     lock_operations_and_queue_recovered_payloads
-
     query.call_and_remember_result(:instrumented)
 
-    queue_operation_payloads
-
-    publish_payloads(:async => true)
+    unless query.failed?
+      queue_operation_payloads
+      publish_payloads(:async => true)
+    end
   end
 
   def increment_version_in_document

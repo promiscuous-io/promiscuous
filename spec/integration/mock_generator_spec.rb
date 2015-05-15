@@ -46,6 +46,16 @@ if ORM.has(:mongoid)
 
         # ------------------------------------------------------------------
 
+        class IndexedPublisherModel
+          include Promiscuous::Publisher::Model::Mock
+          mock :from => 'test_publisher'
+          mock :id => :bson
+
+          publish :field_1
+        end
+
+        # ------------------------------------------------------------------
+
         class PublisherModelOther
           include Promiscuous::Publisher::Model::Mock
           mock :from => 'test_publisher'
