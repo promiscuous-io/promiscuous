@@ -24,8 +24,8 @@ class PromiscuousMigration < ActiveRecord::Migration
         t.string :field_1
         t.integer :_v, :limit => 8, :default => 1
       end
-      add_index(table, :field_1, {:unique => true})
     end
+    add_index(:indexed_publisher_models, :field_1, {:unique => true})
 
     create_table :publisher_model_belongs_tos, :force => true do |t|
       t.integer :publisher_model_id
