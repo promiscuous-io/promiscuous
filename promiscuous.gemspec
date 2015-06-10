@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
   s.add_dependency "bunny",                        ">= 0.10.7"
   s.add_dependency "amq-protocol",                 ">= 1.8.0"
   s.add_dependency "poseidon",                     "~> 0.0.5"
-  s.add_dependency "promiscuous-poseidon_cluster", "~> 0.5.0"
+  s.add_dependency "promiscuous-poseidon_cluster", "~> 0.5.1"
   s.add_dependency "ruby-progressbar",             "~> 1.2.0"
   s.add_dependency "redis",                        "~> 3.0"
   s.add_dependency "fnv",                          "0.2.0"
