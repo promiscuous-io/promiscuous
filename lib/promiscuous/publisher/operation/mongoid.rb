@@ -165,7 +165,6 @@ class Moped::PromiscuousQueryWrapper < Moped::Query
 
     if flags && update_op.should_instrument_query?
       raise "You cannot do a multi update. Instead, update each document separately." if flags.include?(:multi)
-      raise "No upsert support yet" if flags.include?(:upsert) # TODO Should be possible with new architecture
     end
 
     update_op.execute do |query|
