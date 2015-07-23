@@ -67,7 +67,7 @@ class Promiscuous::Backend::Poseidon
     e = Promiscuous::Error::Publisher.new(e, :payload => options[:payload])
 
     if options[:async]
-      Promiscuous::Config.error_notifier.call(e)
+      Promiscuous::Config.error_notifier.call(e, options[:payload])
     else
       raise e
     end
@@ -79,7 +79,7 @@ class Promiscuous::Backend::Poseidon
     begin
       Promiscuous::Subscriber::UnitOfWork.process(message)
     rescue StandardError => e
-      Promiscuous::Config.error_notifier.call(e)
+      Promiscuous::Config.error_notifier.call(e, message.payload)
       raise e if Promiscuous::Config.test_mode
 
       if retries < Promiscuous::Config.error_retry_max

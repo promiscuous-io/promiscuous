@@ -43,7 +43,7 @@ class Promiscuous::Subscriber::Message
   rescue StandardError => e
     # We don't care if we fail, the message will be redelivered at some point
     Promiscuous.warn "[receive] Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
-    Promiscuous::Config.error_notifier.call(e)
+    Promiscuous::Config.error_notifier.call(e, payload)
   end
 
   def nack
@@ -52,7 +52,7 @@ class Promiscuous::Subscriber::Message
   rescue StandardError => e
     # We don't care if we fail, the message will be redelivered at some point
     Promiscuous.warn "[receive] Some exception happened, but it's okay: #{e}\n#{e.backtrace.join("\n")}"
-    Promiscuous::Config.error_notifier.call(e)
+    Promiscuous::Config.error_notifier.call(e, payload)
   end
 
   def process
@@ -60,7 +60,7 @@ class Promiscuous::Subscriber::Message
   rescue StandardError => orig_e
     e = Promiscuous::Error::Subscriber.new(orig_e, :payload => payload)
     Promiscuous.warn "[receive] #{payload} #{e}\n#{e.backtrace.join("\n")}"
-    Promiscuous::Config.error_notifier.call(e)
+    Promiscuous::Config.error_notifier.call(e, payload)
   ensure
     if defined?(ActiveRecord)
       ActiveRecord::Base.clear_active_connections!

@@ -42,7 +42,7 @@ class Promiscuous::Subscriber::Worker::Distributor
       msg.process
     rescue StandardError => e
       Promiscuous.warn "[kafka] [receive] cannot process message: #{e}\n#{e.backtrace.join("\n")}"
-      Promiscuous::Config.error_notifier.call(e)
+      Promiscuous::Config.error_notifier.call(e, payload)
     end
 
     def main_loop(topic)
