@@ -2,17 +2,6 @@ module Promiscuous::Subscriber::Model::ActiveRecord
   extend ActiveSupport::Concern
   include Promiscuous::Subscriber::Model::Base
 
-  included do
-    if !self.columns.collect(&:name).include?("_v")
-      raise <<-help
-      #{self} must include a _v column.  Create the following migration:
-        change_table :#{self.table_name} do |t|
-          t.integer :_v, :limit => 8
-        end
-      help
-    end
-  end
-
   module ClassMethods
     def __promiscuous_missing_record_exception
       ActiveRecord::RecordNotFound
@@ -35,6 +24,25 @@ module Promiscuous::Subscriber::Model::ActiveRecord
     def __promiscuous_with_pooled_connection
       yield
       ActiveRecord::Base.clear_active_connections!
+    end
+  end
+
+  class << self
+    def check_migrations
+      subscribers = ActiveRecord::Base.descendants.select do |x|
+        x.include?(self)
+      end
+
+      subscribers.each do |subscriber|
+        next if subscriber.columns.collect(&:name).include?("_v")
+
+        puts <<-help
+#{subscriber} must include a _v column.  Create the following migration:
+  subscriber :#{subscriber.table_name} do |t|
+    t.integer :_v, :limit => 8, :default => 1
+  end
+        help
+      end
     end
   end
 end

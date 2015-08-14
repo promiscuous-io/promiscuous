@@ -127,6 +127,7 @@ class Promiscuous::CLI
       opts.separator "    promiscuous publish \"Model1.where(:updated_at.gt => 1.day.ago)\" [Model2 Model3...]"
       opts.separator "    promiscuous publisher_recovery"
       opts.separator "    promiscuous subscribe"
+      opts.separator "    promiscuous migrations"
       opts.separator "    promiscuous mocks"
       opts.separator "    promiscuous record logfile"
       opts.separator "    promiscuous replay logfile"
@@ -182,6 +183,7 @@ class Promiscuous::CLI
     when :record              then raise "Please specify a log file to record"  unless options[:log_file].present?
     when :replay              then raise "Please specify a log file to replay"  unless options[:log_file].present?
     when :publisher_recovery
+    when :migrations
     when :mocks
     else puts parser; exit 1
     end
@@ -234,6 +236,7 @@ class Promiscuous::CLI
     when :subscribe then subscribe
     when :record    then record
     when :replay    then replay
+    when :migrations then check_migrations
     when :mocks     then generate_mocks
     when :publisher_recovery  then publisher_recovery
     end
@@ -242,5 +245,22 @@ class Promiscuous::CLI
   def print_status(msg)
     Promiscuous.info msg
     STDERR.puts msg
+  end
+
+  def check_migrations
+    if Promiscuous::Config.transport_persistence == :active_record
+      unless ActiveRecord::Base.connection.table_exists?(Promiscuous::Config.transport_collection)
+        puts <<-help
+Promiscuous requires the following migration to be run:
+  create_table :_promiscuous do |t|
+    t.text      :batch
+    t.timestamp :at, 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP'
+  end
+        help
+      end
+
+      Promiscuous::Publisher::Model::ActiveRecord.check_migrations
+      Promiscuous::Subscriber::Model::ActiveRecord.check_migrations
+    end
   end
 end
