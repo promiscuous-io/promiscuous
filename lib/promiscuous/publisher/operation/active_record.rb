@@ -225,6 +225,8 @@ class ActiveRecord::Base
         end.rows.size
       else
         @connection.exec_update(@connection.to_sql(@arel, @binds), @operation_name, @binds).tap do
+          # NB: This works with Postgresql
+          # However I experienced errors when running with MariaDB/mysql2 adapter
           result = @connection.exec_query(sql_select_statment, @operation_name)
           @instances = result.map { |row| model.instantiate(row) }
         end
