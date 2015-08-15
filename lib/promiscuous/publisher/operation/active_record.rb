@@ -27,8 +27,8 @@ class ActiveRecord::Base
               with_promiscuous_transaction_context { |tx| tx.start }
             end
 
-            def create_savepoint
-              create_savepoint_without_promiscuous
+            def create_savepoint(name = current_savepoint_name)
+              create_savepoint_without_promiscuous(name)
               with_promiscuous_transaction_context { |tx| tx.start }
             end
 
@@ -38,9 +38,9 @@ class ActiveRecord::Base
               @current_transaction_id = nil
             end
 
-            def rollback_to_savepoint
+            def rollback_to_savepoint(name = current_savepoint_name)
               with_promiscuous_transaction_context { |tx| tx.rollback }
-              rollback_to_savepoint_without_promiscuous
+              rollback_to_savepoint_without_promiscuous(name)
             end
 
             def commit_db_transaction
@@ -54,8 +54,8 @@ class ActiveRecord::Base
               @current_transaction_id = nil
             end
 
-            def release_savepoint
-              release_savepoint_without_promiscuous
+            def release_savepoint(name = current_savepoint_name)
+              release_savepoint_without_promiscuous(name)
               with_promiscuous_transaction_context { |tx| tx.commit }
             end
 
