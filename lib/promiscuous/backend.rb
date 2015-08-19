@@ -13,6 +13,8 @@ module Promiscuous::Backend
       @driver_class = value.try { |v| "Promiscuous::Backend::#{v.to_s.camelize.gsub(/backend/, 'Backend')}".constantize }
       @subscriber_class = @driver_class.try { |dc| dc.const_get(:Subscriber) rescue nil }
       @subscriber_methods = @subscriber_class.try { |sc| sc.const_get(:Worker) rescue nil }
+
+      ensure_connected if @driver_class
     end
 
     def lost_connection_exception(options={})
