@@ -44,7 +44,7 @@ module Promiscuous::Publisher::Model::Base
       Promiscuous.ensure_connected
 
       raise "Model cannot be dirty (have changes) when syncing" if @instance.changed?
-      raise "Model has to be reloaded if it was saved" if @instance.previous_changes.present?
+      raise "Model has to be refetched from the database if it was saved" if @instance.previous_changes.present?
 
       # XXX Temporary while until we sync on seperate topics
       topic = (target == Promiscuous::Config.sync_all_routing)? Promiscuous::Config.app : Promiscuous::Config.sync_topic(target)
