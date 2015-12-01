@@ -100,7 +100,7 @@ class Promiscuous::Backend::Poseidon
       consumer_opts = {
         :max_bytes         => 300*1024, # 0.3072MB
         :min_bytes         => 0, # Send data as its ready
-        :max_wait_ms       => 10,
+        :max_wait_ms       => 50,
         :claim_timeout     => 600, # s
         :trail             => Promiscuous::Config.test_mode
       }
