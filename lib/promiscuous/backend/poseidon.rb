@@ -98,7 +98,7 @@ class Promiscuous::Backend::Poseidon
       # our app and topic in the consumer group name
       consumer_group_name = [Promiscuous::Config.app, options[:topic]].join(':')
       consumer_opts = {
-        :max_bytes         => 300*1024, # 0.3072MB
+        :max_bytes         => 600*1024, # 600Kb
         :min_bytes         => 0, # Send data as its ready
         :max_wait_ms       => 50,
         :claim_timeout     => 600, # s
