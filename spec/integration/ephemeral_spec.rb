@@ -5,6 +5,15 @@ describe Promiscuous do
   before { use_real_backend }
   before { run_subscriber_worker! }
 
+  context 'describe non-instrumented' do
+    it 'does not raise' do
+      pub = ModelEphemeral.new(:field_1 => '1', :field_2 => '2', :field_3 => '3')
+      expect do
+        without_promiscuous { pub.save }
+      end.not_to raise_error
+    end
+  end
+
   context 'when creating' do
     context 'with save' do
       it 'replicates' do
