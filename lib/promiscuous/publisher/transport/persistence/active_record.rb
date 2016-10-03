@@ -30,15 +30,15 @@ class Promiscuous::Publisher::Transport::Persistence::ActiveRecord
   def check_schema
     return if @schema_checked
 
-    unless connection.table_exists?(table)
-      raise <<-help
-        Promiscuous requires the following migration to be run:
-          create_table :_promiscuous do |t|
-            t.text      :batch
-            t.timestamp :at, 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP'
-          end
-      help
-    end
+    # unless connection.table_exists?(table)
+    #   raise <<-help
+    #     Promiscuous requires the following migration to be run:
+    #       create_table :_promiscuous do |t|
+    #         t.text      :batch
+    #         t.timestamp :at, 'TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP'
+    #       end
+    #   help
+    # end
 
     @schema_checked = true
   end
